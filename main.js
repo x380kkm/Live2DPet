@@ -9,12 +9,21 @@ let characterData = { isLive2DActive: true, live2dModelPath: 'assets/L2D/pink-de
 
 // ========== Config Persistence ==========
 
-const configPath = path.join(__dirname, 'config.json');
+// In packaged app, __dirname is inside read-only asar — use userData for writes
+const bundledConfigPath = path.join(__dirname, 'config.json');
+const userConfigPath = app.isPackaged
+    ? path.join(app.getPath('userData'), 'config.json')
+    : path.join(__dirname, 'config.json');
 
 function loadConfigFile() {
     try {
-        if (fs.existsSync(configPath)) {
-            return JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+        // Prefer user config (writable location)
+        if (fs.existsSync(userConfigPath)) {
+            return JSON.parse(fs.readFileSync(userConfigPath, 'utf-8'));
+        }
+        // Fall back to bundled config inside asar
+        if (app.isPackaged && fs.existsSync(bundledConfigPath)) {
+            return JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
         }
     } catch (e) { console.warn('Failed to load config:', e.message); }
     return {};
@@ -24,7 +33,7 @@ function saveConfigFile(data) {
     try {
         const existing = loadConfigFile();
         const merged = { ...existing, ...data };
-        fs.writeFileSync(configPath, JSON.stringify(merged, null, 2), 'utf-8');
+        fs.writeFileSync(userConfigPath, JSON.stringify(merged, null, 2), 'utf-8');
         return true;
     } catch (e) { console.error('Failed to save config:', e.message); return false; }
 }
