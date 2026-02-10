@@ -1,0 +1,358 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Desktop Pet Settings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Microsoft YaHei', 'Segoe UI', sans-serif;
+            background: #f5f5f5; color: #333;
+            padding: 20px;
+        }
+        h1 { font-size: 18px; margin-bottom: 16px; }
+        h2 { font-size: 14px; margin: 16px 0 8px; color: #666; }
+        .card {
+            background: white; border-radius: 12px;
+            padding: 16px; margin-bottom: 12px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+        }
+        label { display: block; font-size: 13px; margin-bottom: 4px; color: #555; }
+        input[type="text"], input[type="password"], input[type="number"] {
+            width: 100%; padding: 8px 12px;
+            border: 1px solid #ddd; border-radius: 8px;
+            font-size: 13px; margin-bottom: 8px;
+            outline: none; transition: border-color 0.2s;
+        }
+        input:focus { border-color: #7c4dff; }
+        .btn {
+            padding: 8px 20px; border: none; border-radius: 8px;
+            font-size: 13px; cursor: pointer; transition: all 0.2s;
+        }
+        .btn-primary { background: #7c4dff; color: white; }
+        .btn-primary:hover { background: #651fff; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-secondary:hover { background: #d0d0d0; }
+        .btn-danger { background: #ff5252; color: white; }
+        .btn-danger:hover { background: #ff1744; }
+        .btn-row { display: flex; gap: 8px; margin-top: 12px; }
+        textarea {
+            width: 100%; padding: 8px 12px;
+            border: 1px solid #ddd; border-radius: 8px;
+            font-size: 13px; margin-bottom: 8px;
+            outline: none; transition: border-color 0.2s;
+            font-family: inherit; resize: vertical; min-height: 60px;
+        }
+        textarea:focus { border-color: #7c4dff; }
+        .tabs { display: flex; gap: 0; margin-bottom: 16px; }
+        .tab-btn {
+            flex: 1; padding: 8px 0; border: none;
+            background: #e0e0e0; cursor: pointer;
+            font-size: 13px; transition: all 0.2s;
+        }
+        .tab-btn:first-child { border-radius: 8px 0 0 8px; }
+        .tab-btn:last-child { border-radius: 0 8px 8px 0; }
+        .tab-btn:not(:first-child):not(:last-child) { border-radius: 0; }
+        .tab-btn.active { background: #7c4dff; color: white; }
+        .tab-content { display: none; }
+        .tab-content.active { display: block; }
+        .status {
+            font-size: 12px; padding: 4px 8px;
+            border-radius: 4px; margin-top: 8px; display: none;
+        }
+        .status.success { display: block; background: #e8f5e9; color: #2e7d32; }
+        .status.error { display: block; background: #ffebee; color: #c62828; }
+        .status.info { display: block; background: #e3f2fd; color: #1565c0; }
+    </style>
+</head>
+<body>
+    <h1>Desktop Pet</h1>
+
+    <div class="tabs">
+        <button class="tab-btn active" data-tab="settings">设置</button>
+        <button class="tab-btn" data-tab="emotion">表情</button>
+        <button class="tab-btn" data-tab="prompt">Prompt</button>
+    </div>
+
+    <div id="tab-settings" class="tab-content active">
+    <div class="card">
+        <h2>API Configuration</h2>
+        <p style="font-size:12px;color:#888;margin-bottom:8px;">提示：可在淘宝/闲鱼搜索「OpenRouter账号」获取账号，然后前往 openrouter.ai/keys 创建 API Key</p>
+        <label>API Base URL</label>
+        <input type="text" id="api-url" placeholder="https://api.x.ai/v1">
+        <label>API Key</label>
+        <input type="password" id="api-key" placeholder="sk-...">
+        <label>Model Name</label>
+        <input type="text" id="model-name" placeholder="grok-4.1-fast">
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-save-api">Save</button>
+            <button class="btn btn-secondary" id="btn-test-api">Test</button>
+        </div>
+        <div class="status" id="api-status"></div>
+    </div>
+
+    <div class="card">
+        <h2>Detection Settings</h2>
+        <label>Interval (seconds)</label>
+        <input type="number" id="interval" value="30" min="10" max="300">
+        <button class="btn btn-primary" id="btn-save-interval">Save</button>
+    </div>
+
+    <div class="card">
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-start" style="flex:1">Start Pet</button>
+            <button class="btn btn-danger" id="btn-stop" style="flex:1">Stop Pet</button>
+        </div>
+    </div>
+    </div>
+
+    <div id="tab-emotion" class="tab-content">
+    <div class="card">
+        <h2>Expression Frequency</h2>
+        <label>期望频率 (秒, 最短 30)</label>
+        <input type="number" id="emotion-frequency" value="60" min="30" max="600">
+        <button class="btn btn-primary" id="btn-save-emotion">Save</button>
+        <div class="status" id="emotion-status"></div>
+    </div>
+    <div class="card">
+        <h2>Enabled Expressions</h2>
+        <div id="emotion-checkboxes" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0;">
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" value="脸红" checked> Blush (脸红)
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" value="生气" checked> Angry (生气)
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" value="流泪" checked> Tears (流泪)
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" value="晕" checked> Dizzy (晕)
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
+                <input type="checkbox" value="脸黑" checked> Annoyed (脸黑)
+            </label>
+        </div>
+    </div>
+    </div>
+
+    <div id="tab-prompt" class="tab-content">
+    <div class="card">
+        <h2>角色名</h2>
+        <input type="text" id="prompt-name" placeholder="角色名称">
+    </div>
+    <div class="card">
+        <h2>角色身份 (Character Role)</h2>
+        <label>角色与用户的关系 (e.g., 妹妹, 朋友, 助手)</label>
+        <input type="text" id="prompt-user-identity" placeholder="妹妹">
+    </div>
+    <div class="card">
+        <h2>称呼方式 (User Term)</h2>
+        <label>角色如何称呼用户 (e.g., 你, 哥哥, 主人)</label>
+        <input type="text" id="prompt-user-term" placeholder="你">
+    </div>
+    <div class="card">
+        <h2>描述 (Description)</h2>
+        <textarea id="prompt-desc" rows="4" placeholder="角色描述..."></textarea>
+    </div>
+    <div class="card">
+        <h2>性格 (Personality)</h2>
+        <textarea id="prompt-personality" rows="4" placeholder="性格设定..."></textarea>
+    </div>
+    <div class="card">
+        <h2>场景 (Scenario)</h2>
+        <textarea id="prompt-scenario" rows="6" placeholder="场景和规则..."></textarea>
+    </div>
+    <div class="card">
+        <h2>硬性规则 (Rules)</h2>
+        <textarea id="prompt-rules" rows="4" placeholder="不可违反的规则..."></textarea>
+    </div>
+    <div class="card">
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-save-prompt">保存</button>
+            <button class="btn btn-secondary" id="btn-reset-prompt">还原默认</button>
+        </div>
+        <div class="status" id="prompt-status"></div>
+    </div>
+    </div>
+
+    <script src="src/core/ai-chat.js"></script>
+    <script src="src/core/prompt-builder.js"></script>
+    <script src="src/core/emotion-system.js"></script>
+    <script src="src/core/desktop-pet-system.js"></script>
+    <script>
+        let petSystem = null;
+
+        document.addEventListener('DOMContentLoaded', async () => {
+            petSystem = new DesktopPetSystem();
+            await petSystem.init();
+
+            // Load saved config
+            const config = petSystem.aiClient.getConfig();
+            document.getElementById('api-url').value = config.baseURL || '';
+            document.getElementById('api-key').value = config.apiKey || '';
+            document.getElementById('model-name').value = config.modelName || '';
+
+            // Load interval from config file
+            if (window.electronAPI && window.electronAPI.loadConfig) {
+                const fileConfig = await window.electronAPI.loadConfig();
+                if (fileConfig.interval) {
+                    document.getElementById('interval').value = fileConfig.interval;
+                    petSystem.setInterval(parseInt(fileConfig.interval) * 1000);
+                }
+            }
+
+            // Load emotion settings
+            loadEmotionUI();
+        });
+
+        function loadEmotionUI() {
+            if (!petSystem || !petSystem.emotionSystem) return;
+            const es = petSystem.emotionSystem;
+            document.getElementById('emotion-frequency').value = es.expectedFrequencySeconds;
+            document.querySelectorAll('#emotion-checkboxes input[type="checkbox"]').forEach(cb => {
+                cb.checked = es.enabledEmotions.includes(cb.value);
+            });
+        }
+
+        // Save API config
+        document.getElementById('btn-save-api').addEventListener('click', () => {
+            const config = {
+                baseURL: document.getElementById('api-url').value.trim(),
+                apiKey: document.getElementById('api-key').value.trim(),
+                modelName: document.getElementById('model-name').value.trim()
+            };
+            petSystem.aiClient.saveConfig(config);
+            petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
+            showStatus('api-status', 'Saved', 'success');
+        });
+
+        // Test API
+        document.getElementById('btn-test-api').addEventListener('click', async () => {
+            showStatus('api-status', 'Testing...', 'info');
+            const result = await petSystem.aiClient.testConnection();
+            if (result.success) {
+                showStatus('api-status', 'Connected: ' + result.response, 'success');
+            } else {
+                showStatus('api-status', 'Failed: ' + result.error, 'error');
+            }
+        });
+
+        // Save interval
+        document.getElementById('btn-save-interval').addEventListener('click', () => {
+            const seconds = parseInt(document.getElementById('interval').value);
+            if (window.electronAPI && window.electronAPI.saveConfig) {
+                window.electronAPI.saveConfig({ interval: seconds });
+            }
+            petSystem.setInterval(seconds * 1000);
+        });
+
+        // Save emotion settings
+        document.getElementById('btn-save-emotion').addEventListener('click', () => {
+            if (!petSystem || !petSystem.emotionSystem) return;
+            const freq = parseInt(document.getElementById('emotion-frequency').value);
+            petSystem.emotionSystem.setExpectedFrequency(freq);
+
+            const enabled = [];
+            document.querySelectorAll('#emotion-checkboxes input[type="checkbox"]').forEach(cb => {
+                if (cb.checked) enabled.push(cb.value);
+            });
+            petSystem.emotionSystem.setEnabledEmotions(enabled);
+            showStatus('emotion-status', 'Saved', 'success');
+        });
+
+        // Listen for hover state from pet window
+        if (window.electronAPI && window.electronAPI.onPetHoverState) {
+            window.electronAPI.onPetHoverState((isHovering) => {
+                if (petSystem && petSystem.emotionSystem) {
+                    petSystem.emotionSystem.setHoverState(isHovering);
+                }
+            });
+        }
+
+        // Start/Stop
+        document.getElementById('btn-start').addEventListener('click', () => petSystem.start());
+        document.getElementById('btn-stop').addEventListener('click', () => petSystem.stop());
+
+        // Pet closed externally
+        if (window.electronAPI) {
+            window.electronAPI.onPetWindowClosed(() => {
+                petSystem.isActive = false;
+                petSystem.stopDetection();
+            });
+        }
+
+        function showStatus(id, msg, type) {
+            const el = document.getElementById(id);
+            el.textContent = msg;
+            el.className = 'status ' + type;
+            if (type !== 'info') setTimeout(() => { el.className = 'status'; }, 5000);
+        }
+
+        // ========== Tab Switching ==========
+        document.querySelectorAll('.tab-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+                btn.classList.add('active');
+                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
+                if (btn.dataset.tab === 'prompt') loadPromptUI();
+                if (btn.dataset.tab === 'emotion') loadEmotionUI();
+            });
+        });
+
+        // ========== Prompt Management ==========
+        function fillPromptFields(data) {
+            document.getElementById('prompt-name').value = data.name || '';
+            document.getElementById('prompt-user-identity').value = data.userIdentity || '';
+            document.getElementById('prompt-user-term').value = data.userTerm || '';
+            document.getElementById('prompt-desc').value = data.description || '';
+            document.getElementById('prompt-personality').value = data.personality || '';
+            document.getElementById('prompt-scenario').value = data.scenario || '';
+            document.getElementById('prompt-rules').value = data.rules || '';
+        }
+
+        async function loadPromptUI() {
+            if (!window.electronAPI || !window.electronAPI.loadPrompt) return;
+            const result = await window.electronAPI.loadPrompt();
+            if (result.success) fillPromptFields(result.data);
+        }
+
+        document.getElementById('btn-save-prompt').addEventListener('click', async () => {
+            const promptData = {
+                name: document.getElementById('prompt-name').value,
+                userIdentity: document.getElementById('prompt-user-identity').value,
+                userTerm: document.getElementById('prompt-user-term').value,
+                description: document.getElementById('prompt-desc').value,
+                personality: document.getElementById('prompt-personality').value,
+                scenario: document.getElementById('prompt-scenario').value,
+                rules: document.getElementById('prompt-rules').value
+            };
+            const result = await window.electronAPI.savePrompt(promptData);
+            if (result.success) {
+                showStatus('prompt-status', '已保存', 'success');
+                if (petSystem && petSystem.promptBuilder) {
+                    await petSystem.promptBuilder.loadCharacterPrompt();
+                    petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
+                }
+            } else {
+                showStatus('prompt-status', '保存失败: ' + result.error, 'error');
+            }
+        });
+
+        document.getElementById('btn-reset-prompt').addEventListener('click', async () => {
+            const result = await window.electronAPI.resetPrompt();
+            if (result.success) {
+                fillPromptFields(result.data);
+                showStatus('prompt-status', '已还原为默认', 'success');
+                if (petSystem && petSystem.promptBuilder) {
+                    await petSystem.promptBuilder.loadCharacterPrompt();
+                    petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
+                }
+            } else {
+                showStatus('prompt-status', '还原失败: ' + result.error, 'error');
+            }
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Desktop Pet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            background: transparent;
+            overflow: hidden;
+            user-select: none;
+            -webkit-app-region: drag;
+        }
+        #pet-container {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        #live2d-canvas {
+            position: absolute; top: 0; left: 0;
+        }
+        #static-image {
+            max-width: 90%; max-height: 90%;
+            object-fit: contain;
+        }
+        .controls {
+            position: absolute; bottom: 5px; right: 5px;
+            display: flex; gap: 3px;
+            -webkit-app-region: no-drag;
+            opacity: 0; transition: opacity 0.3s;
+            z-index: 100;
+        }
+        #pet-container:hover .controls { opacity: 1; }
+        .ctrl-btn {
+            width: 24px; height: 24px;
+            border: none; border-radius: 50%;
+            background: rgba(255,255,255,0.8);
+            cursor: pointer; font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,1); }
+        .ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+    </style>
+</head>
+<body>
+    <div id="pet-container">
+        <canvas id="live2d-canvas"></canvas>
+        <img id="static-image" src="assets/L2D/pink-devil/cc8b6e78e74a5992cefaa668b187d309.png" alt="pet" style="display:none">
+        <div class="controls">
+            <button class="ctrl-btn" id="btn-smaller" title="Smaller">−</button>
+            <button class="ctrl-btn" id="btn-bigger" title="Bigger">+</button>
+            <button class="ctrl-btn" id="btn-settings" title="Settings">⚙</button>
+            <button class="ctrl-btn" id="btn-close" title="Close">✕</button>
+        </div>
+    </div>
+
+    <script src="libs/live2dcubismcore.min.js"></script>
+    <script src="libs/pixi.min.js"></script>
+    <script src="libs/cubism4.min.js"></script>
+    <script>
+        const sizePresets = [200, 300, 400, 500];
+        let currentSizeIndex = 1;
+        let pixiApp = null;
+        let live2dModel = null;
+        let useLive2D = true;
+
+        const canvas = document.getElementById('live2d-canvas');
+        const staticImg = document.getElementById('static-image');
+
+        // ========== Live2D Setup ==========
+        async function initLive2D() {
+            try {
+                // Ensure PIXI globals are set
+                window.PIXI = PIXI;
+
+                // Register ticker before loading model (required by pixi-live2d-display)
+                if (PIXI.live2d && PIXI.live2d.Live2DModel) {
+                    await PIXI.live2d.Live2DModel.registerTicker(PIXI.Ticker);
+                }
+
+                const dpr = window.devicePixelRatio || 1;
+                pixiApp = new PIXI.Application({
+                    view: canvas,
+                    transparent: true,
+                    autoStart: true,
+                    width: window.innerWidth,
+                    height: window.innerHeight,
+                    backgroundAlpha: 0,
+                    resolution: dpr,
+                    autoDensity: true
+                });
+
+                const modelPath = 'assets/L2D/pink-devil/Pink devil.model3.json';
+                live2dModel = await PIXI.live2d.Live2DModel.from(modelPath, {
+                    autoUpdate: true,
+                    autoInteract: true
+                });
+
+                live2dModel.anchor.set(0.5, 0.5);
+                // Save original (unscaled) dimensions for consistent scaling
+                live2dModel._origW = live2dModel.width;
+                live2dModel._origH = live2dModel.height;
+                fitModel();
+                pixiApp.stage.addChild(live2dModel);
+
+                // Hide static image, show canvas
+                canvas.style.display = 'block';
+                staticImg.style.display = 'none';
+
+                // Click interaction
+                live2dModel.on('hit', (hitAreas) => {
+                    if (hitAreas.includes('Body')) {
+                        live2dModel.motion('tap_body');
+                    } else if (hitAreas.includes('Head')) {
+                        live2dModel.motion('tap_head');
+                    }
+                });
+
+                // Mouse tracking - poll global cursor position
+                startMouseTracking();
+
+                console.log('[DesktopPet] Live2D loaded');
+            } catch (error) {
+                console.warn('[DesktopPet] Live2D failed, using static image:', error);
+                showStaticImage();
+            }
+        }
+
+        function fitModel() {
+            if (!live2dModel || !pixiApp) return;
+            const w = window.innerWidth, h = window.innerHeight;
+            // Use original unscaled dimensions for consistent scaling
+            const origW = live2dModel._origW || live2dModel.width;
+            const scale = w / origW;
+            live2dModel.scale.set(scale);
+            live2dModel.x = w / 2;
+            live2dModel.y = h * 0.60;
+        }
+
+        function onResize() {
+            if (!pixiApp) return;
+            const w = window.innerWidth, h = window.innerHeight;
+            pixiApp.renderer.resize(w, h);
+            fitModel();
+        }
+
+        function showStaticImage() {
+            useLive2D = false;
+            canvas.style.display = 'none';
+            staticImg.style.display = 'block';
+        }
+
+        // Resize: sync canvas + model immediately on every resize event
+        window.addEventListener('resize', onResize);
+
+        // ========== Eye Tracking ==========
+        let trackX = 0, trackY = 0;
+        let paramMap = null; // { name -> index } lookup
+
+        function buildParamMap() {
+            try {
+                const core = live2dModel.internalModel.coreModel;
+                const model = core._model;
+                paramMap = {};
+                for (let i = 0; i < model.parameters.count; i++) {
+                    paramMap[model.parameters.ids[i]] = i;
+                }
+                console.log('[EyeTrack] Param map built, keys:', Object.keys(paramMap).filter(k => k.startsWith('Param')).join(', '));
+            } catch (e) {
+                console.error('[EyeTrack] Failed to build param map:', e);
+            }
+        }
+
+        function setParam(name, value) {
+            if (!paramMap || paramMap[name] === undefined) return;
+            try {
+                const core = live2dModel.internalModel.coreModel;
+                core._model.parameters.values[paramMap[name]] = value;
+            } catch (e) {}
+        }
+
+        function startMouseTracking() {
+            // Poll cursor position
+            setInterval(async () => {
+                if (!window.electronAPI) return;
+                try {
+                    const cursor = await window.electronAPI.getCursorPosition();
+                    const bounds = await window.electronAPI.getWindowBounds();
+                    const cx = bounds.x + bounds.width / 2;
+                    const cy = bounds.y + bounds.height / 2;
+                    trackX = Math.max(-1, Math.min(1, (cursor.x - cx) / 300));
+                    trackY = Math.max(-1, Math.min(1, (cursor.y - cy) / 300));
+                } catch (e) {}
+            }, 50);
+
+            // Build param map once
+            buildParamMap();
+
+            // Apply every frame AFTER model update
+            if (pixiApp) {
+                pixiApp.ticker.add(() => {
+                    if (!live2dModel || !paramMap) return;
+                    setParam('ParamAngleX', trackX * 30);
+                    setParam('ParamAngleY', -trackY * 30);
+                    setParam('ParamAngleZ', trackX * -5);
+                    setParam('ParamBodyAngleX', trackX * 8);
+                    setParam('ParamEyeBallX', trackX);
+                    setParam('ParamEyeBallY', -trackY);
+                });
+            }
+        }
+
+        // ========== Controls ==========
+        function updateSizeBtns() {
+            document.getElementById('btn-smaller').disabled = (currentSizeIndex <= 0);
+            document.getElementById('btn-bigger').disabled = (currentSizeIndex >= sizePresets.length - 1);
+        }
+        updateSizeBtns();
+
+        document.getElementById('btn-smaller').addEventListener('click', () => {
+            if (currentSizeIndex <= 0) return;
+            currentSizeIndex--;
+            const size = sizePresets[currentSizeIndex];
+            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
+            updateSizeBtns();
+        });
+
+        document.getElementById('btn-bigger').addEventListener('click', () => {
+            if (currentSizeIndex >= sizePresets.length - 1) return;
+            currentSizeIndex++;
+            const size = sizePresets[currentSizeIndex];
+            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
+            updateSizeBtns();
+        });
+
+        document.getElementById('btn-settings').addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.showSettings();
+        });
+
+        document.getElementById('btn-close').addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.closePetWindow();
+        });
+
+        // Right-click context menu
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (window.electronAPI) window.electronAPI.showPetContextMenu();
+        });
+
+        // Listen for size changes from context menu
+        if (window.electronAPI && window.electronAPI.onSizeChanged) {
+            window.electronAPI.onSizeChanged((size) => {
+                currentSizeIndex = sizePresets.indexOf(size);
+                if (currentSizeIndex < 0) currentSizeIndex = 1;
+                updateSizeBtns();
+            });
+        }
+
+        // ========== Init ==========
+        if (window.electronAPI && window.electronAPI.onCharacterUpdate) {
+            window.electronAPI.onCharacterUpdate((data) => {
+                console.log('[DesktopPet] Character update:', data);
+            });
+        }
+
+        // Start Live2D
+        initLive2D();
+        console.log('[DesktopPet] Window loaded');
+
+        // ========== Emotion/Expression System ==========
+
+        if (window.electronAPI && window.electronAPI.onPlayExpression) {
+            window.electronAPI.onPlayExpression((expressionName) => {
+                if (live2dModel) {
+                    console.log('[DesktopPet] Playing expression:', expressionName);
+                    live2dModel.expression(expressionName);
+                }
+            });
+        }
+
+        if (window.electronAPI && window.electronAPI.onRevertExpression) {
+            window.electronAPI.onRevertExpression(() => {
+                if (live2dModel) {
+                    console.log('[DesktopPet] Reverting expression');
+                    try {
+                        const exprMgr = live2dModel.internalModel.motionManager.expressionManager;
+                        if (exprMgr && typeof exprMgr.resetExpression === 'function') {
+                            exprMgr.resetExpression();
+                        } else {
+                            throw new Error('No resetExpression');
+                        }
+                    } catch (e) {
+                        ['Param101', 'Param102', 'Param103', 'Param104', 'Param105',
+                         'ParamBrowLAngle', 'ParamBrowLForm', 'ParamBrowRForm'].forEach(p => setParam(p, 0));
+                    }
+                }
+            });
+        }
+
+        // Hover detection
+        document.getElementById('pet-container').addEventListener('mouseenter', () => {
+            if (window.electronAPI && window.electronAPI.reportHoverState) {
+                window.electronAPI.reportHoverState(true);
+            }
+        });
+        document.getElementById('pet-container').addEventListener('mouseleave', () => {
+            if (window.electronAPI && window.electronAPI.reportHoverState) {
+                window.electronAPI.reportHoverState(false);
+            }
+        });
+    </script>
+</body>
+</html>
