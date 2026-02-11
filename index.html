@@ -18,13 +18,13 @@
             box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         label { display: block; font-size: 13px; margin-bottom: 4px; color: #555; }
-        input[type="text"], input[type="password"], input[type="number"] {
+        input[type="text"], input[type="password"], input[type="number"], select {
             width: 100%; padding: 8px 12px;
             border: 1px solid #ddd; border-radius: 8px;
             font-size: 13px; margin-bottom: 8px;
             outline: none; transition: border-color 0.2s;
         }
-        input:focus { border-color: #7c4dff; }
+        input:focus, select:focus { border-color: #7c4dff; }
         .btn {
             padding: 8px 20px; border: none; border-radius: 8px;
             font-size: 13px; cursor: pointer; transition: all 0.2s;
@@ -35,6 +35,7 @@
         .btn-secondary:hover { background: #d0d0d0; }
         .btn-danger { background: #ff5252; color: white; }
         .btn-danger:hover { background: #ff1744; }
+        .btn-sm { padding: 4px 12px; font-size: 12px; }
         .btn-row { display: flex; gap: 8px; margin-top: 12px; }
         textarea {
             width: 100%; padding: 8px 12px;
@@ -63,6 +64,28 @@
         .status.success { display: block; background: #e8f5e9; color: #2e7d32; }
         .status.error { display: block; background: #ffebee; color: #c62828; }
         .status.info { display: block; background: #e3f2fd; color: #1565c0; }
+        .path-ok { color: #2e7d32; font-size: 12px; }
+        .path-err { color: #c62828; font-size: 12px; }
+        .param-row {
+            display: flex; align-items: center; gap: 8px;
+            padding: 4px 0; font-size: 12px;
+        }
+        .param-label { width: 100px; color: #555; }
+        .param-value { flex: 1; color: #333; font-family: monospace; }
+        .param-unmapped { color: #c62828; }
+        .slider-row { display: flex; align-items: center; gap: 8px; margin: 8px 0; }
+        .slider-row input[type="range"] { flex: 1; }
+        .slider-val { width: 40px; text-align: center; font-size: 12px; }
+        .expr-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 6px 0; border-bottom: 1px solid #f0f0f0;
+            font-size: 12px;
+        }
+        .expr-item:last-child { border-bottom: none; }
+        .expr-name { width: 80px; font-weight: 500; }
+        .expr-dur { width: 60px; }
+        .icon-preview { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
+        .model-info { font-size: 12px; color: #888; margin: 4px 0; }
     </style>
 </head>
 <body>
@@ -70,34 +93,34 @@
 
     <div class="tabs">
         <button class="tab-btn active" data-tab="settings">设置</button>
+        <button class="tab-btn" data-tab="model">模型</button>
         <button class="tab-btn" data-tab="emotion">表情</button>
         <button class="tab-btn" data-tab="prompt">Prompt</button>
     </div>
 
+    <!-- Settings Tab -->
     <div id="tab-settings" class="tab-content active">
     <div class="card">
         <h2>API Configuration</h2>
         <p style="font-size:12px;color:#888;margin-bottom:8px;">提示：可在淘宝/闲鱼搜索「OpenRouter账号」获取账号，然后前往 openrouter.ai/keys 创建 API Key</p>
         <label>API Base URL</label>
-        <input type="text" id="api-url" placeholder="https://api.x.ai/v1">
+        <input type="text" id="api-url" placeholder="https://openrouter.ai/api/v1">
         <label>API Key</label>
         <input type="password" id="api-key" placeholder="sk-...">
         <label>Model Name</label>
-        <input type="text" id="model-name" placeholder="grok-4.1-fast">
+        <input type="text" id="model-name" placeholder="x-ai/grok-4.1-fast">
         <div class="btn-row">
             <button class="btn btn-primary" id="btn-save-api">Save</button>
             <button class="btn btn-secondary" id="btn-test-api">Test</button>
         </div>
         <div class="status" id="api-status"></div>
     </div>
-
     <div class="card">
         <h2>Detection Settings</h2>
         <label>Interval (seconds)</label>
         <input type="number" id="interval" value="30" min="10" max="300">
         <button class="btn btn-primary" id="btn-save-interval">Save</button>
     </div>
-
     <div class="card">
         <div class="btn-row">
             <button class="btn btn-primary" id="btn-start" style="flex:1">Start Pet</button>
@@ -106,36 +129,121 @@
     </div>
     </div>
 
-    <div id="tab-emotion" class="tab-content">
+    <!-- Model Tab -->
+    <div id="tab-model" class="tab-content">
     <div class="card">
-        <h2>Expression Frequency</h2>
-        <label>期望频率 (秒, 最短 30)</label>
-        <input type="number" id="emotion-frequency" value="60" min="30" max="600">
-        <button class="btn btn-primary" id="btn-save-emotion">Save</button>
-        <div class="status" id="emotion-status"></div>
+        <h2>模型模式</h2>
+        <select id="model-type">
+            <option value="none">无模型 (引导)</option>
+            <option value="live2d">Live2D</option>
+            <option value="image">纯图片 / GIF</option>
+        </select>
+        <div class="status" id="model-status"></div>
+    </div>
+    <div class="card" id="card-live2d" style="display:none">
+        <h2>Live2D 模型</h2>
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-import-l2d">选择模型文件夹</button>
+        </div>
+        <div id="l2d-info" class="model-info"></div>
+        <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;">
+            <input type="checkbox" id="copy-to-userdata" checked> 复制到应用数据目录
+        </label>
+        <div id="l2d-path-status"></div>
+    </div>
+    <div class="card" id="card-param-mapping" style="display:none">
+        <h2>参数映射</h2>
+        <div id="param-mapping-list"></div>
+        <div class="btn-row">
+            <button class="btn btn-secondary btn-sm" id="btn-apply-suggested">应用建议映射</button>
+        </div>
+    </div>
+    <div class="card" id="card-canvas-y" style="display:none">
+        <h2>Canvas Y 锚点</h2>
+        <div class="slider-row">
+            <input type="range" id="canvas-y-slider" min="0.3" max="0.9" step="0.01" value="0.60">
+            <span class="slider-val" id="canvas-y-val">0.60</span>
+        </div>
+    </div>
+    <div class="card" id="card-image" style="display:none">
+        <h2>静态图片</h2>
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-import-image">选择图片</button>
+        </div>
+        <div id="image-info" class="model-info"></div>
+    </div>
+    <div class="card" id="card-bottom-align" style="display:none">
+        <h2>底边对齐偏移</h2>
+        <div class="slider-row">
+            <input type="range" id="bottom-align-slider" min="0" max="1" step="0.01" value="0.5">
+            <span class="slider-val" id="bottom-align-val">0.50</span>
+        </div>
     </div>
     <div class="card">
-        <h2>Enabled Expressions</h2>
-        <div id="emotion-checkboxes" style="display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0;">
-            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" value="脸红" checked> Blush (脸红)
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" value="生气" checked> Angry (生气)
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" value="流泪" checked> Tears (流泪)
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" value="晕" checked> Dizzy (晕)
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 4px; font-size: 12px;">
-                <input type="checkbox" value="脸黑" checked> Annoyed (脸黑)
-            </label>
+        <h2>气泡框</h2>
+        <div class="btn-row">
+            <button class="btn btn-secondary" id="btn-select-bubble">选择气泡框图片</button>
+            <button class="btn btn-secondary" id="btn-clear-bubble">清除</button>
+        </div>
+        <div id="bubble-info" class="model-info"></div>
+    </div>
+    <div class="card">
+        <h2>应用图标</h2>
+        <div style="display:flex;align-items:center;gap:8px;">
+            <img id="icon-preview" class="icon-preview" src="" style="display:none">
+            <button class="btn btn-secondary" id="btn-select-icon">选择图标</button>
+        </div>
+        <div id="icon-info" class="model-info"></div>
+    </div>
+    <div class="card">
+        <div class="btn-row">
+            <button class="btn btn-primary" id="btn-save-model">保存模型设置</button>
+            <button class="btn btn-danger" id="btn-clear-model">清除模型</button>
         </div>
     </div>
     </div>
 
+    <!-- Emotion Tab (Dynamic) -->
+    <div id="tab-emotion" class="tab-content">
+    <div class="card">
+        <h2>表情频率</h2>
+        <label>期望频率 (秒, 最短 30)</label>
+        <input type="number" id="emotion-frequency" value="60" min="30" max="600">
+        <button class="btn btn-primary" id="btn-save-emotion-freq">Save</button>
+        <div style="margin-top:8px;">
+            <label><input type="checkbox" id="allow-simultaneous"> 允许表情和动作同时播放</label>
+        </div>
+        <div class="status" id="emotion-status"></div>
+    </div>
+    <div class="card">
+        <h2>表情列表</h2>
+        <p class="model-info" id="expr-hint">导入模型后，表情将自动加载。</p>
+        <div id="expression-list"></div>
+        <div class="btn-row">
+            <button class="btn btn-secondary btn-sm" id="btn-add-expr">添加表情</button>
+        </div>
+        <div class="status" id="expr-status"></div>
+    </div>
+    <div class="card">
+        <h2>动作列表 (Motion)</h2>
+        <p class="model-info" id="motion-hint">导入模型后，动作将自动加载。</p>
+        <div id="motion-list"></div>
+        <div class="btn-row">
+            <button class="btn btn-secondary btn-sm" id="btn-add-motion">添加动作</button>
+        </div>
+        <div class="status" id="motion-status"></div>
+    </div>
+    <div class="card">
+        <label>默认表情时长 (秒)</label>
+        <input type="number" id="default-expr-duration" value="5" min="1" max="30" step="0.5">
+        <label>默认动作时长 (秒)</label>
+        <input type="number" id="default-motion-duration" value="3" min="1" max="30" step="0.5">
+        <button class="btn btn-primary" id="btn-save-expressions">保存表情设置</button>
+        <div class="status" id="save-emotion-status"></div>
+    </div>
+    </div>
+
+    <!-- Prompt Tab -->
     <div id="tab-prompt" class="tab-content">
     <div class="card">
         <h2>角色名</h2>
@@ -180,179 +288,6 @@
     <script src="src/core/prompt-builder.js"></script>
     <script src="src/core/emotion-system.js"></script>
     <script src="src/core/desktop-pet-system.js"></script>
-    <script>
-        let petSystem = null;
-
-        document.addEventListener('DOMContentLoaded', async () => {
-            petSystem = new DesktopPetSystem();
-            await petSystem.init();
-
-            // Load saved config
-            const config = petSystem.aiClient.getConfig();
-            document.getElementById('api-url').value = config.baseURL || '';
-            document.getElementById('api-key').value = config.apiKey || '';
-            document.getElementById('model-name').value = config.modelName || '';
-
-            // Load interval from config file
-            if (window.electronAPI && window.electronAPI.loadConfig) {
-                const fileConfig = await window.electronAPI.loadConfig();
-                if (fileConfig.interval) {
-                    document.getElementById('interval').value = fileConfig.interval;
-                    petSystem.setInterval(parseInt(fileConfig.interval) * 1000);
-                }
-            }
-
-            // Load emotion settings
-            loadEmotionUI();
-        });
-
-        function loadEmotionUI() {
-            if (!petSystem || !petSystem.emotionSystem) return;
-            const es = petSystem.emotionSystem;
-            document.getElementById('emotion-frequency').value = es.expectedFrequencySeconds;
-            document.querySelectorAll('#emotion-checkboxes input[type="checkbox"]').forEach(cb => {
-                cb.checked = es.enabledEmotions.includes(cb.value);
-            });
-        }
-
-        // Save API config
-        document.getElementById('btn-save-api').addEventListener('click', () => {
-            const config = {
-                baseURL: document.getElementById('api-url').value.trim(),
-                apiKey: document.getElementById('api-key').value.trim(),
-                modelName: document.getElementById('model-name').value.trim()
-            };
-            petSystem.aiClient.saveConfig(config);
-            petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-            showStatus('api-status', 'Saved', 'success');
-        });
-
-        // Test API
-        document.getElementById('btn-test-api').addEventListener('click', async () => {
-            showStatus('api-status', 'Testing...', 'info');
-            const result = await petSystem.aiClient.testConnection();
-            if (result.success) {
-                showStatus('api-status', 'Connected: ' + result.response, 'success');
-            } else {
-                showStatus('api-status', 'Failed: ' + result.error, 'error');
-            }
-        });
-
-        // Save interval
-        document.getElementById('btn-save-interval').addEventListener('click', () => {
-            const seconds = parseInt(document.getElementById('interval').value);
-            if (window.electronAPI && window.electronAPI.saveConfig) {
-                window.electronAPI.saveConfig({ interval: seconds });
-            }
-            petSystem.setInterval(seconds * 1000);
-        });
-
-        // Save emotion settings
-        document.getElementById('btn-save-emotion').addEventListener('click', () => {
-            if (!petSystem || !petSystem.emotionSystem) return;
-            const freq = parseInt(document.getElementById('emotion-frequency').value);
-            petSystem.emotionSystem.setExpectedFrequency(freq);
-
-            const enabled = [];
-            document.querySelectorAll('#emotion-checkboxes input[type="checkbox"]').forEach(cb => {
-                if (cb.checked) enabled.push(cb.value);
-            });
-            petSystem.emotionSystem.setEnabledEmotions(enabled);
-            showStatus('emotion-status', 'Saved', 'success');
-        });
-
-        // Listen for hover state from pet window
-        if (window.electronAPI && window.electronAPI.onPetHoverState) {
-            window.electronAPI.onPetHoverState((isHovering) => {
-                if (petSystem && petSystem.emotionSystem) {
-                    petSystem.emotionSystem.setHoverState(isHovering);
-                }
-            });
-        }
-
-        // Start/Stop
-        document.getElementById('btn-start').addEventListener('click', () => petSystem.start());
-        document.getElementById('btn-stop').addEventListener('click', () => petSystem.stop());
-
-        // Pet closed externally
-        if (window.electronAPI) {
-            window.electronAPI.onPetWindowClosed(() => {
-                petSystem.isActive = false;
-                petSystem.stopDetection();
-            });
-        }
-
-        function showStatus(id, msg, type) {
-            const el = document.getElementById(id);
-            el.textContent = msg;
-            el.className = 'status ' + type;
-            if (type !== 'info') setTimeout(() => { el.className = 'status'; }, 5000);
-        }
-
-        // ========== Tab Switching ==========
-        document.querySelectorAll('.tab-btn').forEach(btn => {
-            btn.addEventListener('click', () => {
-                document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
-                document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
-                btn.classList.add('active');
-                document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-                if (btn.dataset.tab === 'prompt') loadPromptUI();
-                if (btn.dataset.tab === 'emotion') loadEmotionUI();
-            });
-        });
-
-        // ========== Prompt Management ==========
-        function fillPromptFields(data) {
-            document.getElementById('prompt-name').value = data.name || '';
-            document.getElementById('prompt-user-identity').value = data.userIdentity || '';
-            document.getElementById('prompt-user-term').value = data.userTerm || '';
-            document.getElementById('prompt-desc').value = data.description || '';
-            document.getElementById('prompt-personality').value = data.personality || '';
-            document.getElementById('prompt-scenario').value = data.scenario || '';
-            document.getElementById('prompt-rules').value = data.rules || '';
-        }
-
-        async function loadPromptUI() {
-            if (!window.electronAPI || !window.electronAPI.loadPrompt) return;
-            const result = await window.electronAPI.loadPrompt();
-            if (result.success) fillPromptFields(result.data);
-        }
-
-        document.getElementById('btn-save-prompt').addEventListener('click', async () => {
-            const promptData = {
-                name: document.getElementById('prompt-name').value,
-                userIdentity: document.getElementById('prompt-user-identity').value,
-                userTerm: document.getElementById('prompt-user-term').value,
-                description: document.getElementById('prompt-desc').value,
-                personality: document.getElementById('prompt-personality').value,
-                scenario: document.getElementById('prompt-scenario').value,
-                rules: document.getElementById('prompt-rules').value
-            };
-            const result = await window.electronAPI.savePrompt(promptData);
-            if (result.success) {
-                showStatus('prompt-status', '已保存', 'success');
-                if (petSystem && petSystem.promptBuilder) {
-                    await petSystem.promptBuilder.loadCharacterPrompt();
-                    petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-                }
-            } else {
-                showStatus('prompt-status', '保存失败: ' + result.error, 'error');
-            }
-        });
-
-        document.getElementById('btn-reset-prompt').addEventListener('click', async () => {
-            const result = await window.electronAPI.resetPrompt();
-            if (result.success) {
-                fillPromptFields(result.data);
-                showStatus('prompt-status', '已还原为默认', 'success');
-                if (petSystem && petSystem.promptBuilder) {
-                    await petSystem.promptBuilder.loadCharacterPrompt();
-                    petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-                }
-            } else {
-                showStatus('prompt-status', '还原失败: ' + result.error, 'error');
-            }
-        });
-    </script>
+    <script src="src/renderer/settings-ui.js"></script>
 </body>
 </html>

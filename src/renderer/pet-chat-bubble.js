@@ -8,7 +8,23 @@ class PetChatBubble {
     async init() {
         const frame = document.querySelector('.chat-frame');
         if (frame) frame.style.display = 'none';
+        // Load custom bubble frame from config
+        await this.loadBubbleFrame();
         this.setupEventListeners();
+    }
+
+    async loadBubbleFrame() {
+        try {
+            if (window.electronAPI && window.electronAPI.loadConfig) {
+                const config = await window.electronAPI.loadConfig();
+                if (config.bubble && config.bubble.frameImagePath) {
+                    const frameBg = document.querySelector('.frame-bg');
+                    if (frameBg) frameBg.src = config.bubble.frameImagePath;
+                }
+            }
+        } catch (e) {
+            console.warn('[Chat] Failed to load bubble config:', e);
+        }
     }
 
     setupEventListeners() {

@@ -2,3 +2,5 @@ node_modules/
 dist/
 *.log
 .claude/
+voicevox_core/
+nul

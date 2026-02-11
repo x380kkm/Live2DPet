@@ -48,10 +48,7 @@ class DesktopPetSystem {
         }
 
         try {
-            const result = await window.electronAPI.createPetWindow({
-                isLive2DActive: true,
-                live2dModelPath: 'assets/L2D/pink-devil/Pink devil.model3.json'
-            });
+            const result = await window.electronAPI.createPetWindow({});
             if (result.success) {
                 this.isActive = true;
                 this.startDetection();

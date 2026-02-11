@@ -1,11 +1,82 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, Menu } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
+const { createPathUtils } = require('./src/utils/path-utils');
 
 let petWindow = null;
 let chatBubbleWindow = null;
 let settingsWindow = null;
-let characterData = { isLive2DActive: true, live2dModelPath: 'assets/L2D/pink-devil/Pink devil.model3.json' };
+let characterData = { isLive2DActive: true, live2dModelPath: null };
+let pathUtils = null;
+
+// ========== Config Persistence ==========
+
+const CURRENT_CONFIG_VERSION = 1;
+
+function getDefaultModelConfig() {
+    return {
+        type: 'none',
+        folderPath: null,
+        modelJsonFile: null,
+        copyToUserData: true,
+        userDataModelPath: null,
+        staticImagePath: null,
+        bottomAlignOffset: 0.5,
+        gifExpressions: {},
+        paramMapping: {
+            angleX: null, angleY: null, angleZ: null,
+            bodyAngleX: null, eyeBallX: null, eyeBallY: null
+        },
+        hasExpressions: false,
+        expressions: [],
+        expressionDurations: {},
+        defaultExpressionDuration: 5000,
+        canvasYRatio: 0.60
+    };
+}
+
+function getDefaultConfig() {
+    return {
+        configVersion: CURRENT_CONFIG_VERSION,
+        apiKey: '',
+        baseURL: 'https://openrouter.ai/api/v1',
+        modelName: 'x-ai/grok-4.1-fast',
+        interval: 10,
+        emotionFrequency: 30,
+        enabledEmotions: [],
+        model: getDefaultModelConfig(),
+        bubble: { frameImagePath: null },
+        appIcon: null
+    };
+}
+
+/**
+ * Migrate old config (no configVersion) to current schema.
+ * Old configs had hardcoded pink-devil model — strip that out.
+ */
+function migrateConfig(config) {
+    if (config.configVersion >= CURRENT_CONFIG_VERSION) return config;
+
+    // Pre-v1: no model section, hardcoded emotions
+    if (!config.configVersion) {
+        config.configVersion = CURRENT_CONFIG_VERSION;
+        if (!config.model) {
+            config.model = getDefaultModelConfig();
+        }
+        if (!config.bubble) {
+            config.bubble = { frameImagePath: null };
+        }
+        if (config.appIcon === undefined) {
+            config.appIcon = null;
+        }
+        // Clear old hardcoded emotions — user must re-configure per model
+        if (Array.isArray(config.enabledEmotions) && config.enabledEmotions.length > 0) {
+            config.enabledEmotions = [];
+        }
+    }
+
+    return config;
+}
 
 // ========== Config Persistence ==========
 
@@ -17,22 +88,40 @@ const userConfigPath = app.isPackaged
 
 function loadConfigFile() {
     try {
+        let raw = {};
         // Prefer user config (writable location)
         if (fs.existsSync(userConfigPath)) {
-            return JSON.parse(fs.readFileSync(userConfigPath, 'utf-8'));
+            raw = JSON.parse(fs.readFileSync(userConfigPath, 'utf-8'));
+        } else if (app.isPackaged && fs.existsSync(bundledConfigPath)) {
+            raw = JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
         }
-        // Fall back to bundled config inside asar
-        if (app.isPackaged && fs.existsSync(bundledConfigPath)) {
-            return JSON.parse(fs.readFileSync(bundledConfigPath, 'utf-8'));
-        }
+        // Merge with defaults to fill any missing fields
+        const defaults = getDefaultConfig();
+        const merged = {
+            ...defaults,
+            ...raw,
+            model: { ...defaults.model, ...(raw.model || {}), paramMapping: { ...defaults.model.paramMapping, ...((raw.model || {}).paramMapping || {}) } },
+            bubble: { ...defaults.bubble, ...(raw.bubble || {}) }
+        };
+        return migrateConfig(merged);
     } catch (e) { console.warn('Failed to load config:', e.message); }
-    return {};
+    return getDefaultConfig();
 }
 
 function saveConfigFile(data) {
     try {
         const existing = loadConfigFile();
+        // Deep merge model and bubble sections
         const merged = { ...existing, ...data };
+        if (data.model) {
+            merged.model = { ...existing.model, ...data.model };
+            if (data.model.paramMapping) {
+                merged.model.paramMapping = { ...existing.model.paramMapping, ...data.model.paramMapping };
+            }
+        }
+        if (data.bubble) {
+            merged.bubble = { ...existing.bubble, ...data.bubble };
+        }
         fs.writeFileSync(userConfigPath, JSON.stringify(merged, null, 2), 'utf-8');
         return true;
     } catch (e) { console.error('Failed to save config:', e.message); return false; }
@@ -41,6 +130,7 @@ function saveConfigFile(data) {
 // ========== App Lifecycle ==========
 
 app.whenReady().then(() => {
+    pathUtils = createPathUtils(app, path);
     createSettingsWindow();
 });
 
@@ -369,6 +459,7 @@ ipcMain.handle('show-settings', async () => {
 
 ipcMain.handle('trigger-expression', async (event, expressionName) => {
     try {
+        console.log(`[Main] trigger-expression: "${expressionName}", petWindow: ${!!petWindow}`);
         if (petWindow && !petWindow.isDestroyed()) {
             petWindow.webContents.send('play-expression', expressionName);
             return { success: true };
@@ -381,8 +472,22 @@ ipcMain.handle('trigger-expression', async (event, expressionName) => {
 
 ipcMain.handle('revert-expression', async () => {
     try {
+        console.log('[Main] revert-expression');
         if (petWindow && !petWindow.isDestroyed()) {
             petWindow.webContents.send('revert-expression');
+            return { success: true };
+        }
+        return { success: false, error: 'no pet window' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('trigger-motion', async (event, group, index) => {
+    try {
+        console.log(`[Main] trigger-motion: group="${group}", index=${index}, petWindow: ${!!petWindow}`);
+        if (petWindow && !petWindow.isDestroyed()) {
+            petWindow.webContents.send('play-motion', group, index);
             return { success: true };
         }
         return { success: false, error: 'no pet window' };
@@ -398,6 +503,303 @@ ipcMain.handle('report-hover-state', async (event, isHovering) => {
             return { success: true };
         }
         return { success: false, error: 'no settings window' };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+// ========== Model Import & Scanning ==========
+
+// Fuzzy matching dictionary for parameter auto-mapping
+const PARAM_FUZZY_MAP = {
+    angleX:     ['ParamAngleX', 'ParamX', 'Angle_X', 'PARAM_ANGLE_X', 'AngleX'],
+    angleY:     ['ParamAngleY', 'ParamY', 'Angle_Y', 'PARAM_ANGLE_Y', 'AngleY'],
+    angleZ:     ['ParamAngleZ', 'ParamZ', 'Angle_Z', 'PARAM_ANGLE_Z', 'AngleZ'],
+    bodyAngleX: ['ParamBodyAngleX', 'BodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyX'],
+    eyeBallX:   ['ParamEyeBallX', 'EyeBallX', 'PARAM_EYE_BALL_X', 'ParamEyeX'],
+    eyeBallY:   ['ParamEyeBallY', 'EyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeY']
+};
+
+function suggestParamMapping(parameterIds) {
+    const suggested = {};
+    for (const [key, candidates] of Object.entries(PARAM_FUZZY_MAP)) {
+        const match = candidates.find(c =>
+            parameterIds.some(p => p.toLowerCase() === c.toLowerCase())
+        );
+        if (match) {
+            // Return the actual parameter ID from the model (case-preserved)
+            suggested[key] = parameterIds.find(p => p.toLowerCase() === match.toLowerCase());
+        } else {
+            suggested[key] = null;
+        }
+    }
+    return suggested;
+}
+
+ipcMain.handle('select-model-folder', async () => {
+    try {
+        const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
+            properties: ['openDirectory'],
+            title: '选择 Live2D 模型文件夹'
+        });
+        if (result.canceled || !result.filePaths.length) {
+            return { success: false, error: 'cancelled' };
+        }
+        const folderPath = result.filePaths[0];
+        // Scan for .model3.json files (also check one level of subdirectories)
+        let files = fs.readdirSync(folderPath);
+        let modelFiles = files.filter(f => f.endsWith('.model3.json'));
+        let actualFolder = folderPath;
+        if (modelFiles.length === 0) {
+            // Check subdirectories (e.g. runtime/)
+            for (const sub of files) {
+                const subPath = path.join(folderPath, sub);
+                try {
+                    if (fs.statSync(subPath).isDirectory()) {
+                        const subFiles = fs.readdirSync(subPath);
+                        const subModels = subFiles.filter(f => f.endsWith('.model3.json'));
+                        if (subModels.length > 0) {
+                            modelFiles = subModels;
+                            actualFolder = subPath;
+                            break;
+                        }
+                    }
+                } catch {}
+            }
+        }
+        if (modelFiles.length === 0) {
+            return { success: false, error: '该文件夹中未找到 .model3.json 文件' };
+        }
+        return { success: true, folderPath: actualFolder, modelFiles };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('scan-model-info', async (event, folderPath, modelJsonFile) => {
+    try {
+        const modelJsonPath = path.join(folderPath, modelJsonFile);
+        if (!fs.existsSync(modelJsonPath)) {
+            return { success: false, error: 'model3.json 不存在' };
+        }
+        const modelJson = JSON.parse(fs.readFileSync(modelJsonPath, 'utf-8'));
+
+        // Extract parameter IDs from model3.json
+        let parameterIds = [];
+        // Try to get parameters from Groups
+        if (modelJson.Groups) {
+            modelJson.Groups.forEach(g => {
+                if (g.Ids) parameterIds.push(...g.Ids);
+            });
+        }
+        // Also read from .cdi3.json (DisplayInfo) for complete parameter list
+        if (modelJson.FileReferences) {
+            const cdiFile = modelJson.FileReferences.DisplayInfo;
+            if (cdiFile) {
+                const cdiPath = path.join(folderPath, cdiFile);
+                try {
+                    if (fs.existsSync(cdiPath)) {
+                        const cdiJson = JSON.parse(fs.readFileSync(cdiPath, 'utf-8'));
+                        if (cdiJson.Parameters && Array.isArray(cdiJson.Parameters)) {
+                            parameterIds.push(...cdiJson.Parameters.map(p => p.Id));
+                        }
+                    }
+                } catch {}
+            }
+        }
+        // Deduplicate
+        parameterIds = [...new Set(parameterIds)];
+
+        // Try to get from HitAreas
+        const hitAreas = modelJson.HitAreas || [];
+
+        // Extract expressions from model3.json
+        let expressions = [];
+        if (modelJson.FileReferences && modelJson.FileReferences.Expressions) {
+            expressions = modelJson.FileReferences.Expressions.map(e => ({
+                name: e.Name,
+                file: e.File
+            }));
+        }
+        // If no expressions declared, scan folder for .exp3.json files
+        if (expressions.length === 0) {
+            try {
+                const folderFiles = fs.readdirSync(folderPath);
+                const expFiles = folderFiles.filter(f => f.endsWith('.exp3.json'));
+                expressions = expFiles.map(f => ({
+                    name: f.replace('.exp3.json', ''),
+                    file: f
+                }));
+            } catch {}
+        }
+
+        // Extract motions from model3.json — full structure {group: [{File}]}
+        let motions = {};
+        if (modelJson.FileReferences && modelJson.FileReferences.Motions) {
+            const raw = modelJson.FileReferences.Motions;
+            for (const [group, entries] of Object.entries(raw)) {
+                motions[group] = (entries || []).map(e => ({ file: e.File }));
+            }
+        }
+        // If no motions declared, scan folder for .motion3.json files → "Default" group
+        if (Object.keys(motions).length === 0) {
+            try {
+                const folderFiles = fs.readdirSync(folderPath);
+                const motionFiles = folderFiles.filter(f => f.endsWith('.motion3.json'));
+                if (motionFiles.length > 0) {
+                    motions['Default'] = motionFiles.map(f => ({ file: f }));
+                }
+            } catch {}
+        }
+
+        // Validate moc3 file exists
+        let mocValid = false;
+        if (modelJson.FileReferences && modelJson.FileReferences.Moc) {
+            const mocPath = path.join(folderPath, modelJson.FileReferences.Moc);
+            mocValid = fs.existsSync(mocPath);
+        }
+
+        // Validate textures
+        let texturesValid = false;
+        if (modelJson.FileReferences && modelJson.FileReferences.Textures) {
+            texturesValid = modelJson.FileReferences.Textures.every(t =>
+                fs.existsSync(path.join(folderPath, t))
+            );
+        }
+
+        const suggestedMapping = suggestParamMapping(parameterIds);
+
+        return {
+            success: true,
+            modelName: modelJsonFile.replace('.model3.json', ''),
+            parameterIds,
+            suggestedMapping,
+            expressions,
+            motions,
+            hitAreas,
+            validation: { mocValid, texturesValid }
+        };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('select-static-image', async () => {
+    try {
+        const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
+            properties: ['openFile'],
+            title: '选择静态图片或 GIF',
+            filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }]
+        });
+        if (result.canceled || !result.filePaths.length) {
+            return { success: false, error: 'cancelled' };
+        }
+        return { success: true, filePath: result.filePaths[0] };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('select-bubble-image', async () => {
+    try {
+        const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
+            properties: ['openFile'],
+            title: '选择气泡框图片',
+            filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'svg'] }]
+        });
+        if (result.canceled || !result.filePaths.length) {
+            return { success: false, error: 'cancelled' };
+        }
+        return { success: true, filePath: result.filePaths[0] };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('select-app-icon', async () => {
+    try {
+        const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
+            properties: ['openFile'],
+            title: '选择应用图标',
+            filters: [{ name: '图标', extensions: ['png', 'ico', 'jpg'] }]
+        });
+        if (result.canceled || !result.filePaths.length) {
+            return { success: false, error: 'cancelled' };
+        }
+        // Copy to userData
+        const srcPath = result.filePaths[0];
+        const ext = path.extname(srcPath);
+        const destPath = path.join(app.getPath('userData'), 'app-icon' + ext);
+        fs.copyFileSync(srcPath, destPath);
+        return { success: true, iconPath: destPath };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('copy-model-to-userdata', async (event, folderPath, modelName) => {
+    try {
+        // Use model name if provided, otherwise folder basename
+        const dirName = modelName || path.basename(folderPath);
+        const destDir = path.join(app.getPath('userData'), 'models', dirName);
+        // Recursive copy
+        fs.cpSync(folderPath, destDir, { recursive: true });
+        const relPath = path.join('models', dirName);
+        return { success: true, userDataModelPath: relPath, absolutePath: destDir };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('validate-model-paths', async () => {
+    try {
+        const config = loadConfigFile();
+        const model = config.model || {};
+        if (model.type === 'none') return { success: true, valid: true, type: 'none' };
+
+        if (model.type === 'live2d') {
+            let modelDir;
+            if (model.userDataModelPath) {
+                modelDir = path.join(app.getPath('userData'), model.userDataModelPath);
+            } else {
+                modelDir = model.folderPath;
+            }
+            if (!modelDir || !fs.existsSync(modelDir)) {
+                return { success: true, valid: false, error: '模型文件夹不存在' };
+            }
+            if (model.modelJsonFile) {
+                const jsonPath = path.join(modelDir, model.modelJsonFile);
+                if (!fs.existsSync(jsonPath)) {
+                    return { success: true, valid: false, error: 'model3.json 不存在' };
+                }
+                // Validate it parses
+                try { JSON.parse(fs.readFileSync(jsonPath, 'utf-8')); }
+                catch { return { success: true, valid: false, error: 'model3.json 解析失败' }; }
+            }
+            return { success: true, valid: true, type: 'live2d', modelDir };
+        }
+
+        if (model.type === 'image') {
+            if (!model.staticImagePath || !fs.existsSync(model.staticImagePath)) {
+                return { success: true, valid: false, error: '图片文件不存在' };
+            }
+            return { success: true, valid: true, type: 'image' };
+        }
+
+        return { success: true, valid: true, type: model.type };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('delete-profile', async (event, profileId) => {
+    try {
+        if (!profileId) return { success: false, error: 'no profile ID' };
+        const profileDir = path.join(app.getPath('userData'), 'profiles', profileId);
+        if (fs.existsSync(profileDir)) {
+            fs.rmSync(profileDir, { recursive: true, force: true });
+        }
+        return { success: true };
     } catch (error) {
         return { success: false, error: error.message };
     }

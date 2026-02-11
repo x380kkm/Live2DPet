@@ -1,43 +1,59 @@
 /**
- * Emotion System for Desktop Pet
- * Manages emotion value accumulation, AI-based emotion selection,
- * and expression triggering on the Live2D model via IPC.
+ * Emotion System for Desktop Pet (Decoupled)
+ *
+ * Responsibilities:
+ * - Accumulate emotion value over time
+ * - Select emotion via AI when threshold reached
+ * - Output emotion name via callback (does NOT directly send IPC)
+ *
+ * Expression rendering is handled by desktop-pet-system → ModelAdapter.
  */
 class EmotionSystem {
     constructor(petSystem) {
         this.petSystem = petSystem;
 
-        this.emotionExpressions = [
-            { name: '脸红', label: 'Blush' },
-            { name: '生气', label: 'Angry' },
-            { name: '流泪', label: 'Tears' },
-            { name: '晕',   label: 'Dizzy' },
-            { name: '脸黑', label: 'Annoyed' }
-        ];
-        this.enabledEmotions = ['脸红', '生气', '流泪', '晕', '脸黑'];
+        // Unified emotion items — [{name, label, type:'expression'|'motion', file?, group?, index?}]
+        this.emotionItems = [];
+        this.enabledEmotions = [];
+
+        // Legacy alias for backward compat (tests, etc.)
+        this.emotionExpressions = this.emotionItems;
 
         // Emotion value (meter)
         this.emotionValue = 0;
         this.emotionThreshold = 100;
 
         // Timing
-        this.expectedFrequencySeconds = 60; // configurable, min 30
+        this.expectedFrequencySeconds = 60;
         this.accumulationTickMs = 1000;
         this.accumulationTimer = null;
 
-        // Accumulation rates (recalculated when frequency changes)
+        // Accumulation rates
         this.baseAccumulationRate = 0;
         this.hoverAccumulationRate = 0;
         this.isHovering = false;
 
         // Expression playback state
         this.isPlayingExpression = false;
+        this.isPlayingMotion = false;
         this.expressionTimer = null;
-        this.expressionDurationMs = 5000;
+        this.motionTimer = null;
+        this.defaultExpressionDuration = 5000;
+        this.expressionDurations = {};
+        this.defaultMotionDuration = 3000;
+        this.motionDurations = {};
+
+        // Simultaneous mode: allow expression + motion to overlap
+        this.allowSimultaneous = false;
 
         // Next emotion buffer (set by AI, cleared on play)
         this.nextEmotionBuffer = null;
         this.isSelectingEmotion = false;
+
+        // Callbacks
+        this.onEmotionTriggered = null;   // (emotionName) — for expressions
+        this.onEmotionReverted = null;    // () — for expressions
+        this.onMotionTriggered = null;    // (group, index, emotionName) — for motions
 
         this._recalculateRates();
     }
@@ -56,10 +72,59 @@ class EmotionSystem {
         }
     }
 
+    /**
+     * Configure expressions from config.
+     * @param {Array} expressions - [{name, label, file?}]
+     * @param {Object} durations - {expressionName: durationMs}
+     * @param {number} defaultDuration - fallback duration
+     */
+    configureExpressions(expressions, durations, defaultDuration) {
+        // Remove existing expression items, keep motions
+        this.emotionItems = this.emotionItems.filter(e => e.type === 'motion');
+        // Add expression items
+        const exprItems = (expressions || []).map(e => ({
+            ...e, type: 'expression'
+        }));
+        this.emotionItems.push(...exprItems);
+        this.emotionExpressions = this.emotionItems;
+        this.expressionDurations = durations || {};
+        this.defaultExpressionDuration = defaultDuration || 5000;
+        // Enable all by default
+        this.enabledEmotions = this.emotionItems.map(e => e.name);
+    }
+
+    /**
+     * Configure motions as emotion items.
+     * @param {Array} motionEmotions - [{name, group, index}]
+     * @param {Object} durations - {motionName: durationMs}
+     * @param {number} defaultDuration - fallback duration for motions
+     */
+    configureMotions(motionEmotions, durations, defaultDuration) {
+        // Remove existing motion items, keep expressions
+        this.emotionItems = this.emotionItems.filter(e => e.type === 'expression');
+        // Add motion items
+        const motionItems = (motionEmotions || []).map(m => ({
+            name: m.name, label: m.name, type: 'motion',
+            group: m.group, index: m.index
+        }));
+        this.emotionItems.push(...motionItems);
+        this.emotionExpressions = this.emotionItems;
+        this.motionDurations = durations || {};
+        this.defaultMotionDuration = defaultDuration || 3000;
+        // Re-enable all
+        this.enabledEmotions = this.emotionItems.map(e => e.name);
+    }
+
     start() {
+        // Don't start if no emotion items configured
+        if (this.emotionItems.length === 0) {
+            console.log('[EmotionSystem] No emotions configured, not starting');
+            return;
+        }
         this.stop();
         this.emotionValue = 0;
         this.isPlayingExpression = false;
+        this.isPlayingMotion = false;
         this.nextEmotionBuffer = null;
         this.accumulationTimer = setInterval(() => this._tick(), this.accumulationTickMs);
         console.log('[EmotionSystem] Started');
@@ -74,13 +139,26 @@ class EmotionSystem {
             clearTimeout(this.expressionTimer);
             this.expressionTimer = null;
         }
+        if (this.motionTimer) {
+            clearTimeout(this.motionTimer);
+            this.motionTimer = null;
+        }
         this.emotionValue = 0;
         this.isPlayingExpression = false;
+        this.isPlayingMotion = false;
         this.nextEmotionBuffer = null;
     }
 
+    /** Check if accumulation should be blocked */
+    _isBusy() {
+        if (this.allowSimultaneous) {
+            return this.isPlayingExpression && this.isPlayingMotion;
+        }
+        return this.isPlayingExpression || this.isPlayingMotion;
+    }
+
     _tick() {
-        if (this.isPlayingExpression) return;
+        if (this._isBusy()) return;
 
         this.emotionValue += this.baseAccumulationRate;
         if (this.isHovering) {
@@ -97,7 +175,7 @@ class EmotionSystem {
     }
 
     onAIResponse(responseText) {
-        if (this.isPlayingExpression) return;
+        if (this._isBusy()) return;
 
         const lengthFactor = Math.min(responseText.length / 200, 1);
         const bonus = 5 + Math.random() * 25 * lengthFactor;
@@ -117,8 +195,8 @@ class EmotionSystem {
         this.isSelectingEmotion = true;
         try {
             const emotionList = this.enabledEmotions.map(name => {
-                const expr = this.emotionExpressions.find(e => e.name === name);
-                return `${name}(${expr?.label || name})`;
+                const item = this.emotionItems.find(e => e.name === name);
+                return `${name}(${item?.label || name})`;
             }).join(', ');
 
             const messages = [
@@ -153,39 +231,79 @@ class EmotionSystem {
     }
 
     async _triggerExpression() {
-        if (this.isPlayingExpression || this.enabledEmotions.length === 0) return;
+        if (this.enabledEmotions.length === 0) return;
+
+        // Filter available emotions based on current locks
+        let available = this.enabledEmotions;
+        if (this.allowSimultaneous) {
+            available = this.enabledEmotions.filter(name => {
+                const item = this.emotionItems.find(e => e.name === name);
+                if (item?.type === 'motion') return !this.isPlayingMotion;
+                return !this.isPlayingExpression;
+            });
+        } else {
+            if (this.isPlayingExpression || this.isPlayingMotion) return;
+        }
+        if (available.length === 0) return;
 
         let emotionName;
-        if (this.nextEmotionBuffer && this.enabledEmotions.includes(this.nextEmotionBuffer)) {
+        if (this.nextEmotionBuffer && available.includes(this.nextEmotionBuffer)) {
             emotionName = this.nextEmotionBuffer;
         } else {
-            emotionName = this.enabledEmotions[
-                Math.floor(Math.random() * this.enabledEmotions.length)
+            emotionName = available[
+                Math.floor(Math.random() * available.length)
             ];
         }
 
         this.nextEmotionBuffer = null;
         this.emotionValue = 0;
-        this.isPlayingExpression = true;
 
-        console.log(`[EmotionSystem] Playing: ${emotionName}`);
+        const item = this.emotionItems.find(e => e.name === emotionName);
+        const itemType = item?.type || 'expression';
 
-        try {
-            await window.electronAPI.triggerExpression(emotionName);
-        } catch (e) {
-            console.error('[EmotionSystem] Trigger failed:', e);
+        // Set type-specific lock
+        if (itemType === 'motion') {
+            this.isPlayingMotion = true;
+        } else {
+            this.isPlayingExpression = true;
         }
 
-        this.expressionTimer = setTimeout(async () => {
-            try {
-                await window.electronAPI.revertExpression();
-            } catch (e) {
-                console.error('[EmotionSystem] Revert failed:', e);
+        console.log(`[EmotionSystem] Playing: ${emotionName} (type: ${itemType})`);
+
+        // Dispatch based on type
+        if (itemType === 'motion' && this.onMotionTriggered) {
+            this.onMotionTriggered(item.group, item.index, emotionName);
+        } else if (this.onEmotionTriggered) {
+            this.onEmotionTriggered(emotionName);
+        }
+
+        // Per-emotion duration — use separate defaults for expression vs motion
+        let duration;
+        if (itemType === 'motion') {
+            duration = this.motionDurations[emotionName] || this.defaultMotionDuration;
+        } else {
+            duration = this.expressionDurations[emotionName] || this.defaultExpressionDuration;
+        }
+
+        const timer = setTimeout(() => {
+            if (itemType === 'expression' && this.onEmotionReverted) {
+                this.onEmotionReverted();
             }
-            this.isPlayingExpression = false;
-            this.expressionTimer = null;
-            console.log('[EmotionSystem] Reverted, accumulation resumed');
-        }, this.expressionDurationMs);
+            if (itemType === 'motion') {
+                this.isPlayingMotion = false;
+                this.motionTimer = null;
+            } else {
+                this.isPlayingExpression = false;
+                this.expressionTimer = null;
+            }
+            console.log(`[EmotionSystem] ${itemType} reverted, accumulation resumed`);
+        }, duration);
+
+        if (itemType === 'motion') {
+            this.motionTimer = timer;
+        } else {
+            this.expressionTimer = timer;
+        }
     }
 
     async loadConfig() {
@@ -195,8 +313,27 @@ class EmotionSystem {
                 if (config.emotionFrequency) {
                     this.expectedFrequencySeconds = Math.max(30, config.emotionFrequency);
                 }
-                if (config.enabledEmotions && Array.isArray(config.enabledEmotions)) {
-                    this.enabledEmotions = config.enabledEmotions;
+                // Load expressions from model config
+                if (config.model && config.model.hasExpressions) {
+                    this.configureExpressions(
+                        config.model.expressions,
+                        config.model.expressionDurations,
+                        config.model.defaultExpressionDuration
+                    );
+                }
+                // Load motions from model config
+                if (config.model && config.model.motionEmotions && config.model.motionEmotions.length > 0) {
+                    this.configureMotions(
+                        config.model.motionEmotions,
+                        config.model.motionDurations,
+                        config.model.defaultMotionDuration
+                    );
+                }
+                if (config.allowSimultaneous !== undefined) {
+                    this.allowSimultaneous = !!config.allowSimultaneous;
+                }
+                if (config.enabledEmotions && Array.isArray(config.enabledEmotions) && config.enabledEmotions.length > 0) {
+                    this.setEnabledEmotions(config.enabledEmotions);
                 }
                 this._recalculateRates();
             }
@@ -207,7 +344,7 @@ class EmotionSystem {
 
     setEnabledEmotions(names) {
         this.enabledEmotions = names.filter(n =>
-            this.emotionExpressions.some(e => e.name === n)
+            this.emotionItems.some(e => e.name === n)
         );
         if (window.electronAPI && window.electronAPI.saveConfig) {
             window.electronAPI.saveConfig({ enabledEmotions: this.enabledEmotions });
