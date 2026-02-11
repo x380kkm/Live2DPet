@@ -1,0 +1,141 @@
+# Live2DPet — AI デスクトップペット
+
+**[English](README.en.md)** | **日本語** | **[中文](README.md)**
+
+Electron ベースのデスクトップペット。Live2D キャラクターがデスクトップに常駐し、スクリーンショットでユーザーの操作を認識、AI がコンパニオン対話を生成、VOICEVOX で音声合成を行います。
+
+<p align="center">
+  <img src="assets/app-icon.png" width="128" alt="Live2DPet Icon">
+</p>
+
+## クイックスタート
+
+### 方法1：ダウンロード（推奨）
+
+[Releases](https://github.com/x380kkm/Live2DPet/releases) から `Live2DPet.exe` をダウンロードし、ダブルクリックで実行。インストール不要。
+
+### 方法2：ソースから実行
+
+```bash
+git clone https://github.com/x380kkm/Live2DPet.git
+cd Live2DPet
+npm install
+node launch.js
+```
+
+> VSCode ターミナルでは `npx electron .` ではなく `node launch.js` を使用してください（ELECTRON_RUN_AS_NODE 競合）。
+
+## 使い方
+
+### 1. API 設定
+
+設定パネルの「API 設定」タブに以下を入力：
+
+| フィールド | 説明 |
+|-----------|------|
+| API URL | OpenAI 互換エンドポイント |
+| API Key | API キー |
+| モデル名 | 例: `x-ai/grok-4.1-fast` |
+
+対応サービス：
+
+| サービス | baseURL | モデル例 |
+|---------|---------|---------|
+| OpenRouter | `https://openrouter.ai/api/v1` | `x-ai/grok-4.1-fast` |
+| Grok 直接 | `https://api.x.ai/v1` | `grok-4.1-fast` |
+| Deepseek | `https://api.deepseek.com/v1` | `deepseek-chat` |
+
+スクリーンショット認識のため、Vision 対応モデルを推奨。
+
+### 2. Live2D モデルのインポート
+
+「モデル」タブで「モデルフォルダを選択」をクリックし、`.model.json` または `.model3.json` を含むディレクトリを選択。システムが自動的に：
+- モデルパラメータをスキャンし、目・頭のトラッキングをマッピング
+- 表情ファイルとモーショングループをスキャン
+- モデルをユーザーデータディレクトリにコピー
+
+静止画像（PNG/GIF）もキャラクター画像として使用可能（未テスト）。
+
+### 3. ペットを起動
+
+「ペットを起動」をクリック。キャラクターがデスクトップ右下に透明ウィンドウで表示されます。
+- ドラッグで位置を移動
+- 目がマウスカーソルを追従
+- AI が定期的にスクリーンショットを撮り、吹き出しで会話
+
+### 4. キャラクターのカスタマイズ
+
+「キャラクター」タブで名前、性格、行動ルールを編集。テンプレート変数 `{{petName}}`、`{{userIdentity}}` に対応。
+
+### 5. VOICEVOX 音声合成（オプション）
+
+「TTS」タブでワンクリックで VOICEVOX コンポーネントをインストール：
+- VOICEVOX Core + ONNX Runtime
+- VVM 音声モデル（UI で選択可能）
+- Open JTalk 辞書
+
+GPU アクセラレーション（DirectML）対応。AI の応答は自動的に日本語に翻訳され、音声で再生されます。
+
+## 機能
+
+- **Live2D デスクトップキャラクター** — 透明フレームレスウィンドウ、常に最前面、目がカーソルを追従
+- **AI 視覚認識** — 定期スクリーンショット + アクティブウィンドウ検出、画面内容に応じて AI が応答
+- **VOICEVOX 音声** — ローカル日本語 TTS、中国語→日本語自動翻訳、ワンクリックセットアップ
+- **感情システム** — AI 駆動の表情・モーション選択、感情蓄積トリガー
+- **オーディオステートマシン** — TTS → デフォルトフレーズ → 無音、3モード自動フォールバック
+- **モデルホットインポート** — 任意の Live2D モデル、パラメータ自動マッピング、表情・モーション自動スキャン
+- **キャラクターペルソナ** — JSON テンプレートで性格と行動ルールを定義、マルチキャラクター対応
+
+## アーキテクチャ
+
+```
+Electron Main Process
+├── main.js                 ウィンドウ管理 / IPC / スクリーンショット / 設定
+├── tts-service.js          VOICEVOX Core FFI (koffi)
+└── translation-service.js  中→日 LLM 翻訳 + LRU キャッシュ
+
+Renderer (3 windows)
+├── Settings Window         index.html + settings-ui.js
+├── Pet Window              desktop-pet.html + model-adapter.js
+└── Chat Bubble             pet-chat-bubble.html
+
+Core Modules (renderer)
+├── desktop-pet-system.js   オーケストレータ: スクリーンショット / AI / オーディオ
+├── message-session.js      コーディネータ: テキスト + 表情 + オーディオ同期
+├── emotion-system.js       感情蓄積 + AI 表情選択 + モーショントリガー
+├── audio-state-machine.js  3モードフォールバックステートマシン
+├── ai-chat.js              OpenAI 互換 API クライアント
+└── prompt-builder.js       システムプロンプト構築 (テンプレート変数)
+```
+
+## 動作環境
+
+- Windows 10/11
+- Node.js >= 18（ソースから実行する場合）
+- OpenAI 互換 API キー
+- VOICEVOX Core（オプション、音声合成用）
+
+## テスト
+
+```bash
+node tests/test-core.js
+```
+
+## 注意事項
+
+- **プライバシー**: スクリーンショットは設定した API にのみ送信され、ディスクには保存されません
+- **API 料金**: Vision モデルの呼び出しには料金が発生します。検出間隔を適切に設定してください
+- **VOICEVOX**: 音声使用時は「VOICEVOX:キャラ名」のクレジット表記が必要です
+
+## 技術スタック
+
+- [Electron](https://www.electronjs.org/) — デスクトップアプリケーションフレームワーク
+- [Live2D Cubism SDK](https://www.live2d.com/en/sdk/about/) + [PixiJS](https://pixijs.com/) + [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
+- [VOICEVOX Core](https://github.com/VOICEVOX/voicevox_core) — 日本語音声合成エンジン
+- [koffi](https://koffi.dev/) — Node.js FFI
+
+## ライセンス
+
+MIT — [LICENSE](LICENSE) を参照。
+
+注意: 著作権の関係上、本リポジトリにはデフォルトの Live2D モデルは含まれていません。再配布可能なモデルの提供を歓迎します。同様の理由により、アプリアイコンは開発者のアバターで仮置きしています。
