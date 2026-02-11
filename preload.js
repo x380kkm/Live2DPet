@@ -32,10 +32,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
     showPetContextMenu: () => ipcRenderer.invoke('show-pet-context-menu'),
 
-    // Prompt management
-    loadPrompt: () => ipcRenderer.invoke('load-prompt'),
-    savePrompt: (data) => ipcRenderer.invoke('save-prompt', data),
-    resetPrompt: () => ipcRenderer.invoke('reset-prompt'),
+    // Character card management
+    listCharacters: () => ipcRenderer.invoke('list-characters'),
+    loadPrompt: (id) => ipcRenderer.invoke('load-prompt', id),
+    savePrompt: (id, data) => ipcRenderer.invoke('save-prompt', id, data),
+    resetPrompt: (id) => ipcRenderer.invoke('reset-prompt', id),
+    createCharacter: (name) => ipcRenderer.invoke('create-character', name),
+    deleteCharacter: (id) => ipcRenderer.invoke('delete-character', id),
+    renameCharacter: (id, name) => ipcRenderer.invoke('rename-character', id, name),
+    setActiveCharacter: (id) => ipcRenderer.invoke('set-active-character', id),
 
     // Emotion system
     triggerExpression: (name) => ipcRenderer.invoke('trigger-expression', name),
@@ -60,6 +65,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ttsSetConfig: (config) => ipcRenderer.invoke('tts-set-config', config),
     ttsGetMetas: () => ipcRenderer.invoke('tts-get-metas'),
     ttsGetAvailableVvms: () => ipcRenderer.invoke('tts-get-available-vvms'),
+    downloadVvm: (filename) => ipcRenderer.invoke('download-vvm', filename),
+    setupVoicevox: () => ipcRenderer.invoke('setup-voicevox'),
+    onVoicevoxSetupProgress: (cb) => ipcRenderer.on('voicevox-setup-progress', (e, msg) => cb(msg)),
 
     // Default audio (Phase 2)
     generateDefaultAudio: (phrases, styleId) => ipcRenderer.invoke('generate-default-audio', phrases, styleId),

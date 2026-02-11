@@ -250,7 +250,12 @@
         <h2>VOICEVOX TTS</h2>
         <div class="status" id="tts-status"></div>
         <p class="model-info" id="tts-hint">需要 voicevox_core 目录。状态将在启动时自动检测。</p>
-        <button class="btn btn-secondary" id="btn-restart-tts" style="display:none;">重启 TTS</button>
+        <div style="display:flex; gap:8px; align-items:center; margin:8px 0;">
+            <button class="btn btn-primary" id="btn-setup-voicevox">一键安装 VOICEVOX</button>
+            <button class="btn btn-secondary" id="btn-restart-tts" style="display:none;">重启 TTS</button>
+        </div>
+        <div class="status" id="voicevox-setup-status"></div>
+        <p class="model-info">需要网络连接。自动下载 Core + ONNX Runtime + 辞書 + 默认语音模型 (约120MB)。</p>
         <div style="margin-top:8px;">
             <label><input type="checkbox" id="tts-gpu-mode"> GPU 加速 (DirectML)</label>
             <p class="model-info">需要下载 voicevox_onnxruntime-win-x64-dml-1.17.3，保存后需重启 TTS。</p>
@@ -312,39 +317,52 @@
     <!-- Prompt Tab -->
     <div id="tab-prompt" class="tab-content">
     <div class="card">
+        <h2>角色卡</h2>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+            <select id="character-select" style="flex:1;"></select>
+            <button class="btn btn-secondary" id="btn-new-character" title="新建">+</button>
+            <button class="btn btn-secondary" id="btn-rename-character" title="改名">✎</button>
+            <button class="btn btn-secondary" id="btn-delete-character" title="删除">✕</button>
+        </div>
+        <div id="character-name-input-row" style="display:none; gap:8px; align-items:center;">
+            <input type="text" id="character-name-input" placeholder="输入名称..." style="flex:1;">
+            <button class="btn btn-primary" id="btn-confirm-name">确定</button>
+            <button class="btn btn-secondary" id="btn-cancel-name">取消</button>
+        </div>
+    </div>
+    <div class="card">
         <h2>角色名</h2>
         <input type="text" id="prompt-name" placeholder="角色名称">
     </div>
     <div class="card">
-        <h2>角色身份 (Character Role)</h2>
+        <h2>角色身份</h2>
         <label>角色与用户的关系 (e.g., 妹妹, 朋友, 助手)</label>
         <input type="text" id="prompt-user-identity" placeholder="妹妹">
     </div>
     <div class="card">
-        <h2>称呼方式 (User Term)</h2>
+        <h2>称呼方式</h2>
         <label>角色如何称呼用户 (e.g., 你, 哥哥, 主人)</label>
         <input type="text" id="prompt-user-term" placeholder="你">
     </div>
     <div class="card">
-        <h2>描述 (Description)</h2>
+        <h2>描述</h2>
         <textarea id="prompt-desc" rows="4" placeholder="角色描述..."></textarea>
     </div>
     <div class="card">
-        <h2>性格 (Personality)</h2>
+        <h2>性格</h2>
         <textarea id="prompt-personality" rows="4" placeholder="性格设定..."></textarea>
     </div>
     <div class="card">
-        <h2>场景 (Scenario)</h2>
+        <h2>场景</h2>
         <textarea id="prompt-scenario" rows="6" placeholder="场景和规则..."></textarea>
     </div>
     <div class="card">
-        <h2>硬性规则 (Rules)</h2>
+        <h2>硬性规则</h2>
         <textarea id="prompt-rules" rows="4" placeholder="不可违反的规则..."></textarea>
     </div>
     <div class="card">
         <div class="btn-row">
             <button class="btn btn-primary" id="btn-save-prompt">保存</button>
-            <button class="btn btn-secondary" id="btn-reset-prompt">还原默认</button>
         </div>
         <div class="status" id="prompt-status"></div>
     </div>

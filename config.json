@@ -1,111 +1,63 @@
 {
   "configVersion": 1,
-  "apiKey": "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",
+  "apiKey": "",
   "baseURL": "https://openrouter.ai/api/v1",
   "modelName": "x-ai/grok-4.1-fast",
   "interval": 30,
   "emotionFrequency": 30,
-  "enabledEmotions": [
-    "1握手抓头发",
-    "1比心",
-    "2晕",
-    "2流泪",
-    "2生气",
-    "2脸红",
-    "2脸黑",
-    "待机动画",
-    "打瞌睡"
-  ],
+  "enabledEmotions": [],
   "model": {
-    "type": "live2d",
-    "folderPath": "E:\\live2d\\live2d\\Pink devil",
-    "modelJsonFile": "Pink devil.model3.json",
+    "type": "none",
+    "folderPath": "",
+    "modelJsonFile": "",
     "copyToUserData": true,
-    "userDataModelPath": "models\\Pink devil",
+    "userDataModelPath": "",
     "staticImagePath": null,
     "bottomAlignOffset": 0.5,
     "gifExpressions": {},
     "paramMapping": {
-      "angleX": "ParamAngleX",
-      "angleY": "ParamAngleY",
-      "angleZ": "ParamAngleZ",
-      "bodyAngleX": "ParamBodyAngleX",
-      "eyeBallX": "ParamEyeBallX",
-      "eyeBallY": "ParamEyeBallY"
+      "angleX": null,
+      "angleY": null,
+      "angleZ": null,
+      "bodyAngleX": null,
+      "eyeBallX": null,
+      "eyeBallY": null
     },
-    "hasExpressions": true,
-    "expressions": [
-      {
-        "name": "1握手抓头发",
-        "label": "1握手抓头发",
-        "file": "1握手抓头发.exp3.json"
-      },
-      {
-        "name": "1比心",
-        "label": "1比心",
-        "file": "1比心.exp3.json"
-      },
-      {
-        "name": "2晕",
-        "label": "2晕",
-        "file": "2晕.exp3.json"
-      },
-      {
-        "name": "2流泪",
-        "label": "2流泪",
-        "file": "2流泪.exp3.json"
-      },
-      {
-        "name": "2生气",
-        "label": "2生气",
-        "file": "2生气.exp3.json"
-      },
-      {
-        "name": "2脸红",
-        "label": "2脸红",
-        "file": "2脸红.exp3.json"
-      },
-      {
-        "name": "2脸黑",
-        "label": "2脸黑",
-        "file": "2脸黑.exp3.json"
-      }
-    ],
+    "hasExpressions": false,
+    "expressions": [],
     "expressionDurations": {},
     "defaultExpressionDuration": 5000,
     "canvasYRatio": 0.6,
-    "motionEmotions": [
-      {
-        "name": "待机动画",
-        "group": "Default",
-        "index": 0
-      },
-      {
-        "name": "打瞌睡",
-        "group": "Default",
-        "index": 1
-      }
-    ],
+    "motionEmotions": [],
     "motionDurations": {},
-    "defaultMotionDuration": 5000
+    "defaultMotionDuration": 3000
   },
   "bubble": {
-    "frameImagePath": "E:\\live2d\\live2d\\对话边框.png"
+    "frameImagePath": ""
   },
-  "appIcon": "C:\\Users\\380kk\\AppData\\Roaming\\live2dpet\\app-icon.png",
+  "appIcon": "",
   "allowSimultaneous": true,
+  "activeCharacterId": "c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3",
+  "characters": [
+    {
+      "id": "c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3",
+      "name": "直播主"
+    },
+    {
+      "id": "41529ce1-c2ad-4e3d-bf4d-85f4472d5209",
+      "name": "妹妹"
+    }
+  ],
   "tts": {
-    "styleId": 28,
-    "speedScale": 1.3,
+    "styleId": 0,
+    "speedScale": 1,
     "pitchScale": 0,
     "volumeScale": 1,
     "audioMode": "tts",
     "vvmFiles": [
-      "0.vvm",
-      "7.vvm",
-      "8.vvm"
+      "0.vvm"
     ],
-    "gpuMode": true,
+    "gpuMode": false,
     "defaultPhrases": [
       "えっと",
       "うーん",

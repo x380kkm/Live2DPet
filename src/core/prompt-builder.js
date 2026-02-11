@@ -11,12 +11,23 @@ class PetPromptBuilder {
         await this.loadCharacterPrompt();
     }
 
-    async loadCharacterPrompt() {
+    async loadCharacterPrompt(characterId) {
         try {
-            const response = await fetch('assets/prompts/sister.json');
+            let url;
+            if (characterId) {
+                url = `assets/prompts/${characterId}.json`;
+            } else if (window.electronAPI?.loadConfig) {
+                const config = await window.electronAPI.loadConfig();
+                url = config.activeCharacterId
+                    ? `assets/prompts/${config.activeCharacterId}.json`
+                    : 'assets/prompts/sister.json';
+            } else {
+                url = 'assets/prompts/sister.json';
+            }
+            const response = await fetch(url);
             const data = await response.json();
             this.characterPrompt = data.data || data;
-            console.log('[PetPromptBuilder] Character prompt loaded');
+            console.log(`[PetPromptBuilder] Character loaded: ${this.characterPrompt.name || 'unknown'}`);
         } catch (error) {
             console.warn('[PetPromptBuilder] Failed to load prompt, using default');
             this.characterPrompt = {

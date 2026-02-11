@@ -28,16 +28,21 @@
     "files": [
       "main.js",
       "preload.js",
+      "launch.js",
       "index.html",
       "desktop-pet.html",
       "pet-chat-bubble.html",
+      "config.json",
       "src/**/*",
       "assets/**/*",
       "libs/**/*"
     ],
+    "asarUnpack": [
+      "node_modules/koffi/**"
+    ],
     "win": {
       "target": "portable",
-      "icon": null,
+      "icon": "assets/app-icon.png",
       "signAndEditExecutable": false
     },
     "portable": {

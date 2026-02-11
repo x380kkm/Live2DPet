@@ -555,18 +555,19 @@ describe('PathUtils', () => {
         assert.ok(result.includes('0.vvm'));
     });
 
-    it('getVoicevoxPath returns unpacked path in production', () => {
+    it('getVoicevoxPath returns userData fallback in production', () => {
         const origResourcesPath = process.resourcesPath;
         process.resourcesPath = '/prod/resources';
         const mockApp = {
             isPackaged: true,
             getAppPath: () => '/prod/app.asar',
-            getPath: () => '/prod/userData'
+            getPath: (name) => name === 'exe' ? '/prod/Live2DPet.exe' : '/prod/userData'
         };
         const pu = createPathUtils(mockApp, path);
         const result = pu.getVoicevoxPath('models/0.vvm');
-        assert.ok(result.includes('app.asar.unpacked'));
+        // Falls through to userData when no paths exist on disk
         assert.ok(result.includes('voicevox_core'));
+        assert.ok(result.includes('models'));
         process.resourcesPath = origResourcesPath;
     });
 

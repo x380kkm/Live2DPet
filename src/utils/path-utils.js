@@ -18,12 +18,23 @@ function createPathUtils(app, path) {
 
     /**
      * Resolve path to voicevox resources.
-     * In production, these are in asarUnpacked.
+     * Search order (packaged): exe dir → asar.unpacked → userData
      */
     function getVoicevoxPath(relative) {
-        const base = isPackaged
-            ? path.join(process.resourcesPath, 'app.asar.unpacked', 'voicevox_core')
-            : path.join(getAppBasePath(), 'voicevox_core');
+        if (isPackaged) {
+            const fs = require('fs');
+            // 1. Next to exe (portable-friendly)
+            const exeDir = path.dirname(app.getPath('exe'));
+            const beside = path.join(exeDir, 'voicevox_core');
+            if (fs.existsSync(beside)) return relative ? path.join(beside, relative) : beside;
+            // 2. asar.unpacked (installer build)
+            const unpacked = path.join(process.resourcesPath, 'app.asar.unpacked', 'voicevox_core');
+            if (fs.existsSync(unpacked)) return relative ? path.join(unpacked, relative) : unpacked;
+            // 3. userData (user-placed)
+            const userData = path.join(getUserDataPath(), 'voicevox_core');
+            return relative ? path.join(userData, relative) : userData;
+        }
+        const base = path.join(getAppBasePath(), 'voicevox_core');
         return relative ? path.join(base, relative) : base;
     }
 
