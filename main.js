@@ -147,7 +147,8 @@ app.whenReady().then(() => {
         if (voicevoxDir && fs.existsSync(voicevoxDir)) {
             const config = loadConfigFile();
             const vvmFiles = config.tts?.vvmFiles || ['0.vvm', '8.vvm'];
-            const ok = ttsService.init(voicevoxDir, vvmFiles);
+            const gpuMode = config.tts?.gpuMode || false;
+            const ok = ttsService.init(voicevoxDir, vvmFiles, { gpuMode });
             if (ok) {
                 if (config.tts) ttsService.setConfig(config.tts);
                 if (config.apiKey) {
@@ -550,6 +551,8 @@ ipcMain.handle('tts-synthesize', async (event, text) => {
         if (translationService && translationService.isConfigured()) {
             jaText = await translationService.translate(text);
         }
+        console.log(`[TTS] CN: ${text}`);
+        console.log(`[TTS] JA: ${jaText}`);
         // Synthesize
         const wavBuf = ttsService.synthesize(jaText);
         if (!wavBuf) return { success: false, error: 'synthesis failed' };
@@ -564,9 +567,30 @@ ipcMain.handle('tts-get-status', async () => {
         initialized: ttsService?.initialized || false,
         available: ttsService?.isAvailable() || false,
         degraded: ttsService?.degraded || false,
+        degradedAt: ttsService?.degradedAt || 0,
+        retryInterval: ttsService?.retryInterval || 60000,
         styleId: ttsService?.styleId || 0,
+        gpuMode: ttsService?.isGpu || false,
         translationConfigured: translationService?.isConfigured() || false
     };
+});
+
+ipcMain.handle('tts-restart', async () => {
+    try {
+        if (ttsService) ttsService.destroy();
+        const voicevoxDir = pathUtils.getVoicevoxPath();
+        if (!voicevoxDir || !fs.existsSync(voicevoxDir)) {
+            return { success: false, error: 'voicevox_core not found' };
+        }
+        const config = loadConfigFile();
+        const vvmFiles = config.tts?.vvmFiles || ['0.vvm', '8.vvm'];
+        const gpuMode = config.tts?.gpuMode || false;
+        const ok = ttsService.init(voicevoxDir, vvmFiles, { gpuMode });
+        if (ok && config.tts) ttsService.setConfig(config.tts);
+        return { success: ok };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
 });
 
 ipcMain.handle('tts-get-metas', async () => {
@@ -582,17 +606,76 @@ ipcMain.handle('tts-get-available-vvms', async () => {
 ipcMain.handle('tts-set-config', async (event, config) => {
     if (ttsService && config) {
         ttsService.setConfig(config);
-        // Persist
+        // Persist (merge, don't overwrite)
         const fileConfig = loadConfigFile();
-        fileConfig.tts = {
+        fileConfig.tts = Object.assign(fileConfig.tts || {}, {
             styleId: ttsService.styleId,
             speedScale: ttsService.speedScale,
             pitchScale: ttsService.pitchScale,
             volumeScale: ttsService.volumeScale
-        };
+        });
         saveConfigFile(fileConfig);
     }
     return { success: true };
+});
+
+// ========== Default Audio ==========
+
+ipcMain.handle('generate-default-audio', async (event, phrases, styleId) => {
+    try {
+        if (!ttsService || !ttsService.isAvailable()) {
+            return { success: false, error: 'TTS not available' };
+        }
+        const audioDir = path.join(app.getPath('userData'), 'default-audio');
+        if (!fs.existsSync(audioDir)) fs.mkdirSync(audioDir, { recursive: true });
+        // Clear old files
+        for (const f of fs.readdirSync(audioDir)) {
+            if (f.endsWith('.wav')) fs.unlinkSync(path.join(audioDir, f));
+        }
+        const oldStyleId = ttsService.styleId;
+        if (styleId !== undefined) ttsService.styleId = styleId;
+        const results = [];
+        for (let i = 0; i < phrases.length; i++) {
+            const phrase = phrases[i];
+            try {
+                const wavBuf = ttsService.synthesize(phrase);
+                if (wavBuf) {
+                    const filePath = path.join(audioDir, `default_${i}.wav`);
+                    fs.writeFileSync(filePath, wavBuf);
+                    results.push({ phrase, file: `default_${i}.wav`, success: true });
+                } else {
+                    results.push({ phrase, success: false });
+                }
+            } catch (e) {
+                results.push({ phrase, success: false, error: e.message });
+            }
+        }
+        ttsService.styleId = oldStyleId;
+        // Save phrases to config
+        const config = loadConfigFile();
+        config.tts = config.tts || {};
+        config.tts.defaultPhrases = phrases;
+        saveConfigFile(config);
+        return { success: true, results };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('load-default-audio', async () => {
+    try {
+        const audioDir = path.join(app.getPath('userData'), 'default-audio');
+        if (!fs.existsSync(audioDir)) return { success: true, files: [] };
+        const files = fs.readdirSync(audioDir)
+            .filter(f => f.endsWith('.wav'))
+            .map(f => {
+                const data = fs.readFileSync(path.join(audioDir, f));
+                return { name: f, base64: data.toString('base64') };
+            });
+        return { success: true, files };
+    } catch (error) {
+        return { success: false, error: error.message, files: [] };
+    }
 });
 
 // ========== Model Import & Scanning ==========

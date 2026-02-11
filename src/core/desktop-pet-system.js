@@ -14,6 +14,12 @@ class DesktopPetSystem {
         this.isRequesting = false;
         this.emotionSystem = null;
 
+        // Audio state machine + playback tracking
+        this.audioStateMachine = null;
+        this.currentAudio = null;
+        this.currentAudioUrl = null;
+        this.currentSession = null;
+
         // Screenshot buffer system (5s interval, per-window)
         this.screenshotTimer = null;
         this.screenshotBuffers = {};
@@ -36,7 +42,43 @@ class DesktopPetSystem {
         this.emotionSystem = new EmotionSystem(this);
         await this.emotionSystem.loadConfig();
 
+        // Audio state machine
+        this.audioStateMachine = new AudioStateMachine();
+        await this._initAudioState();
+
         console.log('[DesktopPetSystem] Initialized');
+    }
+
+    async _initAudioState() {
+        if (!window.electronAPI) return;
+        // Load preferred mode from config
+        try {
+            const config = await window.electronAPI.loadConfig();
+            const mode = config.tts?.audioMode || 'tts';
+            this.audioStateMachine.setPreferredMode(mode);
+        } catch (e) {}
+        // Check TTS availability
+        if (window.electronAPI.ttsGetStatus) {
+            try {
+                const status = await window.electronAPI.ttsGetStatus();
+                this.audioStateMachine.setTTSAvailable(status.initialized && !status.degraded);
+            } catch (e) {}
+        }
+        // Load default audio clips
+        if (window.electronAPI.loadDefaultAudio) {
+            try {
+                const result = await window.electronAPI.loadDefaultAudio();
+                if (result.success && result.files.length > 0) {
+                    const clips = result.files.map(f => {
+                        const bytes = Uint8Array.from(atob(f.base64), c => c.charCodeAt(0));
+                        const blob = new Blob([bytes], { type: 'audio/wav' });
+                        return new Audio(URL.createObjectURL(blob));
+                    });
+                    this.audioStateMachine.setDefaultAudioAvailable(true, clips);
+                }
+            } catch (e) {}
+        }
+        console.log('[DesktopPetSystem] Audio mode:', this.audioStateMachine.effectiveMode);
     }
 
     async start() {
@@ -67,6 +109,7 @@ class DesktopPetSystem {
         this.stopDetection();
         this.stopScreenshotTimer();
         this.stopFocusTimer();
+        this.stopCurrentAudio();
         this.emotionSystem.stop();
         try {
             await window.electronAPI.closePetWindow();
@@ -218,6 +261,80 @@ class DesktopPetSystem {
         }
     }
 
+    stopCurrentAudio() {
+        if (this.currentAudio) {
+            this.currentAudio.pause();
+            this.currentAudio = null;
+        }
+        if (this.currentAudioUrl) {
+            URL.revokeObjectURL(this.currentAudioUrl);
+            this.currentAudioUrl = null;
+        }
+    }
+
+    /**
+     * Prepare audio for playback (synthesis/loading phase).
+     * Returns { play: () => Promise<void>, duration: number } or null.
+     */
+    async prepareAudio(text) {
+        if (!this.audioStateMachine) return null;
+        const mode = this.audioStateMachine.effectiveMode;
+
+        if (mode === 'tts' && window.electronAPI?.ttsSynthesize) {
+            try {
+                const result = await window.electronAPI.ttsSynthesize(text);
+                if (!result.success || !result.wav) return null;
+
+                const audio = this._createAudioFromBase64(result.wav);
+                // Wait for metadata to get duration
+                const duration = await new Promise((resolve, reject) => {
+                    audio.addEventListener('loadedmetadata', () => resolve(audio.duration * 1000));
+                    audio.addEventListener('error', () => reject(new Error('audio load failed')));
+                });
+
+                return {
+                    duration,
+                    play: () => this._playPreparedAudio(audio)
+                };
+            } catch (e) {
+                console.warn('[TTS] Prepare failed:', e.message);
+                return null;
+            }
+        } else if (mode === 'default-audio') {
+            const clip = this.audioStateMachine.getRandomClip();
+            if (!clip) return null;
+            const audio = clip.cloneNode();
+            return {
+                duration: 0, // unknown for default clips
+                play: () => this._playPreparedAudio(audio)
+            };
+        }
+        return null; // silent
+    }
+
+    _createAudioFromBase64(base64) {
+        const wavBytes = Uint8Array.from(atob(base64), c => c.charCodeAt(0));
+        const blob = new Blob([wavBytes], { type: 'audio/wav' });
+        const url = URL.createObjectURL(blob);
+        const audio = new Audio(url);
+        audio._objectUrl = url;
+        return audio;
+    }
+
+    /**
+     * Play a prepared Audio element. Returns Promise that resolves when playback ends.
+     */
+    _playPreparedAudio(audio) {
+        this.stopCurrentAudio();
+        this.currentAudio = audio;
+        this.currentAudioUrl = audio._objectUrl || null;
+        return new Promise(resolve => {
+            audio.addEventListener('ended', () => { this.stopCurrentAudio(); resolve(); });
+            audio.addEventListener('error', () => { this.stopCurrentAudio(); resolve(); });
+            audio.play().catch(() => { this.stopCurrentAudio(); resolve(); });
+        });
+    }
+
     shouldSkipApp(appName) {
         const skip = ['desktop-pet', 'electron'];
         return skip.some(s => appName.toLowerCase().includes(s));
@@ -276,28 +393,13 @@ class DesktopPetSystem {
             }
 
             if (response) {
-                await window.electronAPI.showPetChat(response, 8000);
-                console.log('[DesktopPetSystem] Response:', response);
-
-                // TTS: synthesize and play audio
-                if (window.electronAPI.ttsSynthesize) {
-                    window.electronAPI.ttsSynthesize(response).then(result => {
-                        if (result.success && result.wav) {
-                            try {
-                                const wavBytes = Uint8Array.from(atob(result.wav), c => c.charCodeAt(0));
-                                const blob = new Blob([wavBytes], { type: 'audio/wav' });
-                                const audio = new Audio(URL.createObjectURL(blob));
-                                audio.play();
-                            } catch (e) {
-                                console.warn('[TTS] Audio playback failed:', e.message);
-                            }
-                        }
-                    }).catch(() => {});
-                }
-
-                if (this.emotionSystem) {
-                    this.emotionSystem.onAIResponse(response);
-                }
+                // Cancel previous session, create new one
+                if (this.currentSession) this.currentSession.cancel();
+                this.stopCurrentAudio();
+                if (this.emotionSystem) this.emotionSystem.forceRevert();
+                const session = MessageSession.create(response);
+                this.currentSession = session;
+                await session.run(this);
             }
 
             // Clear focus tracker after each AI request

@@ -270,59 +270,58 @@ curl -L -o dict.tar.gz "https://sourceforge.net/projects/open-jtalk/files/Dictio
 - ✗ electron-log（不需要）
 - ✗ setup-voicevox.js 构建脚本（手动 gh CLI 下载）
 
-### Phase 2 剩余计划
+### Phase 2 剩余计划 — 全部完成 ✓
 
-#### 2.1 音频模式 & 状态机
+#### 2.1 音频模式 & 状态机 ✓
 
 三种模式优雅降级：TTS → 默认音声 → 静音
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
-| `src/core/audio-state-machine.js` | 新建 | 状态: tts/default/silent, 自动降级 |
-| `desktop-pet-system.js` | 修改 | 用状态机决定播放方式 |
-| `index.html` + `settings-ui.js` | 修改 | 音频模式选择 (radio) |
+| `src/core/audio-state-machine.js` | 新建 | 状态: tts/default-audio/silent, 自动降级 |
+| `desktop-pet-system.js` | 修改 | 用状态机决定播放方式, `_playAudio()` 分发 |
+| `index.html` + `settings-ui.js` | 修改 | 音频模式选择 (radio), 保存到 config.tts.audioMode |
 
-#### 2.2 默认音声系统
+#### 2.2 默认音声系统 ✓
 
 TTS 不可用时的 fallback 音效：
 - 用户配置语气词列表（默认: えっと, うーん, へぇ, ふーん, あっ）
 - 点击「生成」→ VOICEVOX 合成 → 保存 WAV 到 userData
 - 启动时 preload 到内存，AI 回复时随机播放
-- `main.js` 新增 IPC: generate-default-audio, check-default-audio
+- `main.js` 新增 IPC: generate-default-audio, load-default-audio
+- `preload.js` 新增: generateDefaultAudio, loadDefaultAudio
 
-#### 2.3 音频中断处理
+#### 2.3 音频中断处理 ✓
 
 新消息到达时停止当前音频：
-- `desktop-pet-system.js`: 保存 Audio 引用，新 TTS 到达 → pause 旧的
+- `desktop-pet-system.js`: `stopCurrentAudio()` 方法, 保存 Audio 引用 + ObjectURL, 新消息 → pause + revoke
 
-#### 2.4 MessageSession 协调
+#### 2.4 MessageSession 协调 ✓
 
 统一协调 文字+表情+音频 的时序：
 - `src/core/message-session.js` (~80行)
 - LLM 回复 → 创建 Session → 并行翻译+情绪 → 就绪 → 统一触发
 - 新 Session → cancel 旧 Session
 
-#### 2.5 TTS 状态 UI 增强
+#### 2.5 TTS 状态 UI 增强 ✓
 
-- 「重启 TTS」按钮
-- 状态: TTS就绪 / 熔断中 / 离线
+- 「重启 TTS」按钮 + `tts-restart` IPC handler
+- 状态显示: TTS就绪 (CPU/GPU) / 熔断中 (Ns 后自动重试) / 离线
 - 熔断时显示重试倒计时
 
-#### 2.6 GPU 加速 (待研究)
+#### 2.6 GPU 加速 ✓
 
-- 当前使用 CPU 版 ONNX Runtime
-- 可下载 DirectML 版 onnxruntime 支持 GPU 加速
-- 需要额外下载 voicevox_additional_libraries (DirectML)
-- 设置中添加 GPU 开关
+- DirectML 版: `voicevox_onnxruntime-win-x64-dml-1.17.3.tgz`
+- 下载: `gh release download voicevox_onnxruntime-1.17.3 -R VOICEVOX/onnxruntime-builder -p "voicevox_onnxruntime-win-x64-dml-1.17.3.tgz"`
+- C API: `VoicevoxInitializeOptions.acceleration_mode = 2` (GPU)
+- `tts-service.js`: 自动检测 DirectML DLL, `init()` 接受 `{ gpuMode }` 选项
+- 设置 UI: GPU 加速复选框, 保存到 config.tts.gpuMode, 需重启 TTS 生效
+- VRAM 占用: 几百 MB 级别, 主要加速推理速度
 
-#### 优先级
+#### 测试
 
-1. 音频中断处理 (2.3) — 最小改动，立即改善体验
-2. 音频模式+状态机 (2.1) — 框架性改动
-3. 默认音声 (2.2) — 依赖状态机
-4. MessageSession (2.4) — 可选，当前流程已基本可用
-5. TTS 状��� UI (2.5) — 锦上添花
-6. GPU 加速 (2.6) — 待研究
+107 tests, 12 suites, all pass
+
 
 ---
 
@@ -359,9 +358,11 @@ live2dpet/
 │   │   ├── ai-chat.js
 │   │   ├── prompt-builder.js
 │   │   ├── emotion-system.js        # 已解耦
-│   │   ├── desktop-pet-system.js    # 已解耦 + TTS 播放
-│   │   ├── tts-service.js           # 新建 - VOICEVOX FFI
-│   │   └── translation-service.js   # 新建 - 中→日翻译
+│   │   ├── desktop-pet-system.js    # 已解耦 + 音频状态机 + MessageSession
+│   │   ├── audio-state-machine.js   # 新建 - 三模式降级
+│   │   ├── message-session.js       # 新建 - 文字+表情+音频协调
+│   │   ├── tts-service.js           # VOICEVOX FFI + GPU 支持
+│   │   └── translation-service.js   # 中→日翻译
 │   ├── renderer/
 │   │   ├── model-adapter.js         # 新建 - 策略模式
 │   │   ├── settings-ui.js           # 新建 - 设置UI逻辑
@@ -370,12 +371,12 @@ live2dpet/
 │       └── path-utils.js            # 新建
 ├── voicevox_core/                       # .gitignore'd, ~177MB
 └── tests/
-    └── test-core.js                 # 86 tests, 10 suites, all pass
+    └── test-core.js                 # 107 tests, 12 suites, all pass
 ```
 
 ## Git 状态
 
-未提交。所有修改在工作区。运行 `git status` 查看完���列表。
+Phase 2 剩余计划全部完成。待提交。
 
 ## 运行命令
 

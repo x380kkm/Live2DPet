@@ -95,9 +95,23 @@
   "appIcon": "C:\\Users\\380kk\\AppData\\Roaming\\live2dpet\\app-icon.png",
   "allowSimultaneous": true,
   "tts": {
-    "styleId": 26,
-    "speedScale": 1,
+    "styleId": 28,
+    "speedScale": 1.3,
     "pitchScale": 0,
-    "volumeScale": 1
+    "volumeScale": 1,
+    "audioMode": "tts",
+    "vvmFiles": [
+      "0.vvm",
+      "7.vvm",
+      "8.vvm"
+    ],
+    "gpuMode": true,
+    "defaultPhrases": [
+      "えっと",
+      "うーん",
+      "へぇ",
+      "ふーん",
+      "あっ"
+    ]
   }
 }
