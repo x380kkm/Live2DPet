@@ -3,7 +3,7 @@
   "apiKey": "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",
   "baseURL": "https://openrouter.ai/api/v1",
   "modelName": "x-ai/grok-4.1-fast",
-  "interval": 10,
+  "interval": 30,
   "emotionFrequency": 30,
   "enabledEmotions": [
     "1握手抓头发",
@@ -93,5 +93,11 @@
     "frameImagePath": "E:\\live2d\\live2d\\对话边框.png"
   },
   "appIcon": "C:\\Users\\380kk\\AppData\\Roaming\\live2dpet\\app-icon.png",
-  "allowSimultaneous": true
+  "allowSimultaneous": true,
+  "tts": {
+    "styleId": 26,
+    "speedScale": 1,
+    "pitchScale": 0,
+    "volumeScale": 1
+  }
 }

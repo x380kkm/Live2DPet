@@ -53,6 +53,13 @@ contextBridge.exposeInMainWorld('electronAPI', {
     validateModelPaths: () => ipcRenderer.invoke('validate-model-paths'),
     deleteProfile: (id) => ipcRenderer.invoke('delete-profile', id),
 
+    // TTS (Phase 2)
+    ttsSynthesize: (text) => ipcRenderer.invoke('tts-synthesize', text),
+    ttsGetStatus: () => ipcRenderer.invoke('tts-get-status'),
+    ttsSetConfig: (config) => ipcRenderer.invoke('tts-set-config', config),
+    ttsGetMetas: () => ipcRenderer.invoke('tts-get-metas'),
+    ttsGetAvailableVvms: () => ipcRenderer.invoke('tts-get-available-vvms'),
+
     // Event listeners
     onCharacterUpdate: (cb) => ipcRenderer.on('character-update', (e, data) => cb(data)),
     onPetWindowClosed: (cb) => ipcRenderer.on('pet-window-closed', () => cb()),

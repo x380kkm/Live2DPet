@@ -95,6 +95,7 @@
         <button class="tab-btn active" data-tab="settings">设置</button>
         <button class="tab-btn" data-tab="model">模型</button>
         <button class="tab-btn" data-tab="emotion">表情</button>
+        <button class="tab-btn" data-tab="tts">TTS</button>
         <button class="tab-btn" data-tab="prompt">Prompt</button>
     </div>
 
@@ -240,6 +241,45 @@
         <input type="number" id="default-motion-duration" value="3" min="1" max="30" step="0.5">
         <button class="btn btn-primary" id="btn-save-expressions">保存表情设置</button>
         <div class="status" id="save-emotion-status"></div>
+    </div>
+    </div>
+
+    <!-- TTS Tab -->
+    <div id="tab-tts" class="tab-content">
+    <div class="card">
+        <h2>VOICEVOX TTS</h2>
+        <div class="status" id="tts-status"></div>
+        <p class="model-info" id="tts-hint">需要 voicevox_core 目录。状态将在启动时自动检测。</p>
+    </div>
+    <div class="card">
+        <label>角色</label>
+        <select id="tts-speaker"></select>
+        <label>Style</label>
+        <select id="tts-style-id"></select>
+        <label>语速 (Speed)</label>
+        <input type="range" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0">
+        <span id="tts-speed-val">1.0</span>
+        <label>音高 (Pitch)</label>
+        <input type="range" id="tts-pitch" min="-0.15" max="0.15" step="0.01" value="0.0">
+        <span id="tts-pitch-val">0.0</span>
+        <label>音量 (Volume)</label>
+        <input type="range" id="tts-volume" min="0.0" max="2.0" step="0.1" value="1.0">
+        <span id="tts-volume-val">1.0</span>
+        <button class="btn btn-primary" id="btn-save-tts">保存 TTS 设置</button>
+        <div class="status" id="tts-save-status"></div>
+    </div>
+    <div class="card">
+        <h2>测试</h2>
+        <input type="text" id="tts-test-text" placeholder="输入中文测试..." value="你好，我是你的桌面宠物">
+        <button class="btn btn-secondary" id="btn-test-tts">测试语音</button>
+        <div class="status" id="tts-test-status"></div>
+    </div>
+    <div class="card">
+        <h2>语音模型 (VVM)</h2>
+        <p class="model-info">勾选要加载的 VVM 文件，保存后需重启生效。</p>
+        <div id="vvm-checkboxes" style="max-height:200px;overflow-y:auto;margin:8px 0;"></div>
+        <button class="btn btn-primary" id="btn-save-vvm">保存 VVM 配置 (需重启)</button>
+        <div class="status" id="vvm-save-status"></div>
     </div>
     </div>
 

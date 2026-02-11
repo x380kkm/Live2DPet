@@ -2,12 +2,16 @@ const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, dialog } = require('
 const path = require('path');
 const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
+const { TTSService } = require('./src/core/tts-service');
+const { TranslationService } = require('./src/core/translation-service');
 
 let petWindow = null;
 let chatBubbleWindow = null;
 let settingsWindow = null;
 let characterData = { isLive2DActive: true, live2dModelPath: null };
 let pathUtils = null;
+let ttsService = null;
+let translationService = null;
 
 // ========== Config Persistence ==========
 
@@ -131,7 +135,33 @@ function saveConfigFile(data) {
 
 app.whenReady().then(() => {
     pathUtils = createPathUtils(app, path);
+
+    // Create windows first, then init TTS in background
+    ttsService = new TTSService();
+    translationService = new TranslationService();
     createSettingsWindow();
+
+    // Initialize TTS after windows are created (non-blocking)
+    setImmediate(() => {
+        const voicevoxDir = pathUtils.getVoicevoxPath();
+        if (voicevoxDir && fs.existsSync(voicevoxDir)) {
+            const config = loadConfigFile();
+            const vvmFiles = config.tts?.vvmFiles || ['0.vvm', '8.vvm'];
+            const ok = ttsService.init(voicevoxDir, vvmFiles);
+            if (ok) {
+                if (config.tts) ttsService.setConfig(config.tts);
+                if (config.apiKey) {
+                    translationService.configure({
+                        apiKey: config.apiKey,
+                        baseURL: config.baseURL || 'https://openrouter.ai/api/v1',
+                        modelName: config.modelName || 'x-ai/grok-4.1-fast'
+                    });
+                }
+            }
+        } else {
+            console.log('[TTS] voicevox_core not found, TTS disabled');
+        }
+    });
 });
 
 app.on('window-all-closed', () => {
@@ -506,6 +536,63 @@ ipcMain.handle('report-hover-state', async (event, isHovering) => {
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+
+// ========== TTS ==========
+
+ipcMain.handle('tts-synthesize', async (event, text) => {
+    try {
+        if (!ttsService || !ttsService.isAvailable()) {
+            return { success: false, error: 'TTS not available' };
+        }
+        // Translate Chinese → Japanese
+        let jaText = text;
+        if (translationService && translationService.isConfigured()) {
+            jaText = await translationService.translate(text);
+        }
+        // Synthesize
+        const wavBuf = ttsService.synthesize(jaText);
+        if (!wavBuf) return { success: false, error: 'synthesis failed' };
+        return { success: true, wav: wavBuf.toString('base64'), jaText };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('tts-get-status', async () => {
+    return {
+        initialized: ttsService?.initialized || false,
+        available: ttsService?.isAvailable() || false,
+        degraded: ttsService?.degraded || false,
+        styleId: ttsService?.styleId || 0,
+        translationConfigured: translationService?.isConfigured() || false
+    };
+});
+
+ipcMain.handle('tts-get-metas', async () => {
+    if (!ttsService) return [];
+    return ttsService.getMetas();
+});
+
+ipcMain.handle('tts-get-available-vvms', async () => {
+    if (!ttsService || !pathUtils) return [];
+    return ttsService.getAvailableVvms(pathUtils.getVoicevoxPath());
+});
+
+ipcMain.handle('tts-set-config', async (event, config) => {
+    if (ttsService && config) {
+        ttsService.setConfig(config);
+        // Persist
+        const fileConfig = loadConfigFile();
+        fileConfig.tts = {
+            styleId: ttsService.styleId,
+            speedScale: ttsService.speedScale,
+            pitchScale: ttsService.pitchScale,
+            volumeScale: ttsService.volumeScale
+        };
+        saveConfigFile(fileConfig);
+    }
+    return { success: true };
 });
 
 // ========== Model Import & Scanning ==========

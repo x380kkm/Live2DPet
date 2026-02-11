@@ -279,6 +279,22 @@ class DesktopPetSystem {
                 await window.electronAPI.showPetChat(response, 8000);
                 console.log('[DesktopPetSystem] Response:', response);
 
+                // TTS: synthesize and play audio
+                if (window.electronAPI.ttsSynthesize) {
+                    window.electronAPI.ttsSynthesize(response).then(result => {
+                        if (result.success && result.wav) {
+                            try {
+                                const wavBytes = Uint8Array.from(atob(result.wav), c => c.charCodeAt(0));
+                                const blob = new Blob([wavBytes], { type: 'audio/wav' });
+                                const audio = new Audio(URL.createObjectURL(blob));
+                                audio.play();
+                            } catch (e) {
+                                console.warn('[TTS] Audio playback failed:', e.message);
+                            }
+                        }
+                    }).catch(() => {});
+                }
+
                 if (this.emotionSystem) {
                     this.emotionSystem.onAIResponse(response);
                 }

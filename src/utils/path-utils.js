@@ -21,10 +21,10 @@ function createPathUtils(app, path) {
      * In production, these are in asarUnpacked.
      */
     function getVoicevoxPath(relative) {
-        if (isPackaged) {
-            return path.join(process.resourcesPath, 'app.asar.unpacked', 'resources', 'voicevox', relative);
-        }
-        return path.join(getAppBasePath(), 'resources', 'voicevox', relative);
+        const base = isPackaged
+            ? path.join(process.resourcesPath, 'app.asar.unpacked', 'voicevox_core')
+            : path.join(getAppBasePath(), 'voicevox_core');
+        return relative ? path.join(base, relative) : base;
     }
 
     /**
