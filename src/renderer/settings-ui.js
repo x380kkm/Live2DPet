@@ -53,7 +53,7 @@ document.querySelectorAll('.tab-btn').forEach(btn => {
         document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
         btn.classList.add('active');
         document.getElementById('tab-' + btn.dataset.tab).classList.add('active');
-        if (btn.dataset.tab === 'prompt') loadPromptUI();
+        if (btn.dataset.tab === 'prompt') loadCharacterList();
     });
 });
 
@@ -560,7 +560,10 @@ document.getElementById('btn-save-expressions').addEventListener('click', async 
     showStatus('save-emotion-status', '表情设置已保存', 'success');
 });
 
-// ========== Prompt Management ==========
+// ========== Character Card Management ==========
+
+let currentCharacterId = null;
+
 function fillPromptFields(data) {
     document.getElementById('prompt-name').value = data.name || '';
     document.getElementById('prompt-user-identity').value = data.userIdentity || '';
@@ -571,13 +574,117 @@ function fillPromptFields(data) {
     document.getElementById('prompt-rules').value = data.rules || '';
 }
 
-async function loadPromptUI() {
-    if (!window.electronAPI || !window.electronAPI.loadPrompt) return;
-    const result = await window.electronAPI.loadPrompt();
-    if (result.success) fillPromptFields(result.data);
+async function loadCharacterList() {
+    if (!window.electronAPI?.listCharacters) return;
+    const { characters, activeCharacterId } = await window.electronAPI.listCharacters();
+    const select = document.getElementById('character-select');
+    select.innerHTML = '';
+    for (const c of characters) {
+        const opt = document.createElement('option');
+        opt.value = c.id;
+        opt.textContent = c.name;
+        select.appendChild(opt);
+    }
+    select.value = activeCharacterId;
+    currentCharacterId = activeCharacterId;
+    await loadCharacterPrompt(activeCharacterId);
 }
 
+async function loadCharacterPrompt(id) {
+    if (!window.electronAPI?.loadPrompt) return;
+    const result = await window.electronAPI.loadPrompt(id);
+    if (result.success) {
+        currentCharacterId = result.id || id;
+        fillPromptFields(result.data);
+    }
+}
+
+async function reloadPetPrompt() {
+    if (petSystem && petSystem.promptBuilder) {
+        await petSystem.promptBuilder.loadCharacterPrompt(currentCharacterId);
+        petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
+    }
+}
+
+document.getElementById('character-select').addEventListener('change', async (e) => {
+    const id = e.target.value;
+    await window.electronAPI.setActiveCharacter(id);
+    currentCharacterId = id;
+    await loadCharacterPrompt(id);
+    await reloadPetPrompt();
+    showStatus('prompt-status', '已切换角色', 'success');
+});
+
+// Inline name input helper
+let _nameAction = null; // 'new' | 'rename'
+
+function showNameInput(defaultValue, action) {
+    _nameAction = action;
+    const row = document.getElementById('character-name-input-row');
+    const input = document.getElementById('character-name-input');
+    input.value = defaultValue || '';
+    row.style.display = 'flex';
+    input.focus();
+    input.select();
+}
+
+function hideNameInput() {
+    document.getElementById('character-name-input-row').style.display = 'none';
+    _nameAction = null;
+}
+
+document.getElementById('btn-confirm-name').addEventListener('click', async () => {
+    const name = document.getElementById('character-name-input').value.trim();
+    if (!name) return;
+    if (_nameAction === 'new') {
+        const result = await window.electronAPI.createCharacter(name);
+        if (result.success) {
+            await window.electronAPI.setActiveCharacter(result.id);
+            await loadCharacterList();
+            showStatus('prompt-status', '已创建: ' + name, 'success');
+        }
+    } else if (_nameAction === 'rename' && currentCharacterId) {
+        const result = await window.electronAPI.renameCharacter(currentCharacterId, name);
+        if (result.success) {
+            await loadCharacterList();
+            showStatus('prompt-status', '已改名', 'success');
+        }
+    }
+    hideNameInput();
+});
+
+document.getElementById('btn-cancel-name').addEventListener('click', hideNameInput);
+
+document.getElementById('character-name-input').addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') document.getElementById('btn-confirm-name').click();
+    if (e.key === 'Escape') hideNameInput();
+});
+
+document.getElementById('btn-new-character').addEventListener('click', () => {
+    showNameInput('', 'new');
+});
+
+document.getElementById('btn-rename-character').addEventListener('click', () => {
+    if (!currentCharacterId) return;
+    const select = document.getElementById('character-select');
+    const currentName = select.options[select.selectedIndex]?.textContent || '';
+    showNameInput(currentName, 'rename');
+});
+
+document.getElementById('btn-delete-character').addEventListener('click', async () => {
+    if (!currentCharacterId) return;
+    const result = await window.electronAPI.deleteCharacter(currentCharacterId);
+    if (result.success) {
+        await loadCharacterList();
+        await reloadPetPrompt();
+        showStatus('prompt-status', '已删除', 'success');
+    } else {
+        showStatus('prompt-status', result.error, 'error');
+    }
+});
+
 document.getElementById('btn-save-prompt').addEventListener('click', async () => {
+    if (!currentCharacterId) return;
     const promptData = {
         name: document.getElementById('prompt-name').value,
         userIdentity: document.getElementById('prompt-user-identity').value,
@@ -587,29 +694,12 @@ document.getElementById('btn-save-prompt').addEventListener('click', async () =>
         scenario: document.getElementById('prompt-scenario').value,
         rules: document.getElementById('prompt-rules').value
     };
-    const result = await window.electronAPI.savePrompt(promptData);
+    const result = await window.electronAPI.savePrompt(currentCharacterId, promptData);
     if (result.success) {
         showStatus('prompt-status', '已保存', 'success');
-        if (petSystem && petSystem.promptBuilder) {
-            await petSystem.promptBuilder.loadCharacterPrompt();
-            petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-        }
+        await reloadPetPrompt();
     } else {
         showStatus('prompt-status', '保存失败: ' + result.error, 'error');
-    }
-});
-
-document.getElementById('btn-reset-prompt').addEventListener('click', async () => {
-    const result = await window.electronAPI.resetPrompt();
-    if (result.success) {
-        fillPromptFields(result.data);
-        showStatus('prompt-status', '已还原为默认', 'success');
-        if (petSystem && petSystem.promptBuilder) {
-            await petSystem.promptBuilder.loadCharacterPrompt();
-            petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-        }
-    } else {
-        showStatus('prompt-status', '还原失败: ' + result.error, 'error');
     }
 });
 
@@ -764,6 +854,39 @@ document.getElementById('btn-restart-tts')?.addEventListener('click', async () =
     }
 });
 
+// One-click VOICEVOX setup
+document.getElementById('btn-setup-voicevox')?.addEventListener('click', async () => {
+    const btn = document.getElementById('btn-setup-voicevox');
+    const status = document.getElementById('voicevox-setup-status');
+    btn.disabled = true;
+    btn.textContent = '安装中...';
+    status.textContent = '准备中...';
+    status.className = 'status';
+
+    if (window.electronAPI.onVoicevoxSetupProgress) {
+        window.electronAPI.onVoicevoxSetupProgress((msg) => {
+            status.textContent = msg;
+        });
+    }
+
+    const result = await window.electronAPI.setupVoicevox();
+    btn.disabled = false;
+    btn.textContent = '一键安装 VOICEVOX';
+    if (result.success) {
+        status.textContent = '安装完成! 重启 TTS 生效。';
+        status.className = 'status success';
+        // Auto-restart TTS
+        const restartResult = await window.electronAPI.ttsRestart();
+        if (restartResult.success) {
+            await loadTTSStatus();
+            status.textContent = '安装完成，TTS 已启动!';
+        }
+    } else {
+        status.textContent = '安装失败: ' + result.error;
+        status.className = 'status error';
+    }
+});
+
 // Default audio generation
 document.getElementById('btn-generate-default-audio')?.addEventListener('click', async () => {
     const textarea = document.getElementById('default-audio-phrases');
@@ -825,14 +948,40 @@ async function loadVvmConfig() {
     if (!window.electronAPI?.ttsGetAvailableVvms) return;
     const available = await window.electronAPI.ttsGetAvailableVvms();
     const config = await window.electronAPI.loadConfig();
-    const loaded = config.tts?.vvmFiles || ['0.vvm', '8.vvm'];
+    const loaded = config.tts?.vvmFiles || ['0.vvm'];
     const container = document.getElementById('vvm-checkboxes');
     if (!container) return;
-    container.innerHTML = available.map(f => {
-        const checked = loaded.includes(f) ? 'checked' : '';
+
+    const allVvms = Object.keys(VVM_CHARACTERS);
+    container.innerHTML = allVvms.map(f => {
+        const onDisk = available.includes(f);
+        const checked = loaded.includes(f) && onDisk ? 'checked' : '';
+        const disabled = onDisk ? '' : 'disabled';
         const desc = VVM_CHARACTERS[f] || '';
-        return `<label style="display:block;padding:2px 0;font-size:12px;"><input type="checkbox" value="${f}" ${checked}> <b>${f}</b> ${desc}</label>`;
+        const dlBtn = onDisk
+            ? '<span style="color:#4a4;font-size:11px;">OK</span>'
+            : `<button class="btn-dl-vvm" data-vvm="${f}" style="font-size:11px;padding:1px 6px;cursor:pointer;">下载</button>`;
+        return `<label style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:12px;">
+            <input type="checkbox" value="${f}" ${checked} ${disabled}>
+            <b>${f}</b> ${desc} ${dlBtn}
+        </label>`;
     }).join('');
+
+    container.querySelectorAll('.btn-dl-vvm').forEach(btn => {
+        btn.addEventListener('click', async (e) => {
+            e.preventDefault();
+            const vvm = btn.dataset.vvm;
+            btn.textContent = '...';
+            btn.disabled = true;
+            const result = await window.electronAPI.downloadVvm(vvm);
+            if (result.success) {
+                await loadVvmConfig();
+            } else {
+                btn.textContent = '失败';
+                showStatus('vvm-save-status', `下载失败: ${result.error}`, 'error');
+            }
+        });
+    });
 }
 
 document.getElementById('btn-save-vvm')?.addEventListener('click', async () => {

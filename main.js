@@ -105,8 +105,13 @@ function loadConfigFile() {
             ...defaults,
             ...raw,
             model: { ...defaults.model, ...(raw.model || {}), paramMapping: { ...defaults.model.paramMapping, ...((raw.model || {}).paramMapping || {}) } },
-            bubble: { ...defaults.bubble, ...(raw.bubble || {}) }
+            bubble: { ...defaults.bubble, ...(raw.bubble || {}) },
+            tts: { ...(defaults.tts || {}), ...(raw.tts || {}) }
         };
+        // Environment variable overrides
+        if (process.env.LIVE2DPET_API_KEY) merged.apiKey = process.env.LIVE2DPET_API_KEY;
+        if (process.env.LIVE2DPET_BASE_URL) merged.baseURL = process.env.LIVE2DPET_BASE_URL;
+        if (process.env.LIVE2DPET_MODEL) merged.modelName = process.env.LIVE2DPET_MODEL;
         return migrateConfig(merged);
     } catch (e) { console.warn('Failed to load config:', e.message); }
     return getDefaultConfig();
@@ -442,38 +447,145 @@ ipcMain.handle('get-app-path', async () => {
     return app.getAppPath();
 });
 
-// ========== Prompt Management ==========
-const promptPath = path.join(__dirname, 'assets', 'prompts', 'sister.json');
-const promptDefaultPath = path.join(__dirname, 'assets', 'prompts', 'sister.default.json');
+// ========== Character Card Management (UUID-based) ==========
+const promptsDir = path.join(__dirname, 'assets', 'prompts');
+const crypto = require('crypto');
 
-ipcMain.handle('load-prompt', async () => {
+function getCharacterPath(id) {
+    return path.join(promptsDir, `${id}.json`);
+}
+
+function ensureDefaultCharacters() {
+    const config = loadConfigFile();
+    if (config.characters && config.characters.length > 0) return;
+    // Migration: create defaults if no characters exist
+    const defaults = [
+        { id: 'c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3' },
+        { id: '41529ce1-c2ad-4e3d-bf4d-85f4472d5209' }
+    ];
+    saveConfigFile({
+        characters: defaults,
+        activeCharacterId: defaults[1].id
+    });
+}
+
+function readCardName(id) {
     try {
-        const data = JSON.parse(fs.readFileSync(promptPath, 'utf-8'));
-        return { success: true, data: data.data || data };
+        const filePath = getCharacterPath(id);
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        const d = data.data || data;
+        return d.cardName || d.name || id;
+    } catch { return id; }
+}
+
+ipcMain.handle('list-characters', async () => {
+    ensureDefaultCharacters();
+    const config = loadConfigFile();
+    const characters = (config.characters || []).map(c => ({
+        id: c.id,
+        name: readCardName(c.id)
+    }));
+    return {
+        characters,
+        activeCharacterId: config.activeCharacterId || ''
+    };
+});
+
+ipcMain.handle('load-prompt', async (event, id) => {
+    try {
+        if (!id) {
+            const config = loadConfigFile();
+            id = config.activeCharacterId;
+        }
+        const filePath = getCharacterPath(id);
+        if (!fs.existsSync(filePath)) return { success: false, error: 'not found' };
+        const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+        return { success: true, data: data.data || data, id };
     } catch (e) {
         return { success: false, error: e.message };
     }
 });
 
-ipcMain.handle('save-prompt', async (event, promptData) => {
+ipcMain.handle('save-prompt', async (event, id, promptData) => {
     try {
         const json = { data: promptData };
-        fs.writeFileSync(promptPath, JSON.stringify(json, null, 2), 'utf-8');
+        fs.writeFileSync(getCharacterPath(id), JSON.stringify(json, null, 2), 'utf-8');
         return { success: true };
     } catch (e) {
         return { success: false, error: e.message };
     }
 });
 
-ipcMain.handle('reset-prompt', async () => {
+ipcMain.handle('create-character', async (event, name) => {
     try {
-        const defaultData = fs.readFileSync(promptDefaultPath, 'utf-8');
-        fs.writeFileSync(promptPath, defaultData, 'utf-8');
-        const parsed = JSON.parse(defaultData);
-        return { success: true, data: parsed.data || parsed };
+        const id = crypto.randomUUID();
+        const cardName = name || '新角色';
+        const blank = {
+            data: {
+                cardName,
+                name: cardName,
+                userIdentity: '',
+                userTerm: '你',
+                description: '',
+                personality: '',
+                scenario: '',
+                rules: ''
+            }
+        };
+        fs.writeFileSync(getCharacterPath(id), JSON.stringify(blank, null, 2), 'utf-8');
+        const config = loadConfigFile();
+        const characters = [...(config.characters || []), { id }];
+        saveConfigFile({ characters });
+        return { success: true, id, name: cardName };
     } catch (e) {
         return { success: false, error: e.message };
     }
+});
+
+ipcMain.handle('delete-character', async (event, id) => {
+    try {
+        const config = loadConfigFile();
+        const characters = config.characters || [];
+        if (characters.length <= 1) return { success: false, error: 'cannot delete last character' };
+        const filtered = characters.filter(c => c.id !== id);
+        const update = { characters: filtered };
+        if (config.activeCharacterId === id) {
+            update.activeCharacterId = filtered[0].id;
+        }
+        saveConfigFile(update);
+        const filePath = getCharacterPath(id);
+        if (fs.existsSync(filePath)) fs.unlinkSync(filePath);
+        return { success: true, newActiveId: update.activeCharacterId || config.activeCharacterId };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('rename-character', async (event, id, newName) => {
+    try {
+        const config = loadConfigFile();
+        const characters = (config.characters || []).map(c =>
+            c.id === id ? { ...c, name: newName } : c
+        );
+        saveConfigFile({ characters });
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('set-active-character', async (event, id) => {
+    try {
+        saveConfigFile({ activeCharacterId: id });
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('reset-prompt', async (event, id) => {
+    // No-op for now — no per-character defaults stored
+    return { success: false, error: 'no default available' };
 });
 
 ipcMain.handle('show-settings', async () => {
@@ -601,6 +713,117 @@ ipcMain.handle('tts-get-metas', async () => {
 ipcMain.handle('tts-get-available-vvms', async () => {
     if (!ttsService || !pathUtils) return [];
     return ttsService.getAvailableVvms(pathUtils.getVoicevoxPath());
+});
+
+ipcMain.handle('download-vvm', async (event, filename) => {
+    if (!pathUtils) return { success: false, error: 'not ready' };
+    const modelsDir = path.join(pathUtils.getVoicevoxPath(), 'models');
+    if (!fs.existsSync(modelsDir)) fs.mkdirSync(modelsDir, { recursive: true });
+    const target = path.join(modelsDir, filename);
+    if (fs.existsSync(target)) return { success: true, message: 'already exists' };
+    try {
+        const { execFile } = require('child_process');
+        const url = `https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.3/${filename}`;
+        await new Promise((resolve, reject) => {
+            execFile('curl', ['-L', '-o', target, url],
+                { timeout: 120000 }, (err, stdout, stderr) => {
+                    if (err) reject(new Error(stderr || err.message));
+                    else resolve(stdout);
+                });
+        });
+        console.log(`[VVM] Downloaded: ${filename}`);
+        return { success: true };
+    } catch (e) {
+        console.error(`[VVM] Download failed: ${e.message}`);
+        if (fs.existsSync(target)) fs.unlinkSync(target); // cleanup partial
+        return { success: false, error: e.message };
+    }
+});
+
+// One-click VOICEVOX setup
+ipcMain.handle('setup-voicevox', async (event) => {
+    if (!pathUtils) return { success: false, error: 'not ready' };
+    const { execFile } = require('child_process');
+    const baseDir = pathUtils.getVoicevoxPath();
+    const send = (msg) => {
+        console.log(`[VOICEVOX Setup] ${msg}`);
+        try { event.sender.send('voicevox-setup-progress', msg); } catch {}
+    };
+
+    const run = (cmd, args, opts) => new Promise((resolve, reject) => {
+        execFile(cmd, args, { timeout: 300000, ...opts }, (err, stdout, stderr) => {
+            if (err) reject(new Error(stderr || err.message));
+            else resolve(stdout);
+        });
+    });
+
+    try {
+        // Ensure directories
+        const modelsDir = path.join(baseDir, 'models');
+        const cApiDir = path.join(baseDir, 'c_api');
+        fs.mkdirSync(modelsDir, { recursive: true });
+        fs.mkdirSync(cApiDir, { recursive: true });
+
+        // 1. Core DLL
+        const coreDll = path.join(cApiDir, 'voicevox_core-windows-x64-0.16.3', 'lib', 'voicevox_core.dll');
+        if (!fs.existsSync(coreDll)) {
+            send('下载 voicevox_core...');
+            const coreZip = path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip');
+            await run('curl', ['-L', '-o', coreZip,
+                'https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.3/voicevox_core-windows-x64-0.16.3.zip']);
+            send('解压 voicevox_core...');
+            await run('powershell', ['-Command',
+                `Expand-Archive -Path "${path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip')}" -DestinationPath "${cApiDir}" -Force`]);
+            fs.unlinkSync(path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip'));
+        } else {
+            send('voicevox_core 已存在');
+        }
+
+        // 2. ONNX Runtime (CPU)
+        const onnxDll = path.join(baseDir, 'voicevox_onnxruntime-win-x64-1.17.3', 'lib', 'voicevox_onnxruntime.dll');
+        if (!fs.existsSync(onnxDll)) {
+            send('下载 ONNX Runtime...');
+            const onnxTgz = path.join(baseDir, 'voicevox_onnxruntime-win-x64-1.17.3.tgz');
+            await run('curl', ['-L', '-o', onnxTgz,
+                'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-1.17.3.tgz']);
+            send('解压 ONNX Runtime...');
+            await run('tar', ['xzf', onnxTgz, '-C', baseDir]);
+            fs.unlinkSync(onnxTgz);
+        } else {
+            send('ONNX Runtime 已存在');
+        }
+
+        // 3. Open JTalk dictionary
+        const dictDir = path.join(baseDir, 'open_jtalk_dic_utf_8-1.11');
+        if (!fs.existsSync(dictDir)) {
+            send('下载 Open JTalk 辞書...');
+            const dictTgz = path.join(baseDir, 'dict.tar.gz');
+            await run('curl', ['-L', '-o', dictTgz,
+                'https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download'],
+                { timeout: 300000 });
+            send('解压 Open JTalk 辞書...');
+            await run('tar', ['xzf', dictTgz, '-C', baseDir]);
+            fs.unlinkSync(dictTgz);
+        } else {
+            send('Open JTalk 辞書 已存在');
+        }
+
+        // 4. Default VVM (0.vvm)
+        const vvm0 = path.join(modelsDir, '0.vvm');
+        if (!fs.existsSync(vvm0)) {
+            send('下载 0.vvm...');
+            await run('curl', ['-L', '-o', vvm0,
+                'https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.3/0.vvm']);
+        } else {
+            send('0.vvm 已存在');
+        }
+
+        send('安装完成!');
+        return { success: true, path: baseDir };
+    } catch (e) {
+        send('安装失败: ' + e.message);
+        return { success: false, error: e.message };
+    }
 });
 
 ipcMain.handle('tts-set-config', async (event, config) => {
