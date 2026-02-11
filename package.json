@@ -42,8 +42,8 @@
     ],
     "win": {
       "target": "portable",
-      "icon": "assets/app-icon.png",
-      "signAndEditExecutable": false
+      "icon": "assets/app-icon.ico",
+      "signAndEditExecutable": true
     },
     "portable": {
       "artifactName": "Live2DPet.exe"
