@@ -56,9 +56,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     // TTS (Phase 2)
     ttsSynthesize: (text) => ipcRenderer.invoke('tts-synthesize', text),
     ttsGetStatus: () => ipcRenderer.invoke('tts-get-status'),
+    ttsRestart: () => ipcRenderer.invoke('tts-restart'),
     ttsSetConfig: (config) => ipcRenderer.invoke('tts-set-config', config),
     ttsGetMetas: () => ipcRenderer.invoke('tts-get-metas'),
     ttsGetAvailableVvms: () => ipcRenderer.invoke('tts-get-available-vvms'),
+
+    // Default audio (Phase 2)
+    generateDefaultAudio: (phrases, styleId) => ipcRenderer.invoke('generate-default-audio', phrases, styleId),
+    loadDefaultAudio: () => ipcRenderer.invoke('load-default-audio'),
 
     // Event listeners
     onCharacterUpdate: (cb) => ipcRenderer.on('character-update', (e, data) => cb(data)),

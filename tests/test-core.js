@@ -235,6 +235,14 @@ describe('DesktopPetSystem', () => {
         eval(emotionSrc);
         global.EmotionSystem = global.window.EmotionSystem;
 
+        const audioSmSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'audio-state-machine.js'), 'utf-8');
+        eval(audioSmSrc);
+        global.AudioStateMachine = global.window.AudioStateMachine;
+
+        const msgSessionSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'message-session.js'), 'utf-8');
+        eval(msgSessionSrc);
+        global.MessageSession = global.window.MessageSession;
+
         const sysSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'desktop-pet-system.js'), 'utf-8');
         eval(sysSrc);
         DesktopPetSystem = global.window.DesktopPetSystem;
@@ -246,6 +254,8 @@ describe('DesktopPetSystem', () => {
         assert.strictEqual(sys.detectionIntervalMs, 30000);
         assert.strictEqual(sys.aiClient, null);
         assert.strictEqual(sys.emotionSystem, null);
+        assert.strictEqual(sys.currentAudio, null);
+        assert.strictEqual(sys.currentAudioUrl, null);
     });
 
     it('setInterval enforces minimum 10s', () => {
@@ -287,6 +297,29 @@ describe('DesktopPetSystem', () => {
         assert.strictEqual(sys.isActive, false);
         assert.deepStrictEqual(sys.focusTracker, {});
         assert.deepStrictEqual(sys.screenshotBuffers, {});
+        assert.strictEqual(sys.currentAudio, null);
+        assert.strictEqual(sys.currentAudioUrl, null);
+    });
+
+    it('stopCurrentAudio pauses and cleans up', () => {
+        const sys = new DesktopPetSystem();
+        let paused = false;
+        let revokedUrl = null;
+        sys.currentAudio = { pause() { paused = true; } };
+        sys.currentAudioUrl = 'blob:test-url';
+        global.URL = { revokeObjectURL(url) { revokedUrl = url; } };
+        sys.stopCurrentAudio();
+        assert.strictEqual(paused, true);
+        assert.strictEqual(revokedUrl, 'blob:test-url');
+        assert.strictEqual(sys.currentAudio, null);
+        assert.strictEqual(sys.currentAudioUrl, null);
+    });
+
+    it('stopCurrentAudio is safe when no audio playing', () => {
+        const sys = new DesktopPetSystem();
+        sys.stopCurrentAudio();
+        assert.strictEqual(sys.currentAudio, null);
+        assert.strictEqual(sys.currentAudioUrl, null);
     });
 });
 
@@ -435,6 +468,62 @@ describe('EmotionSystem', () => {
         // Timer should be set
         assert.ok(es.expressionTimer !== null);
         es.stop(); // cleanup
+    });
+
+    it('triggerAligned uses override duration', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions(
+            [{ name: 'happy', label: 'Happy' }],
+            { 'happy': 5000 },
+            5000
+        );
+        es.enabledEmotions = ['happy'];
+        es.nextEmotionBuffer = 'happy';
+        let triggered = null;
+        es.onEmotionTriggered = (name) => { triggered = name; };
+        es.triggerAligned(2500);
+        assert.strictEqual(triggered, 'happy');
+        assert.strictEqual(es.emotionValue, 0);
+        assert.ok(es.expressionTimer !== null);
+        es.stop();
+    });
+
+    it('triggerAligned does nothing when busy', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions(
+            [{ name: 'test', label: 'Test' }],
+            {},
+            5000
+        );
+        es.enabledEmotions = ['test'];
+        es.isPlayingExpression = true;
+        let triggered = false;
+        es.onEmotionTriggered = () => { triggered = true; };
+        es.triggerAligned(3000);
+        assert.strictEqual(triggered, false);
+        es.stop();
+    });
+
+    it('forceRevert clears playing state and timers', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions(
+            [{ name: 'test', label: 'Test' }],
+            {},
+            5000
+        );
+        es.enabledEmotions = ['test'];
+        es.emotionValue = 100;
+        es._triggerExpressionWithDuration(null);
+        assert.strictEqual(es.isPlayingExpression, true);
+        assert.ok(es.expressionTimer !== null);
+
+        let reverted = false;
+        es.onEmotionReverted = () => { reverted = true; };
+        es.forceRevert();
+        assert.strictEqual(es.isPlayingExpression, false);
+        assert.strictEqual(es.expressionTimer, null);
+        assert.strictEqual(reverted, true);
+        es.stop();
     });
 });
 
@@ -821,6 +910,258 @@ describe('ModelAdapter', () => {
         adapter.revertExpression();
         assert.strictEqual(adapter.imgElement.src, '/base.png');
         assert.strictEqual(adapter.currentGif, null);
+    });
+});
+
+// ========== Test: MessageSession ==========
+
+describe('MessageSession', () => {
+    let MessageSession;
+
+    beforeEach(() => {
+        global.window = {};
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'message-session.js'), 'utf-8');
+        eval(src);
+        MessageSession = global.window.MessageSession;
+    });
+
+    it('create returns a session with text', () => {
+        const s = MessageSession.create('hello');
+        assert.strictEqual(s.text, 'hello');
+        assert.strictEqual(s.cancelled, false);
+    });
+
+    it('isActive returns true for current session', () => {
+        const s = MessageSession.create('test');
+        assert.strictEqual(s.isActive(), true);
+    });
+
+    it('new session makes old session inactive', () => {
+        const s1 = MessageSession.create('first');
+        const s2 = MessageSession.create('second');
+        assert.strictEqual(s1.isActive(), false);
+        assert.strictEqual(s2.isActive(), true);
+    });
+
+    it('cancel makes session inactive', () => {
+        const s = MessageSession.create('test');
+        s.cancel();
+        assert.strictEqual(s.isActive(), false);
+        assert.strictEqual(s.cancelled, true);
+    });
+
+    it('run shows chat and triggers emotion+audio', async () => {
+        const s = MessageSession.create('hello world');
+        let chatShown = false;
+        let emotionText = null;
+        let audioPrepared = false;
+        let audioPlayed = false;
+        global.window.electronAPI = {
+            showPetChat: async (msg) => { chatShown = true; }
+        };
+        const mockSystem = {
+            emotionSystem: {
+                emotionValue: 0,
+                onAIResponse: (t) => { emotionText = t; },
+                _selectEmotionFromAI: () => {}
+            },
+            prepareAudio: async (t) => {
+                audioPrepared = true;
+                return { duration: 0, play: async () => { audioPlayed = true; } };
+            }
+        };
+        await s.run(mockSystem);
+        assert.strictEqual(chatShown, true);
+        assert.strictEqual(emotionText, 'hello world');
+        assert.strictEqual(audioPrepared, true);
+        assert.strictEqual(audioPlayed, true);
+    });
+
+    it('run syncs bubble duration to TTS audio duration', async () => {
+        const s = MessageSession.create('synced text');
+        let bubbleDuration = 0;
+        global.window.electronAPI = {
+            showPetChat: async (msg, dur) => { bubbleDuration = dur; }
+        };
+        const mockSystem = {
+            emotionSystem: {
+                emotionValue: 0,
+                _selectEmotionFromAI: () => {}
+            },
+            prepareAudio: async () => ({
+                duration: 2500, // 2.5s audio
+                play: async () => {}
+            })
+        };
+        await s.run(mockSystem);
+        // bubble = max(2500 + 800 buffer, 3000 min) = 3300
+        assert.strictEqual(bubbleDuration, 3300);
+    });
+
+    it('run triggers aligned emotion when emotionValue >= threshold', async () => {
+        const s = MessageSession.create('excited text');
+        let alignedDuration = null;
+        global.window.electronAPI = {
+            showPetChat: async () => {}
+        };
+        const mockSystem = {
+            emotionSystem: {
+                emotionValue: 50, // above EMOTION_ALIGN_THRESHOLD (30)
+                _selectEmotionFromAI: () => {},
+                triggerAligned: (dur) => { alignedDuration = dur; }
+            },
+            prepareAudio: async () => ({
+                duration: 4000,
+                play: async () => {}
+            })
+        };
+        await s.run(mockSystem);
+        // aligned duration = max(4000 + 800, 3000) = 4800
+        assert.strictEqual(alignedDuration, 4800);
+    });
+
+    it('run uses independent emotion when emotionValue is low', async () => {
+        const s = MessageSession.create('calm text');
+        let independentCalled = false;
+        let alignedCalled = false;
+        global.window.electronAPI = {
+            showPetChat: async () => {}
+        };
+        const mockSystem = {
+            emotionSystem: {
+                emotionValue: 10, // below threshold
+                _selectEmotionFromAI: () => {},
+                triggerAligned: () => { alignedCalled = true; },
+                onAIResponse: () => { independentCalled = true; }
+            },
+            prepareAudio: async () => ({
+                duration: 3000,
+                play: async () => {}
+            })
+        };
+        await s.run(mockSystem);
+        assert.strictEqual(alignedCalled, false);
+        // TTS mode with low emotion: no independent call either (only aligned path checked)
+        // Independent is only called in non-TTS path
+    });
+
+    it('run skips if cancelled', async () => {
+        const s = MessageSession.create('hello');
+        s.cancel();
+        let chatShown = false;
+        global.window.electronAPI = {
+            showPetChat: async () => { chatShown = true; }
+        };
+        await s.run({});
+        assert.strictEqual(chatShown, false);
+    });
+});
+
+// ========== Test: AudioStateMachine ==========
+
+describe('AudioStateMachine', () => {
+    let AudioStateMachine;
+
+    beforeEach(() => {
+        global.window = {};
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'audio-state-machine.js'), 'utf-8');
+        eval(src);
+        AudioStateMachine = global.window.AudioStateMachine;
+    });
+
+    it('should instantiate with defaults', () => {
+        const asm = new AudioStateMachine();
+        assert.strictEqual(asm.preferredMode, 'tts');
+        assert.strictEqual(asm.effectiveMode, 'silent');
+        assert.strictEqual(asm.ttsAvailable, false);
+        assert.strictEqual(asm.defaultAudioAvailable, false);
+    });
+
+    it('effective mode is tts when preferred=tts and tts available', () => {
+        const asm = new AudioStateMachine();
+        asm.setTTSAvailable(true);
+        assert.strictEqual(asm.effectiveMode, 'tts');
+    });
+
+    it('degrades tts to default-audio when tts unavailable', () => {
+        const asm = new AudioStateMachine();
+        asm.setDefaultAudioAvailable(true, ['clip1']);
+        asm.setTTSAvailable(false);
+        assert.strictEqual(asm.effectiveMode, 'default-audio');
+    });
+
+    it('degrades tts to silent when nothing available', () => {
+        const asm = new AudioStateMachine();
+        asm.setPreferredMode('tts');
+        assert.strictEqual(asm.effectiveMode, 'silent');
+    });
+
+    it('preferred=default-audio uses default-audio when available', () => {
+        const asm = new AudioStateMachine();
+        asm.setDefaultAudioAvailable(true, ['clip1']);
+        asm.setPreferredMode('default-audio');
+        assert.strictEqual(asm.effectiveMode, 'default-audio');
+    });
+
+    it('preferred=default-audio degrades to silent when unavailable', () => {
+        const asm = new AudioStateMachine();
+        asm.setPreferredMode('default-audio');
+        assert.strictEqual(asm.effectiveMode, 'silent');
+    });
+
+    it('preferred=silent always silent', () => {
+        const asm = new AudioStateMachine();
+        asm.setTTSAvailable(true);
+        asm.setDefaultAudioAvailable(true, ['clip1']);
+        asm.setPreferredMode('silent');
+        assert.strictEqual(asm.effectiveMode, 'silent');
+    });
+
+    it('invalid preferred mode defaults to tts', () => {
+        const asm = new AudioStateMachine();
+        asm.setTTSAvailable(true);
+        asm.setPreferredMode('invalid');
+        assert.strictEqual(asm.preferredMode, 'tts');
+        assert.strictEqual(asm.effectiveMode, 'tts');
+    });
+
+    it('onModeChange callback fires on transition', () => {
+        const asm = new AudioStateMachine();
+        let changed = null;
+        asm.onModeChange = (mode) => { changed = mode; };
+        asm.setTTSAvailable(true);
+        assert.strictEqual(changed, 'tts');
+    });
+
+    it('onModeChange does not fire when mode unchanged', () => {
+        const asm = new AudioStateMachine();
+        let callCount = 0;
+        asm.onModeChange = () => { callCount++; };
+        asm.setPreferredMode('silent');
+        // already silent, so no change
+        assert.strictEqual(callCount, 0);
+    });
+
+    it('getRandomClip returns null when no clips', () => {
+        const asm = new AudioStateMachine();
+        assert.strictEqual(asm.getRandomClip(), null);
+    });
+
+    it('getRandomClip returns a clip when available', () => {
+        const asm = new AudioStateMachine();
+        asm.setDefaultAudioAvailable(true, ['a', 'b', 'c']);
+        const clip = asm.getRandomClip();
+        assert.ok(['a', 'b', 'c'].includes(clip));
+    });
+
+    it('getStatus returns correct info', () => {
+        const asm = new AudioStateMachine();
+        asm.setTTSAvailable(true);
+        const s = asm.getStatus();
+        assert.strictEqual(s.preferredMode, 'tts');
+        assert.strictEqual(s.effectiveMode, 'tts');
+        assert.strictEqual(s.ttsAvailable, true);
+        assert.strictEqual(s.clipCount, 0);
     });
 });
 

@@ -621,16 +621,27 @@ async function loadTTSStatus() {
     if (!window.electronAPI || !window.electronAPI.ttsGetStatus) return;
     const status = await window.electronAPI.ttsGetStatus();
     const el = document.getElementById('tts-status');
+    const restartBtn = document.getElementById('btn-restart-tts');
     if (status.initialized) {
-        el.textContent = status.degraded ? 'TTS: 降级模式 (熔断)' : 'TTS: 已就绪';
-        el.className = 'status ' + (status.degraded ? 'error' : 'success');
+        if (status.degraded) {
+            const elapsed = Date.now() - status.degradedAt;
+            const remaining = Math.max(0, Math.ceil((status.retryInterval - elapsed) / 1000));
+            el.textContent = `TTS: 熔断中 (${remaining}s 后自动重试)`;
+            el.className = 'status error';
+            restartBtn.style.display = '';
+        } else {
+            el.textContent = 'TTS: 已就绪' + (status.gpuMode ? ' (GPU)' : ' (CPU)');
+            el.className = 'status success';
+            restartBtn.style.display = 'none';
+        }
         document.getElementById('tts-hint').style.display = 'none';
         // Load metas and populate dropdowns
         ttsMetas = await window.electronAPI.ttsGetMetas();
         populateSpeakerDropdown();
     } else {
-        el.textContent = 'TTS: 未初始化 (voicevox_core 未找到)';
+        el.textContent = 'TTS: 离线 (voicevox_core 未找到)';
         el.className = 'status error';
+        restartBtn.style.display = '';
     }
     const config = await window.electronAPI.loadConfig();
     if (config.tts) {
@@ -640,10 +651,17 @@ async function loadTTSStatus() {
         document.getElementById('tts-speed-val').textContent = config.tts.speedScale || 1.0;
         document.getElementById('tts-pitch-val').textContent = config.tts.pitchScale || 0.0;
         document.getElementById('tts-volume-val').textContent = config.tts.volumeScale || 1.0;
+        // Restore audio mode
+        const audioMode = config.tts.audioMode || 'tts';
+        const radio = document.querySelector(`input[name="audio-mode"][value="${audioMode}"]`);
+        if (radio) radio.checked = true;
         // Restore saved speaker + style selection
         if (config.tts.styleId !== undefined) {
             selectStyleById(config.tts.styleId);
         }
+        // Restore GPU mode checkbox
+        const gpuCheckbox = document.getElementById('tts-gpu-mode');
+        if (gpuCheckbox) gpuCheckbox.checked = config.tts.gpuMode || false;
     }
 }
 
@@ -693,13 +711,24 @@ function selectStyleById(styleId) {
 });
 
 document.getElementById('btn-save-tts').addEventListener('click', async () => {
-    const config = {
+    const ttsConfig = {
         styleId: parseInt(document.getElementById('tts-style-id').value),
         speedScale: parseFloat(document.getElementById('tts-speed').value),
         pitchScale: parseFloat(document.getElementById('tts-pitch').value),
         volumeScale: parseFloat(document.getElementById('tts-volume').value)
     };
-    await window.electronAPI.ttsSetConfig(config);
+    await window.electronAPI.ttsSetConfig(ttsConfig);
+    // Save audio mode to config
+    const audioMode = document.querySelector('input[name="audio-mode"]:checked')?.value || 'tts';
+    const fullConfig = await window.electronAPI.loadConfig();
+    fullConfig.tts = fullConfig.tts || {};
+    fullConfig.tts.audioMode = audioMode;
+    fullConfig.tts.styleId = ttsConfig.styleId;
+    fullConfig.tts.speedScale = ttsConfig.speedScale;
+    fullConfig.tts.pitchScale = ttsConfig.pitchScale;
+    fullConfig.tts.volumeScale = ttsConfig.volumeScale;
+    fullConfig.tts.gpuMode = document.getElementById('tts-gpu-mode')?.checked || false;
+    await window.electronAPI.saveConfig(fullConfig);
     showStatus('tts-save-status', '已保存', 'success');
 });
 
@@ -720,6 +749,48 @@ document.getElementById('btn-test-tts').addEventListener('click', async () => {
 });
 
 loadTTSStatus();
+
+// Restart TTS button
+document.getElementById('btn-restart-tts')?.addEventListener('click', async () => {
+    const el = document.getElementById('tts-status');
+    el.textContent = 'TTS: 重启中...';
+    el.className = 'status';
+    const result = await window.electronAPI.ttsRestart();
+    if (result.success) {
+        await loadTTSStatus();
+    } else {
+        el.textContent = 'TTS: 重启失败 - ' + (result.error || '未知错误');
+        el.className = 'status error';
+    }
+});
+
+// Default audio generation
+document.getElementById('btn-generate-default-audio')?.addEventListener('click', async () => {
+    const textarea = document.getElementById('default-audio-phrases');
+    const phrases = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
+    if (phrases.length === 0) {
+        showStatus('default-audio-status', '请输入至少一个语气词', 'error');
+        return;
+    }
+    const styleId = parseInt(document.getElementById('tts-style-id').value) || 0;
+    showStatus('default-audio-status', `生成中... (${phrases.length} 个)`, '');
+    const result = await window.electronAPI.generateDefaultAudio(phrases, styleId);
+    if (result.success) {
+        const ok = result.results.filter(r => r.success).length;
+        showStatus('default-audio-status', `完成: ${ok}/${phrases.length} 个成功`, 'success');
+    } else {
+        showStatus('default-audio-status', '失败: ' + result.error, 'error');
+    }
+});
+
+// Load saved phrases into textarea
+(async () => {
+    const config = await window.electronAPI?.loadConfig();
+    if (config?.tts?.defaultPhrases) {
+        const textarea = document.getElementById('default-audio-phrases');
+        if (textarea) textarea.value = config.tts.defaultPhrases.join('\n');
+    }
+})();
 
 // VVM config
 const VVM_CHARACTERS = {

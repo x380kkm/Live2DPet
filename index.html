@@ -250,6 +250,20 @@
         <h2>VOICEVOX TTS</h2>
         <div class="status" id="tts-status"></div>
         <p class="model-info" id="tts-hint">需要 voicevox_core 目录。状态将在启动时自动检测。</p>
+        <button class="btn btn-secondary" id="btn-restart-tts" style="display:none;">重启 TTS</button>
+        <div style="margin-top:8px;">
+            <label><input type="checkbox" id="tts-gpu-mode"> GPU 加速 (DirectML)</label>
+            <p class="model-info">需要下载 voicevox_onnxruntime-win-x64-dml-1.17.3，保存后需重启 TTS。</p>
+        </div>
+    </div>
+    <div class="card">
+        <h2>音频模式</h2>
+        <div style="display:flex;gap:16px;margin:8px 0;">
+            <label><input type="radio" name="audio-mode" value="tts" checked> TTS 语音合成</label>
+            <label><input type="radio" name="audio-mode" value="default-audio"> 默认音声</label>
+            <label><input type="radio" name="audio-mode" value="silent"> 静音</label>
+        </div>
+        <p class="model-info" id="audio-mode-hint">TTS 不可用时自动降级到默认音声，再不可用则静音。</p>
     </div>
     <div class="card">
         <label>角色</label>
@@ -273,6 +287,18 @@
         <input type="text" id="tts-test-text" placeholder="输入中文测试..." value="你好，我是你的桌面宠物">
         <button class="btn btn-secondary" id="btn-test-tts">测试语音</button>
         <div class="status" id="tts-test-status"></div>
+    </div>
+    <div class="card">
+        <h2>默认音声</h2>
+        <p class="model-info">TTS 不可用时播放的预生成语气词。用当前角色/Style 合成。</p>
+        <label>语气词列表 (每行一个)</label>
+        <textarea id="default-audio-phrases" rows="4" style="width:100%;font-size:12px;resize:vertical;">えっと
+うーん
+へぇ
+ふーん
+あっ</textarea>
+        <button class="btn btn-secondary" id="btn-generate-default-audio">生成默认音声</button>
+        <div class="status" id="default-audio-status"></div>
     </div>
     <div class="card">
         <h2>语音模型 (VVM)</h2>
@@ -327,6 +353,8 @@
     <script src="src/core/ai-chat.js"></script>
     <script src="src/core/prompt-builder.js"></script>
     <script src="src/core/emotion-system.js"></script>
+    <script src="src/core/audio-state-machine.js"></script>
+    <script src="src/core/message-session.js"></script>
     <script src="src/core/desktop-pet-system.js"></script>
     <script src="src/renderer/settings-ui.js"></script>
 </body>

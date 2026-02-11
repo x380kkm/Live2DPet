@@ -36,15 +36,18 @@ class TTSService {
         this.speedScale = 1.0;
         this.pitchScale = 0.0;
         this.volumeScale = 1.0;
+        this.gpuMode = false;
+        this.isGpu = false; // actual GPU state after init
     }
 
     /**
      * Initialize the VOICEVOX Core synthesizer.
      * @param {string} voicevoxDir - Path to voicevox_core/ directory
      * @param {string[]} [vvmFiles] - VVM files to load (default: ['0.vvm', '8.vvm'])
+     * @param {object} [options] - { gpuMode: boolean }
      * @returns {boolean}
      */
-    init(voicevoxDir, vvmFiles) {
+    init(voicevoxDir, vvmFiles, options) {
         if (this.initialized) return true;
         try {
             const coreDll = path.join(
@@ -52,8 +55,12 @@ class TTSService {
                 'voicevox_core-windows-x64-0.16.3', 'lib',
                 'voicevox_core.dll'
             );
+            // Auto-detect DirectML vs CPU onnxruntime
+            const dmlDir = path.join(voicevoxDir, 'voicevox_onnxruntime-win-x64-dml-1.17.3');
+            const cpuDir = path.join(voicevoxDir, 'voicevox_onnxruntime-win-x64-1.17.3');
+            const wantGpu = options?.gpuMode && fs.existsSync(path.join(dmlDir, 'lib', 'voicevox_onnxruntime.dll'));
             const onnxDll = path.join(
-                voicevoxDir, 'voicevox_onnxruntime-win-x64-1.17.3',
+                wantGpu ? dmlDir : cpuDir,
                 'lib', 'voicevox_onnxruntime.dll'
             );
             const dictDir = path.join(voicevoxDir, 'open_jtalk_dic_utf_8-1.11');
@@ -77,10 +84,13 @@ class TTSService {
 
             // 3. Synthesizer
             const initOpts = this._fn.makeDefaultInitOptions();
+            if (wantGpu) initOpts.acceleration_mode = 2; // GPU
             const synthOut = [null];
             rc = this._fn.newSynthesizer(this.onnxruntime, this.openJtalk, initOpts, synthOut);
             if (rc !== VOICEVOX_RESULT_OK) throw new Error(`newSynthesizer: ${this._getError(rc)}`);
             this.synthesizer = synthOut[0];
+            this.isGpu = wantGpu;
+            this.gpuMode = wantGpu;
 
             // 4. Load configured VVM files
             const defaultVvms = ['0.vvm', '8.vvm'];
@@ -112,7 +122,7 @@ class TTSService {
             this.initialized = true;
 
             const ver = this._fn.getVersion();
-            console.log(`[TTS] VOICEVOX Core v${ver} initialized, ${loadedCount}/${toLoad.length} models loaded`);
+            console.log(`[TTS] VOICEVOX Core v${ver} initialized (${this.isGpu ? 'GPU/DirectML' : 'CPU'}), ${loadedCount}/${toLoad.length} models loaded`);
             return true;
         } catch (err) {
             console.error('[TTS] Init failed:', err.message);

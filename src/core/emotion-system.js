@@ -230,7 +230,43 @@ class EmotionSystem {
         }
     }
 
+    /**
+     * Force-revert any currently playing emotion (used when session is cancelled).
+     */
+    forceRevert() {
+        if (this.expressionTimer) {
+            clearTimeout(this.expressionTimer);
+            this.expressionTimer = null;
+            this.isPlayingExpression = false;
+            if (this.onEmotionReverted) this.onEmotionReverted();
+        }
+        if (this.motionTimer) {
+            clearTimeout(this.motionTimer);
+            this.motionTimer = null;
+            this.isPlayingMotion = false;
+        }
+    }
+
+    /**
+     * Force-trigger an emotion aligned to external duration (e.g. TTS audio).
+     * Bypasses normal threshold — uses nextEmotionBuffer or random.
+     * @param {number} durationMs - aligned duration for the emotion display
+     */
+    triggerAligned(durationMs) {
+        if (this.enabledEmotions.length === 0) return;
+        if (this._isBusy()) return;
+
+        this._triggerExpressionWithDuration(durationMs);
+    }
+
     async _triggerExpression() {
+        this._triggerExpressionWithDuration(null);
+    }
+
+    /**
+     * Core trigger logic. If overrideDuration is provided, use it instead of per-emotion default.
+     */
+    _triggerExpressionWithDuration(overrideDuration) {
         if (this.enabledEmotions.length === 0) return;
 
         // Filter available emotions based on current locks
@@ -268,7 +304,8 @@ class EmotionSystem {
             this.isPlayingExpression = true;
         }
 
-        console.log(`[EmotionSystem] Playing: ${emotionName} (type: ${itemType})`);
+        const aligned = overrideDuration !== null;
+        console.log(`[EmotionSystem] Playing: ${emotionName} (type: ${itemType}${aligned ? ', aligned' : ''})`);
 
         // Dispatch based on type
         if (itemType === 'motion' && this.onMotionTriggered) {
@@ -277,9 +314,11 @@ class EmotionSystem {
             this.onEmotionTriggered(emotionName);
         }
 
-        // Per-emotion duration — use separate defaults for expression vs motion
+        // Duration: use override (TTS-aligned) or per-emotion default
         let duration;
-        if (itemType === 'motion') {
+        if (overrideDuration !== null) {
+            duration = overrideDuration;
+        } else if (itemType === 'motion') {
             duration = this.motionDurations[emotionName] || this.defaultMotionDuration;
         } else {
             duration = this.expressionDurations[emotionName] || this.defaultExpressionDuration;

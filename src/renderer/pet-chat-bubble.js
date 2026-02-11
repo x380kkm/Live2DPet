@@ -37,11 +37,14 @@ class PetChatBubble {
 
     showMessage(message, autoCloseTime = 8000) {
         this.messageElement.textContent = message;
+        this.messageElement.classList.remove('text-in');
         this.adjustWindowSize(message);
         if (this.autoCloseTimer) clearTimeout(this.autoCloseTimer);
         const frame = document.querySelector('.chat-frame');
         frame.style.display = 'flex';
         frame.classList.remove('fade-out');
+        // Trigger text fade-in on next frame (allows class removal to take effect)
+        requestAnimationFrame(() => this.messageElement.classList.add('text-in'));
         if (autoCloseTime > 0) {
             this.autoCloseTimer = setTimeout(() => this.fadeOut(), autoCloseTime);
         }
