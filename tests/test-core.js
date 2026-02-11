@@ -461,10 +461,9 @@ describe('PathUtils', () => {
             getPath: () => '/fake/userData'
         };
         const pu = createPathUtils(mockApp, path);
-        const result = pu.getVoicevoxPath('python/python.exe');
-        assert.ok(result.includes('resources'));
-        assert.ok(result.includes('voicevox'));
-        assert.ok(result.includes('python.exe'));
+        const result = pu.getVoicevoxPath('models/0.vvm');
+        assert.ok(result.includes('voicevox_core'));
+        assert.ok(result.includes('0.vvm'));
     });
 
     it('getVoicevoxPath returns unpacked path in production', () => {
@@ -476,9 +475,9 @@ describe('PathUtils', () => {
             getPath: () => '/prod/userData'
         };
         const pu = createPathUtils(mockApp, path);
-        const result = pu.getVoicevoxPath('python/python.exe');
+        const result = pu.getVoicevoxPath('models/0.vvm');
         assert.ok(result.includes('app.asar.unpacked'));
-        assert.ok(result.includes('voicevox'));
+        assert.ok(result.includes('voicevox_core'));
         process.resourcesPath = origResourcesPath;
     });
 
@@ -822,5 +821,167 @@ describe('ModelAdapter', () => {
         adapter.revertExpression();
         assert.strictEqual(adapter.imgElement.src, '/base.png');
         assert.strictEqual(adapter.currentGif, null);
+    });
+});
+
+// ========== Test: TTSService ==========
+
+describe('TTSService', () => {
+    let TTSService;
+
+    beforeEach(() => {
+        ({ TTSService } = require('../src/core/tts-service'));
+    });
+
+    it('should instantiate with defaults', () => {
+        const tts = new TTSService();
+        assert.strictEqual(tts.initialized, false);
+        assert.strictEqual(tts.styleId, 0);
+        assert.strictEqual(tts.speedScale, 1.0);
+        assert.strictEqual(tts.degraded, false);
+        assert.strictEqual(tts.failCount, 0);
+    });
+
+    it('setConfig updates parameters', () => {
+        const tts = new TTSService();
+        tts.setConfig({ styleId: 3, speedScale: 1.5, pitchScale: 0.1, volumeScale: 0.8 });
+        assert.strictEqual(tts.styleId, 3);
+        assert.strictEqual(tts.speedScale, 1.5);
+        assert.strictEqual(tts.pitchScale, 0.1);
+        assert.strictEqual(tts.volumeScale, 0.8);
+    });
+
+    it('isAvailable returns false when not initialized', () => {
+        const tts = new TTSService();
+        assert.strictEqual(tts.isAvailable(), false);
+    });
+
+    it('synthesize returns null when not initialized', () => {
+        const tts = new TTSService();
+        assert.strictEqual(tts.synthesize('test'), null);
+    });
+
+    it('tts returns null when not initialized', () => {
+        const tts = new TTSService();
+        assert.strictEqual(tts.tts('test'), null);
+    });
+
+    it('circuit breaker degrades after maxFails', () => {
+        const tts = new TTSService();
+        tts.maxFails = 2;
+        tts._onFailure();
+        assert.strictEqual(tts.degraded, false);
+        tts._onFailure();
+        assert.strictEqual(tts.degraded, true);
+        assert.ok(tts.degradedAt > 0);
+    });
+
+    it('circuit breaker recovers after retryInterval', () => {
+        const tts = new TTSService();
+        tts.degraded = true;
+        tts.degradedAt = Date.now() - 70000; // 70s ago
+        tts.retryInterval = 60000;
+        assert.strictEqual(tts._checkDegraded(), false);
+        assert.strictEqual(tts.degraded, false);
+    });
+
+    it('circuit breaker stays degraded within retryInterval', () => {
+        const tts = new TTSService();
+        tts.degraded = true;
+        tts.degradedAt = Date.now() - 10000; // 10s ago
+        tts.retryInterval = 60000;
+        assert.strictEqual(tts._checkDegraded(), true);
+    });
+
+    it('_onSuccess resets failCount', () => {
+        const tts = new TTSService();
+        tts.failCount = 2;
+        tts._onSuccess();
+        assert.strictEqual(tts.failCount, 0);
+    });
+
+    it('init returns false with invalid path', () => {
+        const tts = new TTSService();
+        const result = tts.init('/nonexistent/path');
+        assert.strictEqual(result, false);
+        assert.strictEqual(tts.initialized, false);
+    });
+
+    it('destroy resets state', () => {
+        const tts = new TTSService();
+        tts.initialized = true;
+        tts.modelLoaded = true;
+        tts.destroy();
+        assert.strictEqual(tts.initialized, false);
+        assert.strictEqual(tts.modelLoaded, false);
+    });
+});
+
+// ========== Test: TranslationService ==========
+
+describe('TranslationService', () => {
+    let TranslationService;
+
+    beforeEach(() => {
+        ({ TranslationService } = require('../src/core/translation-service'));
+    });
+
+    it('should instantiate with defaults', () => {
+        const ts = new TranslationService();
+        assert.strictEqual(ts.enabled, true);
+        assert.strictEqual(ts.cache.size, 0);
+        assert.strictEqual(ts.isConfigured(), false);
+    });
+
+    it('configure sets API params', () => {
+        const ts = new TranslationService();
+        ts.configure({ apiKey: 'key', baseURL: 'http://test', modelName: 'gpt' });
+        assert.strictEqual(ts.isConfigured(), true);
+    });
+
+    it('translate returns original when not configured', async () => {
+        const ts = new TranslationService();
+        const result = await ts.translate('你好');
+        assert.strictEqual(result, '你好');
+    });
+
+    it('translate returns original when disabled', async () => {
+        const ts = new TranslationService();
+        ts.configure({ apiKey: 'k', baseURL: 'http://t', modelName: 'm' });
+        ts.enabled = false;
+        const result = await ts.translate('你好');
+        assert.strictEqual(result, '你好');
+    });
+
+    it('translate returns empty for empty input', async () => {
+        const ts = new TranslationService();
+        const result = await ts.translate('');
+        assert.strictEqual(result, '');
+    });
+
+    it('cache returns cached value', async () => {
+        const ts = new TranslationService();
+        ts.configure({ apiKey: 'k', baseURL: 'http://t', modelName: 'm' });
+        ts.cache.set('你好', 'こんにちは');
+        const result = await ts.translate('你好');
+        assert.strictEqual(result, 'こんにちは');
+    });
+
+    it('_cacheSet evicts oldest when full', () => {
+        const ts = new TranslationService();
+        ts.cacheMaxSize = 2;
+        ts._cacheSet('a', '1');
+        ts._cacheSet('b', '2');
+        ts._cacheSet('c', '3');
+        assert.strictEqual(ts.cache.size, 2);
+        assert.strictEqual(ts.cache.has('a'), false);
+        assert.strictEqual(ts.cache.get('c'), '3');
+    });
+
+    it('clearCache empties the cache', () => {
+        const ts = new TranslationService();
+        ts.cache.set('a', '1');
+        ts.clearCache();
+        assert.strictEqual(ts.cache.size, 0);
     });
 });

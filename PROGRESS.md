@@ -175,34 +175,154 @@ desktop-pet.html → adapter.playMotion(group, index)
 
 ---
 
-## Phase 2: TTS (VOICEVOX Core) — 未开始
+## Phase 2: TTS (VOICEVOX Core) — 核心已完成，增强待做
 
-### 待实现文件清单
+### 研究结果
+
+#### 决策：Node.js FFI (koffi) 直调 voicevox_core.dll
+
+- 无需 Python 依赖，体积最小 (~1.5GB with all VVM)
+- 直接在 Electron main process 运行
+- koffi 是纯 JS FFI 库，无需 node-gyp 编译
+
+#### 已下载组件 (voicevox_core/ 目录，已 .gitignore)
+
+```
+voicevox_core/                          # ~1.5GB total, .gitignore'd
+├── c_api/voicevox_core-windows-x64-0.16.3/
+│   ├── include/voicevox_core.h         # C API 头文件
+│   └── lib/voicevox_core.dll           # 6MB 核心库
+├── voicevox_onnxruntime-win-x64-1.17.3/
+│   └── lib/voicevox_onnxruntime.dll    # 12MB ONNX Runtime (CPU)
+├── open_jtalk_dic_utf_8-1.11/          # 103MB 日语词典
+└── models/                             # 25个 VVM 文件 (~1.4GB)
+    ├── 0.vvm                           # 四国めたん, ずんだもん, 春日部つむぎ, 雨晴はう
+    ├── 8.vvm                           # WhiteCUL
+    ├── 1.vvm ~ 23.vvm                  # 其他角色
+    └── n0.vvm                          # VOICEVOX Nemo
+```
+
+下载命令（重新获取时使用）：
+```bash
+gh release download 0.16.3 -R VOICEVOX/voicevox_core -p "voicevox_core-windows-x64-0.16.3.zip"
+gh release download voicevox_onnxruntime-1.17.3 -R VOICEVOX/onnxruntime-builder -p "voicevox_onnxruntime-win-x64-1.17.3.tgz"
+# VVM 文件 (按需下载)
+for i in $(seq 0 23); do gh release download 0.16.3 -R VOICEVOX/voicevox_vvm -p "$i.vvm"; done
+gh release download 0.16.3 -R VOICEVOX/voicevox_vvm -p "n0.vvm"
+# Open JTalk 辞書
+curl -L -o dict.tar.gz "https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download"
+```
+
+### 已完成
+
+1. **tts-service.js** — koffi FFI 封装 voicevox_core.dll ✓
+   - init(voicevoxDir, vvmFiles): 加载 ONNX Runtime → Open JTalk → Synthesizer → 可配置 VVM
+   - synthesize(text, styleId): audio_query + 参数调整 + synthesis → WAV Buffer
+   - void** 指针管理: 避免 koffi 自动转换导致的双重释放
+   - 熔断: 3次失败→降级，60s 后自动恢复
+   - getMetas(): 从 synthesizer 动态获取角色/style 列表
+   - getAvailableVvms(): 扫描 models 目录
+   - 默认加载 0.vvm + 8.vvm，用户可配置
+
+2. **translation-service.js** — 中→日翻译 ✓
+   - 使用同一 OpenAI-compatible API
+   - LRU 缓存 (50条)，失败时 fallback 到原文
+
+3. **main.js** — TTS 初始化 + 5个 IPC handler ✓
+   - tts-synthesize: 翻译 + 合成 → base64 WAV
+   - tts-get-status / tts-set-config / tts-get-metas / tts-get-available-vvms
+   - TTS 初始化用 setImmediate() 不阻塞窗口创建
+
+4. **preload.js** — 5个 TTS IPC 通道 ✓
+
+5. **Settings UI** ✓
+   - 角色下拉框 + Style 下拉框（联动，从 VVM metas 动态填充）
+   - 语速/音高/音量滑块 + 测试按钮
+   - VVM 配置区：勾选框列表，每个 VVM 标注包含的角色名
+
+6. **desktop-pet-system.js** — AI 回复后自动 TTS 播放 ✓
+
+7. **path-utils.js** — getVoicevoxPath() 修复 ✓
+   - dev: `<appPath>/voicevox_core`
+   - prod: `<resourcesPath>/app.asar.unpacked/voicevox_core`
+
+8. **测试**: 86 tests, 10 suites, all pass ✓
+
+### 已验证
+
+- DLL 加载: VOICEVOX Core v0.16.3 初始化成功 ✓
+- 语音合成: 测试按钮播放正常 ✓
+- 角色切换: 动态 metas 加载，style ID 正确 ✓
+- VVM 配置: 可选加载，默认 2 个秒启动 ✓
+- 放置模式自动语音: AI 回复后自动 TTS 播放 ✓
+- 利用规约: 使用时需标注 "VOICEVOX:キャラ名"
+
+### 待验证 (minor)
+
+- 设置持久化: 切换角色/style → 保存 → 重启 → 还原
+- VVM 配置重启: 勾选额外 VVM → 保存 → 重启 → 角色列表变化
+
+### 已取消
+
+- ✗ Expression→Style 映射（性能考虑，不做动态 style 切换）
+- ✗ Python worker 方案（已用 koffi FFI 替代）
+- ✗ Google Translate 后端（只用 LLM）
+- ✗ electron-log（不需要）
+- ✗ setup-voicevox.js 构建脚本（手动 gh CLI 下载）
+
+### Phase 2 剩余计划
+
+#### 2.1 音频模式 & 状态机
+
+三种模式优雅降级：TTS → 默认音声 → 静音
 
 | 文件 | 类型 | 说明 |
 |------|------|------|
-| `src/core/translation-service.js` | 新建 | 双后端翻译(LLM/Google) |
-| `src/core/tts-service.js` | 新建 | TTS管理+熔断 |
-| `src/core/audio-state-machine.js` | 新建 | TTS→默认音声→静音 状态机 |
-| `src/core/audio-text-sync.js` | 新建 | 整句显示+语音播放 |
-| `src/core/message-session.js` | 新建 | 纯数据容器，统一协调 |
-| `resources/voicevox/voicevox_worker.py` | 新建 | Python worker |
-| `scripts/setup-voicevox.js` | 新建 | 下载构建脚本 |
-| `main.js` | 修改 | Worker进程管理+TTS IPC |
-| `preload.js` | 修改 | TTS IPC通道 |
-| `src/core/desktop-pet-system.js` | 修改 | MessageSession管线 |
-| `src/renderer/pet-chat-bubble.js` | 修改 | 音频播放 |
-| `index.html` / `settings-ui.js` | 修改 | TTS设置tab |
+| `src/core/audio-state-machine.js` | 新建 | 状态: tts/default/silent, 自动降级 |
+| `desktop-pet-system.js` | 修改 | 用状态机决定播放方式 |
+| `index.html` + `settings-ui.js` | 修改 | 音频模式选择 (radio) |
 
-### 关键设计要点
+#### 2.2 默认音声系统
 
-- 音频状态机: TTS → 默认音声 → 静音（优先级降级）
-- 熔断: 连续3次TTS失败→降级，1分钟间隔重试
-- Worker通信: 行分隔JSON（\n结尾+readline()）
-- MessageSession: 纯数据容器，通过set方法注入
-- expressionStyleMap: 表情→style_id映射
-- 默认音声: 预生成语气词WAV，启动时preload到AudioBuffer
-- ASAR: resources/voicevox 必须 asarUnpack
+TTS 不可用时的 fallback 音效：
+- 用户配置语气词列表（默认: えっと, うーん, へぇ, ふーん, あっ）
+- 点击「生成」→ VOICEVOX 合成 → 保存 WAV 到 userData
+- 启动时 preload 到内存，AI 回复时随机播放
+- `main.js` 新增 IPC: generate-default-audio, check-default-audio
+
+#### 2.3 音频中断处理
+
+新消息到达时停止当前音频：
+- `desktop-pet-system.js`: 保存 Audio 引用，新 TTS 到达 → pause 旧的
+
+#### 2.4 MessageSession 协调
+
+统一协调 文字+表情+音频 的时序：
+- `src/core/message-session.js` (~80行)
+- LLM 回复 → 创建 Session → 并行翻译+情绪 → 就绪 → 统一触发
+- 新 Session → cancel 旧 Session
+
+#### 2.5 TTS 状态 UI 增强
+
+- 「重启 TTS」按钮
+- 状态: TTS就绪 / 熔断中 / 离线
+- 熔断时显示重试倒计时
+
+#### 2.6 GPU 加速 (待研究)
+
+- 当前使用 CPU 版 ONNX Runtime
+- 可下载 DirectML 版 onnxruntime 支持 GPU 加速
+- 需要额外下载 voicevox_additional_libraries (DirectML)
+- 设置中添加 GPU 开关
+
+#### 优先级
+
+1. 音频中断处理 (2.3) — 最小改动，立即改善体验
+2. 音频模式+状态机 (2.1) — 框架性改动
+3. 默认音声 (2.2) — 依赖状态机
+4. MessageSession (2.4) — 可选，当前流程已基本可用
+5. TTS 状��� UI (2.5) — 锦上添花
+6. GPU 加速 (2.6) — 待研究
 
 ---
 
@@ -222,7 +342,7 @@ desktop-pet.html → adapter.playMotion(group, index)
 live2dpet/
 ├── main.js                          # 主进程（已大改）
 ├── preload.js                       # IPC桥（已扩展）
-├── index.html                       # 设置窗口（4 tabs）
+├── index.html                       # 设置窗口（5 tabs）
 ├── desktop-pet.html                 # Pet窗口（ModelAdapter驱动）
 ├── pet-chat-bubble.html             # 气泡窗口
 ├── config.json                      # 新schema v1
@@ -239,15 +359,18 @@ live2dpet/
 │   │   ├── ai-chat.js
 │   │   ├── prompt-builder.js
 │   │   ├── emotion-system.js        # 已解耦
-│   │   └── desktop-pet-system.js    # 已解耦
+│   │   ├── desktop-pet-system.js    # 已解耦 + TTS 播放
+│   │   ├── tts-service.js           # 新建 - VOICEVOX FFI
+│   │   └── translation-service.js   # 新建 - 中→日翻译
 │   ├── renderer/
 │   │   ├── model-adapter.js         # 新建 - 策略模式
 │   │   ├── settings-ui.js           # 新建 - 设置UI逻辑
 │   │   └── pet-chat-bubble.js       # 已修改
 │   └── utils/
 │       └── path-utils.js            # 新建
+├── voicevox_core/                       # .gitignore'd, ~177MB
 └── tests/
-    └── test-core.js                 # 67 tests, 8 suites, all pass
+    └── test-core.js                 # 86 tests, 10 suites, all pass
 ```
 
 ## Git 状态

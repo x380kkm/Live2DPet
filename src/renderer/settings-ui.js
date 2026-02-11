@@ -612,3 +612,170 @@ document.getElementById('btn-reset-prompt').addEventListener('click', async () =
         showStatus('prompt-status', '还原失败: ' + result.error, 'error');
     }
 });
+
+// ========== TTS Settings ==========
+
+let ttsMetas = [];
+
+async function loadTTSStatus() {
+    if (!window.electronAPI || !window.electronAPI.ttsGetStatus) return;
+    const status = await window.electronAPI.ttsGetStatus();
+    const el = document.getElementById('tts-status');
+    if (status.initialized) {
+        el.textContent = status.degraded ? 'TTS: 降级模式 (熔断)' : 'TTS: 已就绪';
+        el.className = 'status ' + (status.degraded ? 'error' : 'success');
+        document.getElementById('tts-hint').style.display = 'none';
+        // Load metas and populate dropdowns
+        ttsMetas = await window.electronAPI.ttsGetMetas();
+        populateSpeakerDropdown();
+    } else {
+        el.textContent = 'TTS: 未初始化 (voicevox_core 未找到)';
+        el.className = 'status error';
+    }
+    const config = await window.electronAPI.loadConfig();
+    if (config.tts) {
+        document.getElementById('tts-speed').value = config.tts.speedScale || 1.0;
+        document.getElementById('tts-pitch').value = config.tts.pitchScale || 0.0;
+        document.getElementById('tts-volume').value = config.tts.volumeScale || 1.0;
+        document.getElementById('tts-speed-val').textContent = config.tts.speedScale || 1.0;
+        document.getElementById('tts-pitch-val').textContent = config.tts.pitchScale || 0.0;
+        document.getElementById('tts-volume-val').textContent = config.tts.volumeScale || 1.0;
+        // Restore saved speaker + style selection
+        if (config.tts.styleId !== undefined) {
+            selectStyleById(config.tts.styleId);
+        }
+    }
+}
+
+function populateSpeakerDropdown() {
+    const speakerSel = document.getElementById('tts-speaker');
+    speakerSel.innerHTML = '';
+    ttsMetas.forEach((speaker, i) => {
+        const opt = document.createElement('option');
+        opt.value = i;
+        opt.textContent = speaker.name;
+        speakerSel.appendChild(opt);
+    });
+    speakerSel.addEventListener('change', () => populateStyleDropdown(parseInt(speakerSel.value)));
+    if (ttsMetas.length > 0) populateStyleDropdown(0);
+}
+
+function populateStyleDropdown(speakerIdx) {
+    const styleSel = document.getElementById('tts-style-id');
+    styleSel.innerHTML = '';
+    const speaker = ttsMetas[speakerIdx];
+    if (!speaker) return;
+    speaker.styles.forEach(style => {
+        const opt = document.createElement('option');
+        opt.value = style.id;
+        opt.textContent = style.name;
+        styleSel.appendChild(opt);
+    });
+}
+
+function selectStyleById(styleId) {
+    for (let i = 0; i < ttsMetas.length; i++) {
+        const idx = ttsMetas[i].styles.findIndex(s => s.id === styleId);
+        if (idx >= 0) {
+            document.getElementById('tts-speaker').value = i;
+            populateStyleDropdown(i);
+            document.getElementById('tts-style-id').value = styleId;
+            return;
+        }
+    }
+}
+
+['tts-speed', 'tts-pitch', 'tts-volume'].forEach(id => {
+    const el = document.getElementById(id);
+    if (el) el.addEventListener('input', () => {
+        document.getElementById(id + '-val').textContent = el.value;
+    });
+});
+
+document.getElementById('btn-save-tts').addEventListener('click', async () => {
+    const config = {
+        styleId: parseInt(document.getElementById('tts-style-id').value),
+        speedScale: parseFloat(document.getElementById('tts-speed').value),
+        pitchScale: parseFloat(document.getElementById('tts-pitch').value),
+        volumeScale: parseFloat(document.getElementById('tts-volume').value)
+    };
+    await window.electronAPI.ttsSetConfig(config);
+    showStatus('tts-save-status', '已保存', 'success');
+});
+
+document.getElementById('btn-test-tts').addEventListener('click', async () => {
+    const text = document.getElementById('tts-test-text').value.trim();
+    if (!text) return;
+    showStatus('tts-test-status', '合成中...', '');
+    const result = await window.electronAPI.ttsSynthesize(text);
+    if (result.success) {
+        showStatus('tts-test-status', `翻译: ${result.jaText}`, 'success');
+        const wavBytes = Uint8Array.from(atob(result.wav), c => c.charCodeAt(0));
+        const blob = new Blob([wavBytes], { type: 'audio/wav' });
+        const audio = new Audio(URL.createObjectURL(blob));
+        audio.play();
+    } else {
+        showStatus('tts-test-status', '失败: ' + result.error, 'error');
+    }
+});
+
+loadTTSStatus();
+
+// VVM config
+const VVM_CHARACTERS = {
+    '0.vvm': '四国めたん, ずんだもん, 春日部つむぎ, 雨晴はう',
+    '1.vvm': '冥鳴ひまり',
+    '2.vvm': '九州そら',
+    '3.vvm': '波音リツ, 中国うさぎ',
+    '4.vvm': '玄野武宏, 剣崎雌雄',
+    '5.vvm': '四国めたん(ささやき), ずんだもん(ささやき), 九州そら(ささやき)',
+    '6.vvm': 'No.7',
+    '7.vvm': '後鬼',
+    '8.vvm': 'WhiteCUL',
+    '9.vvm': '白上虎太郎',
+    '10.vvm': '玄野武宏(追加), ちび式じい',
+    '11.vvm': '櫻歌ミコ, ナースロボ＿タイプＴ',
+    '12.vvm': '†聖騎士 紅桜†, 雀松朱司, 麒ヶ島宗麟',
+    '13.vvm': '春歌ナナ, 猫使アル, 猫使ビィ',
+    '14.vvm': '栗田まろん, あいえるたん, 満別花丸, 琴詠ニア',
+    '15.vvm': 'ずんだもん(追加), 青山龍星, もち子さん, 小夜/SAYO',
+    '16.vvm': '後鬼(追加)',
+    '17.vvm': 'Voidoll',
+    '18.vvm': 'ぞん子, 中部つるぎ',
+    '19.vvm': '離途, 黒沢冴白',
+    '20.vvm': 'ユーレイちゃん',
+    '21.vvm': '東北ずん子, 東北きりたん, 東北イタコ, 猫使(追加)',
+    '22.vvm': 'あんこもん',
+    '23.vvm': 'あんこもん(ささやき)',
+    'n0.vvm': 'VOICEVOX Nemo (女声1-6, 男声1-3)',
+};
+
+async function loadVvmConfig() {
+    if (!window.electronAPI?.ttsGetAvailableVvms) return;
+    const available = await window.electronAPI.ttsGetAvailableVvms();
+    const config = await window.electronAPI.loadConfig();
+    const loaded = config.tts?.vvmFiles || ['0.vvm', '8.vvm'];
+    const container = document.getElementById('vvm-checkboxes');
+    if (!container) return;
+    container.innerHTML = available.map(f => {
+        const checked = loaded.includes(f) ? 'checked' : '';
+        const desc = VVM_CHARACTERS[f] || '';
+        return `<label style="display:block;padding:2px 0;font-size:12px;"><input type="checkbox" value="${f}" ${checked}> <b>${f}</b> ${desc}</label>`;
+    }).join('');
+}
+
+document.getElementById('btn-save-vvm')?.addEventListener('click', async () => {
+    const checks = document.querySelectorAll('#vvm-checkboxes input[type=checkbox]:checked');
+    const vvmFiles = Array.from(checks).map(c => c.value);
+    if (vvmFiles.length === 0) {
+        showStatus('vvm-save-status', '至少选择一个 VVM', 'error');
+        return;
+    }
+    const config = await window.electronAPI.loadConfig();
+    config.tts = config.tts || {};
+    config.tts.vvmFiles = vvmFiles;
+    await window.electronAPI.saveConfig(config);
+    showStatus('vvm-save-status', '已保存，重启后生效', 'success');
+});
+
+loadVvmConfig();
