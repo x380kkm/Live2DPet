@@ -140,4 +140,7 @@ node tests/test-core.js
 
 MIT — See [LICENSE](LICENSE).
 
-Note: Due to copyright, this repository does not include a default Live2D model. Contributions of redistributable models are welcome. The app icon is a developer avatar placeholder for the same reason.
+## Wanted
+
+- **Live2D Models**: No default model is included due to copyright — redistributable model contributions are welcome
+- **App Icon**: Currently using a developer avatar as placeholder — design submissions welcome
