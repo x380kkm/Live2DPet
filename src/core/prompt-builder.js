@@ -13,21 +13,23 @@ class PetPromptBuilder {
 
     async loadCharacterPrompt(characterId) {
         try {
-            let url;
-            if (characterId) {
-                url = `assets/prompts/${characterId}.json`;
-            } else if (window.electronAPI?.loadConfig) {
-                const config = await window.electronAPI.loadConfig();
-                url = config.activeCharacterId
-                    ? `assets/prompts/${config.activeCharacterId}.json`
-                    : 'assets/prompts/sister.json';
-            } else {
-                url = 'assets/prompts/sister.json';
+            // Use IPC to load from main process (handles both dev and packaged paths)
+            if (window.electronAPI?.loadPrompt) {
+                const result = await window.electronAPI.loadPrompt(characterId || null);
+                if (result.success) {
+                    this.characterPrompt = result.data;
+                    console.log(`[PetPromptBuilder] Character loaded: ${this.characterPrompt.name || 'unknown'}`);
+                    return;
+                }
             }
+            // Fallback: fetch from assets (dev mode without IPC)
+            const url = characterId
+                ? `assets/prompts/${characterId}.json`
+                : 'assets/prompts/sister.json';
             const response = await fetch(url);
             const data = await response.json();
             this.characterPrompt = data.data || data;
-            console.log(`[PetPromptBuilder] Character loaded: ${this.characterPrompt.name || 'unknown'}`);
+            console.log(`[PetPromptBuilder] Character loaded (fetch): ${this.characterPrompt.name || 'unknown'}`);
         } catch (error) {
             console.warn('[PetPromptBuilder] Failed to load prompt, using default');
             this.characterPrompt = {
