@@ -63,11 +63,20 @@ class PetPromptBuilder {
     buildSystemPrompt(dynamicContext) {
         if (!this.characterPrompt) return 'You are a desktop pet companion.';
         const parts = [];
+
+        // Character setup first
         if (this.characterPrompt.description) parts.push(this.resolveTemplate(this.characterPrompt.description));
         if (this.characterPrompt.personality) parts.push(this.resolveTemplate(this.characterPrompt.personality));
-        if (this.characterPrompt.rules) parts.push(this.resolveTemplate(this.characterPrompt.rules));
         if (this.characterPrompt.scenario) parts.push(this.resolveTemplate(this.characterPrompt.scenario));
         if (dynamicContext) parts.push(dynamicContext);
+
+        // Rules LAST with emphasis
+        if (this.characterPrompt.rules) {
+            parts.push('---');
+            parts.push(this.resolveTemplate(this.characterPrompt.rules));
+            parts.push('【重要提醒】以上规则必须严格遵守，每次回复前请检查是否符合所有规则。');
+        }
+
         return parts.join('\n\n');
     }
 
