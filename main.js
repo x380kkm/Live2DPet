@@ -448,8 +448,26 @@ ipcMain.handle('get-app-path', async () => {
 });
 
 // ========== Character Card Management (UUID-based) ==========
-const promptsDir = path.join(__dirname, 'assets', 'prompts');
+const bundledPromptsDir = path.join(__dirname, 'assets', 'prompts');
+const promptsDir = app.isPackaged
+    ? path.join(app.getPath('userData'), 'prompts')
+    : path.join(__dirname, 'assets', 'prompts');
 const crypto = require('crypto');
+
+// On first run in packaged mode, copy bundled prompts to userData
+if (app.isPackaged && !fs.existsSync(promptsDir)) {
+    fs.mkdirSync(promptsDir, { recursive: true });
+    try {
+        const files = fs.readdirSync(bundledPromptsDir);
+        for (const f of files) {
+            if (f.endsWith('.json')) {
+                fs.copyFileSync(path.join(bundledPromptsDir, f), path.join(promptsDir, f));
+            }
+        }
+    } catch (e) {
+        console.error('[Prompts] Failed to copy bundled prompts:', e.message);
+    }
+}
 
 function getCharacterPath(id) {
     return path.join(promptsDir, `${id}.json`);
