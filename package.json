@@ -2,6 +2,7 @@
   "name": "live2dpet",
   "version": "1.0.0",
   "description": "Standalone desktop pet companion with AI chat",
+  "author": "x380kkm",
   "main": "main.js",
   "scripts": {
     "start": "node launch.js",
