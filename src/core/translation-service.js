@@ -65,7 +65,7 @@ class TranslationService {
                     messages: [
                         {
                             role: 'system',
-                            content: '你是翻译器。将用户输入的中文翻译成自然的日语。只输出翻译结果，不要解释。保持语气和情感。英文单词使用全小写。'
+                            content: '你是翻译器。将用户输入的中文翻译成自然的日语。不要思考,快速并只输出翻译结果，不要解释。保持语气和情感。英文单词使用全小写。'
                         },
                         { role: 'user', content: text }
                     ],
