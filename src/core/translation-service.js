@@ -65,11 +65,11 @@ class TranslationService {
                     messages: [
                         {
                             role: 'system',
-                            content: '你是翻译器。将用户输入的中文翻译成自然的日语。不要思考,快速并只输出翻译结果，不要解释。保持语气和情感。英文单词使用全小写。'
+                            content: '【响应模式】你是翻译器。将用户输入的中文翻译成自然的日语。不要思考,快速并只输出翻译结果，不要解释。保持语气和情感。英文单词使用全小写。'
                         },
                         { role: 'user', content: text }
                     ],
-                    max_tokens: 512,
+                    max_tokens: 1024,
                     temperature: 0.3
                 }),
                 signal: controller.signal
