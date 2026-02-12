@@ -202,7 +202,7 @@ class EmotionSystem {
             const messages = [
                 {
                     role: 'system',
-                    content: `You are an emotion classifier. Given the character's last spoken line, pick the single most fitting emotion from this list: [${emotionList}]. Reply with ONLY the emotion name in Chinese, nothing else.`
+                    content: `You are an emotion classifier. Given the character's last spoken line, pick the single most fitting emotion from this list: [${emotionList}]. Reply with ONLY the emotion name from the list, nothing else.`
                 },
                 {
                     role: 'user',
