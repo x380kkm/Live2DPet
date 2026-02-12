@@ -53,7 +53,10 @@ class Live2DAdapter extends ModelAdapter {
             height: window.innerHeight,
             backgroundAlpha: 0,
             resolution: dpr,
-            autoDensity: true
+            autoDensity: true,
+            powerPreference: 'high-performance',
+            antialias: true,
+            failIfMajorPerformanceCaveat: false
         });
 
         // Build model path from config
