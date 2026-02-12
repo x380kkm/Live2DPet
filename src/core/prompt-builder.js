@@ -65,7 +65,7 @@ class PetPromptBuilder {
         const parts = [];
 
         // Fast response instruction at the top
-        parts.push('【响应模式】直接回答，不要思考过程，不要推理步骤，立即给出最终回复。');
+        parts.push('【响应模式】不要过渡思考过程，尽快给出最终回复。');
 
         // Character setup
         if (this.characterPrompt.description) parts.push(this.resolveTemplate(this.characterPrompt.description));
