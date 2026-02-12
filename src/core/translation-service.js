@@ -1,8 +1,8 @@
 /**
- * Translation Service — Chinese → Japanese via LLM API
+ * Translation Service — Text → Japanese via LLM API
  *
  * Runs in Electron main process. Uses the same OpenAI-compatible API
- * as the chat client to translate Chinese text to Japanese for VOICEVOX.
+ * as the chat client to translate text to Japanese for VOICEVOX.
  * Includes a simple cache to avoid redundant translations.
  */
 
@@ -27,8 +27,8 @@ class TranslationService {
     }
 
     /**
-     * Translate Chinese text to Japanese.
-     * @param {string} text - Chinese text
+     * Translate text to Japanese.
+     * @param {string} text - Input text
      * @returns {Promise<string>} Japanese text, or original on failure
      */
     async translate(text) {
@@ -65,7 +65,7 @@ class TranslationService {
                     messages: [
                         {
                             role: 'system',
-                            content: '【响应模式】你是翻译器。将用户输入的中文翻译成自然的日语。不要思考,快速并只输出翻译结果，不要解释。保持语气和情感。英文单词使用全小写。'
+                            content: '【响应模式】你是翻译器。将用户输入翻译成自然的日语。不要思考,快速并只输出翻译结果，不要解释。保持语气和情感。英文单词转为片假名。'
                         },
                         { role: 'user', content: text }
                     ],
