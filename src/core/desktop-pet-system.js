@@ -28,6 +28,10 @@ class DesktopPetSystem {
         // Window focus tracking (1s sampling, cleared after each AI request)
         this.focusTimer = null;
         this.focusTracker = {};
+
+        // Conversation history buffer (avoid repeating topics)
+        this.conversationHistory = [];
+        this.maxHistoryPairs = 4;
     }
 
     async init() {
@@ -117,6 +121,7 @@ class DesktopPetSystem {
         this.isActive = false;
         this.focusTracker = {};
         this.screenshotBuffers = {};
+        this.conversationHistory = [];
         console.log('[DesktopPetSystem] Stopped');
     }
 
@@ -351,48 +356,62 @@ class DesktopPetSystem {
 
             const textPrompt = this.promptBuilder.getAppDetectionPrompt(appName);
 
-            // Gather screenshots for the current window from the buffer
-            const windowScreenshots = this.screenshotBuffers[appName] || [];
+            // Only gather NEW (unsent) screenshots
+            const windowScreenshots = (this.screenshotBuffers[appName] || []).filter(s => !s.sent);
+
+            // Build messages: system + history + current user message
+            const messages = [
+                { role: 'system', content: currentSystemPrompt },
+                ...this.conversationHistory
+            ];
 
             let response;
 
             if (windowScreenshots.length > 0) {
-                // Build user content with multiple screenshots
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
                 const userContent = [
-                    { type: 'text', text: textPrompt + '（附上当前屏幕截图，请根据看到的内容自然回应）' }
+                    { type: 'text', text: `[${timeStr}] ${textPrompt}（附上屏幕截图）` }
                 ];
 
                 for (const screenshot of windowScreenshots) {
-                    const annotation = screenshot.sent
-                        ? '（这张截图你之前已经看过，不需要重复关注）'
-                        : '（新截图）';
-                    userContent.push({ type: 'text', text: annotation });
                     userContent.push({
                         type: 'image_url',
                         image_url: { url: 'data:image/jpeg;base64,' + screenshot.base64 }
                     });
                 }
 
-                const messages = [
-                    { role: 'system', content: currentSystemPrompt },
-                    { role: 'user', content: userContent }
-                ];
+                messages.push({ role: 'user', content: userContent });
                 response = await this.aiClient.callAPI(messages);
 
-                // Mark all included screenshots as sent
+                // Mark sent and clear old screenshots for this window
                 for (const screenshot of windowScreenshots) {
                     screenshot.sent = true;
                 }
+                this.screenshotBuffers[appName] = this.screenshotBuffers[appName].filter(s => !s.sent);
             } else {
-                // No screenshots available - text-only fallback
-                const messages = [
-                    { role: 'system', content: currentSystemPrompt },
-                    { role: 'user', content: textPrompt }
-                ];
+                // No new screenshots — use idle prompt with timestamp
+                const now = new Date();
+                const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
+                const idlePrompt = this.promptBuilder.getIdlePrompt();
+                messages.push({ role: 'user', content: `[${timeStr}] ${idlePrompt}` });
                 response = await this.aiClient.callAPI(messages);
             }
 
             if (response) {
+                // Append to conversation history (text-only summary for user turn)
+                const userSummary = windowScreenshots.length > 0
+                    ? `（用户正在使用${appName}，已查看截图）`
+                    : `（用户正在使用${appName}）`;
+                this.conversationHistory.push(
+                    { role: 'user', content: userSummary },
+                    { role: 'assistant', content: response }
+                );
+                // Keep only last N pairs
+                while (this.conversationHistory.length > this.maxHistoryPairs * 2) {
+                    this.conversationHistory.splice(0, 2);
+                }
+
                 // Cancel previous session, create new one
                 if (this.currentSession) this.currentSession.cancel();
                 this.stopCurrentAudio();
