@@ -4,3 +4,4 @@ dist/
 .claude/
 voicevox_core/
 nul
+build.bat
