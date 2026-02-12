@@ -10,6 +10,24 @@ Electron ベースのデスクトップペット。Live2D キャラクターが�
   <img src="assets/app-icon.png" width="128" alt="Live2DPet Icon">
 </p>
 
+## 使用例
+
+<p align="center">
+  <img src="assets/example-little-demon.png" width="45%" alt="Usage Example 1">
+  <img src="assets/example-kasukabe.jpg" width="45%" alt="Usage Example 2">
+</p>
+
+**モデルクレジット**
+
+【Model】Little Demon
+Author：Cai Cat様
+
+【Model】春日部つむぎ (公式)
+イラスト：春日部つくし様
+モデリング：米田らん様
+
+*この例で使用されている Live2D モデルは借用したものです。すべての権利は原作者に帰属します。*
+
 ## クイックスタート
 
 ### 方法1：ダウンロード（推奨）

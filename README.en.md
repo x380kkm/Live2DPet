@@ -10,6 +10,24 @@ An Electron-based desktop pet. A Live2D character stays on your desktop, perceiv
   <img src="assets/app-icon.png" width="128" alt="Live2DPet Icon">
 </p>
 
+## Usage Example
+
+<p align="center">
+  <img src="assets/example-little-demon.png" width="45%" alt="Usage Example 1">
+  <img src="assets/example-kasukabe.jpg" width="45%" alt="Usage Example 2">
+</p>
+
+**Model Credits**
+
+【Model】Little Demon
+Author：Cai Cat様
+
+【Model】春日部つむぎ (公式)
+イラスト：春日部つくし様
+モデリング：米田らん様
+
+*The Live2D models shown in this example are borrowed for demonstration purposes. All rights belong to the original creators.*
+
 ## Quick Start
 
 ### Option 1: Download (Recommended)

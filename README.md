@@ -10,6 +10,24 @@
   <img src="assets/app-icon.png" width="128" alt="Live2DPet Icon">
 </p>
 
+## 使用示例
+
+<p align="center">
+  <img src="assets/example-little-demon.png" width="45%" alt="Usage Example 1">
+  <img src="assets/example-kasukabe.jpg" width="45%" alt="Usage Example 2">
+</p>
+
+**模型借物说明**
+
+【Model】Little Demon
+Author：Cai Cat様
+
+【Model】春日部つむぎ (公式)
+イラスト：春日部つくし様
+モデリング：米田らん様
+
+*本示例使用的 Live2D 模型为借物展示，版权归原作者所有。*
+
 ## 快速开始
 
 ### 方式一：直接下载（推荐）
