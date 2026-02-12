@@ -64,7 +64,10 @@ class PetPromptBuilder {
         if (!this.characterPrompt) return 'You are a desktop pet companion.';
         const parts = [];
 
-        // Character setup first
+        // Fast response instruction at the top
+        parts.push('【响应模式】直接回答，不要思考过程，不要推理步骤，立即给出最终回复。');
+
+        // Character setup
         if (this.characterPrompt.description) parts.push(this.resolveTemplate(this.characterPrompt.description));
         if (this.characterPrompt.personality) parts.push(this.resolveTemplate(this.characterPrompt.personality));
         if (this.characterPrompt.scenario) parts.push(this.resolveTemplate(this.characterPrompt.scenario));
