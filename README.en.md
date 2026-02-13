@@ -197,3 +197,19 @@ MIT — See [LICENSE](LICENSE).
 
 - **Live2D Models**: No default model is included due to copyright — redistributable model contributions are welcome
 - **App Icon**: Currently using a developer avatar as placeholder — design submissions welcome
+
+## Contributors
+
+Thanks to all contributors. Listed in chronological order, not by importance. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
+
+| Contributor |
+|-------------|
+| 380kkm |
+
+## Sponsors
+
+Thanks to all sponsors. Listed in chronological order, not by importance. See [SPONSORS.md](SPONSORS.md) for the full list.
+
+| Sponsor |
+|---------|
+| 柠檬 |
