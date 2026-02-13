@@ -228,3 +228,7 @@ Thanks to all sponsors. Listed in chronological order, not by importance. See [S
 | Sponsor |
 |---------|
 | 柠檬 |
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/svg?repos=x380kkm/Live2DPet&type=Date)](https://star-history.com/#x380kkm/Live2DPet&Date)
