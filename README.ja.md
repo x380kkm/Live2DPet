@@ -2,6 +2,8 @@
 
 **[English](README.en.md)** | **日本語** | **[中文](README.md)**
 
+![GitHub stars](https://img.shields.io/github/stars/x380kkm/Live2DPet) ![License](https://img.shields.io/github/license/x380kkm/Live2DPet) ![Downloads](https://img.shields.io/github/downloads/x380kkm/Live2DPet/total) ![Last Commit](https://img.shields.io/github/last-commit/x380kkm/Live2DPet)
+
 Electron ベースのデスクトップペット。Live2D キャラクターがデスクトップに常駐し、スクリーンショットでユーザーの操作を認識、AI がコンパニオン対話を生成、VOICEVOX で音声合成を行います。[Claude Code](https://docs.anthropic.com/en/docs/claude-code) による AI 支援開発で構築。
 
 > **プライバシーに関する注意**: 本アプリは定期的にスクリーンショットを撮影し、設定された AI API に送信して分析します。スクリーンショットはディスクに保存されません。ご利用の API プロバイダーを信頼できることを確認し、画面上の機密情報にご注意ください。
