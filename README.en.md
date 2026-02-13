@@ -13,8 +13,13 @@ An Electron-based desktop pet. A Live2D character stays on your desktop, perceiv
 ## Usage Example
 
 <p align="center">
-  <img src="assets/example-little-demon.png" width="45%" alt="Usage Example 1">
-  <img src="assets/example-kasukabe.jpg" width="45%" alt="Usage Example 2">
+  <img src="assets/example-little-demon.png" width="60%" alt="Usage Example 1">
+</p>
+<p align="center">
+  <img src="assets/example-kasukabe.jpg" width="60%" alt="Usage Example 2">
+</p>
+<p align="center">
+  <img src="assets/example-kiritan.png" width="60%" alt="Usage Example 3">
 </p>
 
 **Model Credits**
@@ -26,7 +31,11 @@ Author：Cai Cat様
 イラスト：春日部つくし様
 モデリング：米田らん様
 
-*The Live2D models shown in this example are borrowed for demonstration purposes. All rights belong to the original creators.*
+【Model】東北きりたん ([水德式](https://www.bilibili.com/video/BV1B7dcY1EFU))
+イラスト：白白什么雨様
+配布：君临德雷克様
+
+*The models shown in this example are borrowed for demonstration purposes. All rights belong to the original creators.*
 
 ## Quick Start
 

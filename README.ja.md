@@ -13,8 +13,13 @@ Electron ベースのデスクトップペット。Live2D キャラクターが�
 ## 使用例
 
 <p align="center">
-  <img src="assets/example-little-demon.png" width="45%" alt="Usage Example 1">
-  <img src="assets/example-kasukabe.jpg" width="45%" alt="Usage Example 2">
+  <img src="assets/example-little-demon.png" width="60%" alt="Usage Example 1">
+</p>
+<p align="center">
+  <img src="assets/example-kasukabe.jpg" width="60%" alt="Usage Example 2">
+</p>
+<p align="center">
+  <img src="assets/example-kiritan.png" width="60%" alt="Usage Example 3">
 </p>
 
 **モデルクレジット**
@@ -26,7 +31,11 @@ Author：Cai Cat様
 イラスト：春日部つくし様
 モデリング：米田らん様
 
-*この例で使用されている Live2D モデルは借用したものです。すべての権利は原作者に帰属します。*
+【Model】東北きりたん ([水德式](https://www.bilibili.com/video/BV1B7dcY1EFU))
+イラスト：白白什么雨様
+配布：君临德雷克様
+
+*この例で使用されているモデル素材は借用したものです。すべての権利は原作者に帰属します。*
 
 ## クイックスタート
 
