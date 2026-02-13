@@ -1111,6 +1111,41 @@ ipcMain.handle('select-static-image', async () => {
     }
 });
 
+ipcMain.handle('select-image-folder', async () => {
+    try {
+        const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
+            properties: ['openDirectory'],
+            title: '选择图片文件夹'
+        });
+        if (result.canceled || !result.filePaths.length) {
+            return { success: false, error: 'cancelled' };
+        }
+        return { success: true, folderPath: result.filePaths[0] };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('scan-image-folder', async (event, folderPath) => {
+    try {
+        const files = fs.readdirSync(folderPath);
+        const imageExts = ['.png', '.jpg', '.jpeg', '.webp'];
+        const images = files
+            .filter(f => imageExts.includes(path.extname(f).toLowerCase()))
+            .map(f => ({ filename: f, path: path.join(folderPath, f) }));
+        return { success: true, images };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
+ipcMain.handle('set-talking-state', async (event, isTalking) => {
+    if (petWindow && !petWindow.isDestroyed()) {
+        petWindow.webContents.send('talking-state-changed', isTalking);
+    }
+    return { success: true };
+});
+
 ipcMain.handle('select-bubble-image', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {

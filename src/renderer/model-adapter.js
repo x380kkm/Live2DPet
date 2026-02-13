@@ -269,42 +269,122 @@ class ImageAdapter extends ModelAdapter {
     constructor(config) {
         super(config);
         this.imgElement = null;
-        this.currentGif = null;
+        // Folder mode pools
+        this.idleImages = [];
+        this.talkingImages = [];
+        this.emotionImages = {};  // {emotionName: [filenames]}
+        // State
+        this.isTalking = false;
+        this.currentEmotion = null;
+        this._folderMode = false;
     }
 
     async load(container) {
-        // Hide canvas, show image
         const canvas = document.getElementById('live2d-canvas');
         if (canvas) canvas.style.display = 'none';
         const placeholder = document.getElementById('placeholder');
         if (placeholder) placeholder.style.display = 'none';
 
         this.imgElement = document.getElementById('static-image');
-        if (this.imgElement) {
+        if (!this.imgElement) return;
+
+        this._folderMode = !!(this.config.imageFolderPath && this.config.imageFiles);
+
+        if (this._folderMode) {
+            this._buildPools();
+            this._applyCropStyle();
+            this._updateDisplay();
+        } else {
+            // Legacy single-image mode
             this.imgElement.src = this.config.staticImagePath || '';
-            this.imgElement.style.display = 'block';
-            // Apply bottomAlignOffset
             const offset = this.config.bottomAlignOffset || 0.5;
             this.imgElement.style.position = 'absolute';
             this.imgElement.style.bottom = `${(1 - offset) * 100}%`;
             this.imgElement.style.left = '50%';
             this.imgElement.style.transform = 'translateX(-50%)';
         }
+
+        this.imgElement.style.display = 'block';
+
+        // Listen for talking state changes
+        if (window.electronAPI && window.electronAPI.onTalkingStateChanged) {
+            window.electronAPI.onTalkingStateChanged((isTalking) => {
+                this.isTalking = isTalking;
+                if (!this.currentEmotion) {
+                    this._updateDisplay();
+                }
+            });
+        }
+    }
+
+    _buildPools() {
+        const files = this.config.imageFiles || [];
+        this.idleImages = [];
+        this.talkingImages = [];
+        this.emotionImages = {};
+
+        for (const f of files) {
+            if (f.idle) this.idleImages.push(f.file);
+            if (f.talking) this.talkingImages.push(f.file);
+            if (f.emotionName) {
+                if (!this.emotionImages[f.emotionName]) {
+                    this.emotionImages[f.emotionName] = [];
+                }
+                this.emotionImages[f.emotionName].push(f.file);
+            }
+        }
+    }
+
+    _updateDisplay() {
+        if (!this._folderMode) return;
+        // Priority: emotion > talking > idle
+        if (this.currentEmotion && this.emotionImages[this.currentEmotion]) {
+            this._showRandom(this.emotionImages[this.currentEmotion]);
+        } else if (this.isTalking && this.talkingImages.length > 0) {
+            this._showRandom(this.talkingImages);
+        } else if (this.idleImages.length > 0) {
+            this._showRandom(this.idleImages);
+        }
+    }
+
+    _showRandom(pool) {
+        if (!pool || pool.length === 0 || !this.imgElement) return;
+        const file = pool[Math.floor(Math.random() * pool.length)];
+        const folderPath = this.config.imageFolderPath.replace(/\\/g, '/');
+        this.imgElement.src = 'file:///' + folderPath + '/' + encodeURIComponent(file);
+    }
+
+    _applyCropStyle() {
+        if (!this.imgElement) return;
+        const scale = this.config.imageCropScale || 1.0;
+        this.imgElement.style.position = 'absolute';
+        this.imgElement.style.top = '0';
+        this.imgElement.style.left = '0';
+        this.imgElement.style.width = '100%';
+        this.imgElement.style.height = 'auto';
+        this.imgElement.style.transformOrigin = 'top center';
+        this.imgElement.style.transform = `scale(${scale})`;
     }
 
     setExpression(name) {
-        // GIF expression switching
-        const gifMap = this.config.gifExpressions || {};
-        if (gifMap[name] && this.imgElement) {
-            this.currentGif = name;
-            this.imgElement.src = gifMap[name];
+        if (this._folderMode) {
+            this.currentEmotion = name;
+            this._updateDisplay();
+        } else {
+            // Legacy GIF expression switching
+            const gifMap = this.config.gifExpressions || {};
+            if (gifMap[name] && this.imgElement) {
+                this.imgElement.src = gifMap[name];
+            }
         }
     }
 
     revertExpression() {
-        if (this.imgElement && this.config.staticImagePath) {
+        if (this._folderMode) {
+            this.currentEmotion = null;
+            this._updateDisplay();
+        } else if (this.imgElement && this.config.staticImagePath) {
             this.imgElement.src = this.config.staticImagePath;
-            this.currentGif = null;
         }
     }
 

@@ -74,14 +74,25 @@ In the "Model" tab, click "Select Model Folder" and choose a directory containin
 - Scan expression files and motion groups
 - Copy the model to the user data directory
 
-Static images (PNG/GIF) are also supported as character visuals — not fully tested yet.
+Image folders (PNG/JPG/WebP) are also supported as character visuals — see "Image Model" below.
 
 ### 3. Launch Pet
 
 Click "Launch Pet". The character appears as a transparent window at the bottom-right of your desktop.
 - Drag to reposition
-- Eyes follow your mouse cursor
+- Eyes follow your mouse cursor (Live2D mode)
 - AI periodically takes screenshots and chats via speech bubbles
+
+### Image Model
+
+Besides Live2D, you can use an image folder as the character visual:
+
+1. In the "Model" tab, select type "Image Folder" and choose a folder containing PNG/JPG/WebP images
+2. Tag each image's role: idle, talking, or emotion (multiple tags allowed)
+3. Emotion images need an emotion name — the AI emotion system will match automatically
+4. Use the crop scale slider to adjust display ratio
+
+The character automatically switches to "talking" images when the AI speaks, emotion images on mood triggers, and "idle" images otherwise.
 
 ### 4. Customize Character
 
@@ -99,8 +110,9 @@ Supports GPU acceleration (DirectML). AI responses are auto-translated to Japane
 ## Features
 
 - **Live2D Desktop Character** — Transparent frameless window, always on top, eyes follow cursor
+- **Image Model** — Use an image folder as character, tagged by idle/talking/emotion, AI-driven auto switching
 - **AI Visual Awareness** — Periodic screenshots + active window detection, AI responds to screen content
-- **VOICEVOX Voice** — Local Japanese TTS, auto Chinese→Japanese translation, one-click setup
+- **VOICEVOX Voice** — Local Japanese TTS, auto translation, one-click setup
 - **Emotion System** — AI-driven expression/motion selection with emotion accumulation triggers
 - **Audio State Machine** — TTS → default phrases → silent, three-mode auto fallback
 - **Hot Model Import** — Any Live2D model, auto parameter mapping, auto expression/motion scan
@@ -153,6 +165,20 @@ node tests/test-core.js
 - [Live2D Cubism SDK](https://www.live2d.com/en/sdk/about/) + [PixiJS](https://pixijs.com/) + [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [VOICEVOX Core](https://github.com/VOICEVOX/voicevox_core) — Japanese TTS engine
 - [koffi](https://koffi.dev/) — Node.js FFI
+
+## Changelog
+
+### v1.2.0 — Image Model
+
+- New image folder model: select an image folder, tag each image as idle/talking/emotion
+- Auto-switch to talking images when AI speaks, emotion images on mood triggers
+- Crop scale control for different aspect ratio character images
+- Supports PNG / JPG / WebP
+
+### Earlier Versions
+
+- v1.1.0 — Fast response mode, conversation history buffer, screenshot dedup, language-agnostic translation & emotion
+- v1.0.0 — Initial release: Live2D desktop pet, AI visual awareness, VOICEVOX TTS, emotion/expression system
 
 ## License
 

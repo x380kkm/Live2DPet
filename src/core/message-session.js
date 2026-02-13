@@ -36,6 +36,10 @@ class MessageSession {
 
     cancel() {
         this.cancelled = true;
+        // Signal talking ended on cancel
+        if (window.electronAPI && window.electronAPI.setTalkingState) {
+            window.electronAPI.setTalkingState(false);
+        }
     }
 
     async run(system) {
@@ -50,6 +54,11 @@ class MessageSession {
         if (!this.isActive()) return;
 
         const hasTTSAudio = prepared && prepared.duration > 0;
+
+        // Signal talking state START
+        if (window.electronAPI && window.electronAPI.setTalkingState) {
+            window.electronAPI.setTalkingState(true);
+        }
 
         // Phase 2: Synchronized playback
         if (hasTTSAudio) {
@@ -84,6 +93,11 @@ class MessageSession {
             this._triggerEmotionIndependent(system);
 
             if (this._audioEndPromise) await this._audioEndPromise;
+        }
+
+        // Signal talking state END
+        if (this.isActive() && window.electronAPI && window.electronAPI.setTalkingState) {
+            window.electronAPI.setTalkingState(false);
         }
     }
 

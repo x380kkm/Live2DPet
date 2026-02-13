@@ -52,6 +52,9 @@ contextBridge.exposeInMainWorld('electronAPI', {
     selectModelFolder: () => ipcRenderer.invoke('select-model-folder'),
     scanModelInfo: (folder, file) => ipcRenderer.invoke('scan-model-info', folder, file),
     selectStaticImage: () => ipcRenderer.invoke('select-static-image'),
+    selectImageFolder: () => ipcRenderer.invoke('select-image-folder'),
+    scanImageFolder: (folderPath) => ipcRenderer.invoke('scan-image-folder', folderPath),
+    setTalkingState: (isTalking) => ipcRenderer.invoke('set-talking-state', isTalking),
     selectBubbleImage: () => ipcRenderer.invoke('select-bubble-image'),
     selectAppIcon: () => ipcRenderer.invoke('select-app-icon'),
     copyModelToUserdata: (folder, modelName) => ipcRenderer.invoke('copy-model-to-userdata', folder, modelName),
@@ -82,6 +85,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onPlayExpression: (cb) => ipcRenderer.on('play-expression', (e, name) => cb(name)),
     onRevertExpression: (cb) => ipcRenderer.on('revert-expression', () => cb()),
     onPlayMotion: (cb) => ipcRenderer.on('play-motion', (e, group, index) => cb(group, index)),
+    onTalkingStateChanged: (cb) => ipcRenderer.on('talking-state-changed', (e, isTalking) => cb(isTalking)),
     onPetHoverState: (cb) => ipcRenderer.on('pet-hover-state', (e, hovering) => cb(hovering)),
     onModelConfigUpdate: (cb) => ipcRenderer.on('model-config-update', (e, config) => cb(config))
 });

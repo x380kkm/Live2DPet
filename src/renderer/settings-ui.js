@@ -133,10 +133,18 @@ function loadModelUI() {
         renderParamMapping();
     }
     if (currentModelConfig.type === 'image') {
-        document.getElementById('image-info').textContent =
-            currentModelConfig.staticImagePath ? `图片: ${currentModelConfig.staticImagePath}` : '';
-        document.getElementById('bottom-align-slider').value = currentModelConfig.bottomAlignOffset || 0.5;
-        document.getElementById('bottom-align-val').textContent = (currentModelConfig.bottomAlignOffset || 0.5).toFixed(2);
+        // Restore folder mode
+        if (currentModelConfig.imageFolderPath) {
+            document.getElementById('folder-info').textContent =
+                `文件夹: ${currentModelConfig.imageFolderPath}`;
+            document.getElementById('image-list-container').style.display = '';
+            // Restore crop slider
+            const cropScale = currentModelConfig.imageCropScale || 1.0;
+            document.getElementById('image-crop-slider').value = cropScale;
+            document.getElementById('image-crop-val').textContent = cropScale.toFixed(2);
+            // Restore image list from saved config
+            renderImageListFromConfig(currentModelConfig);
+        }
     }
 }
 
@@ -146,7 +154,6 @@ function updateModelCards() {
     document.getElementById('card-param-mapping').style.display = type === 'live2d' ? '' : 'none';
     document.getElementById('card-canvas-y').style.display = type === 'live2d' ? '' : 'none';
     document.getElementById('card-image').style.display = type === 'image' ? '' : 'none';
-    document.getElementById('card-bottom-align').style.display = type === 'image' ? '' : 'none';
 }
 
 document.getElementById('model-type').addEventListener('change', () => {
@@ -160,10 +167,10 @@ document.getElementById('canvas-y-slider').addEventListener('input', (e) => {
     currentModelConfig.canvasYRatio = parseFloat(e.target.value);
 });
 
-// Bottom align slider
-document.getElementById('bottom-align-slider').addEventListener('input', (e) => {
-    document.getElementById('bottom-align-val').textContent = parseFloat(e.target.value).toFixed(2);
-    currentModelConfig.bottomAlignOffset = parseFloat(e.target.value);
+// Image crop slider
+document.getElementById('image-crop-slider').addEventListener('input', (e) => {
+    document.getElementById('image-crop-val').textContent = parseFloat(e.target.value).toFixed(2);
+    currentModelConfig.imageCropScale = parseFloat(e.target.value);
 });
 
 // Import Live2D
@@ -300,16 +307,99 @@ document.getElementById('btn-apply-suggested').addEventListener('click', () => {
     showStatus('model-status', '已应用建议映射', 'success');
 });
 
-// Import static image
-document.getElementById('btn-import-image').addEventListener('click', async () => {
-    const result = await window.electronAPI.selectStaticImage();
-    if (!result.success) return;
-    currentModelConfig.staticImagePath = result.filePath;
+// Import image folder
+document.getElementById('btn-select-image-folder').addEventListener('click', async () => {
+    const result = await window.electronAPI.selectImageFolder();
+    if (!result.success) {
+        if (result.error !== 'cancelled') showStatus('model-status', result.error, 'error');
+        return;
+    }
+    const folderPath = result.folderPath;
+    currentModelConfig.imageFolderPath = folderPath;
     currentModelConfig.type = 'image';
     document.getElementById('model-type').value = 'image';
-    document.getElementById('image-info').textContent = `图片: ${result.filePath}`;
     updateModelCards();
+
+    // Scan folder for images
+    showStatus('model-status', '扫描图片...', 'info');
+    const scanResult = await window.electronAPI.scanImageFolder(folderPath);
+    if (!scanResult.success) {
+        showStatus('model-status', scanResult.error, 'error');
+        return;
+    }
+
+    document.getElementById('folder-info').textContent =
+        `文件夹: ${folderPath} (${scanResult.images.length} 张图片)`;
+    document.getElementById('image-list-container').style.display = '';
+
+    // Build imageFiles from scan, preserving existing config if same folder
+    const existingFiles = currentModelConfig.imageFiles || [];
+    const existingMap = {};
+    for (const f of existingFiles) existingMap[f.file] = f;
+
+    currentModelConfig.imageFiles = scanResult.images.map(img => {
+        const existing = existingMap[img.filename];
+        return existing || { file: img.filename, idle: false, talking: false, emotionName: '' };
+    });
+
+    renderImageList(currentModelConfig);
+    showStatus('model-status', `已扫描 ${scanResult.images.length} 张图片`, 'success');
 });
+
+function renderImageList(modelConfig) {
+    const container = document.getElementById('image-list');
+    container.innerHTML = '';
+    const files = modelConfig.imageFiles || [];
+    const folderPath = (modelConfig.imageFolderPath || '').replace(/\\/g, '/');
+
+    files.forEach((f, i) => {
+        const row = document.createElement('div');
+        row.className = 'image-item';
+        row.dataset.index = i;
+
+        const emotionDisplay = f.emotionName ? '' : 'display:none;';
+        row.innerHTML = `
+            <img class="image-thumb" src="file:///${folderPath}/${encodeURIComponent(f.file)}" alt="${f.file}">
+            <span style="flex:1;min-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.file}">${f.file}</span>
+            <div class="cats">
+                <label><input type="checkbox" class="cat-idle" ${f.idle ? 'checked' : ''}> 待机</label>
+                <label><input type="checkbox" class="cat-talking" ${f.talking ? 'checked' : ''}> 说话</label>
+                <label><input type="checkbox" class="cat-emotion" ${f.emotionName ? 'checked' : ''}> 表情</label>
+                <input type="text" class="emotion-name" value="${f.emotionName || ''}" placeholder="表情名" style="${emotionDisplay}">
+            </div>
+        `;
+
+        // Toggle emotion name input visibility
+        const emotionCb = row.querySelector('.cat-emotion');
+        const emotionInput = row.querySelector('.emotion-name');
+        emotionCb.addEventListener('change', () => {
+            emotionInput.style.display = emotionCb.checked ? '' : 'none';
+            if (!emotionCb.checked) emotionInput.value = '';
+        });
+
+        container.appendChild(row);
+    });
+}
+
+function renderImageListFromConfig(modelConfig) {
+    // Re-render from saved config (used on load)
+    renderImageList(modelConfig);
+}
+
+function collectImageFiles() {
+    const items = document.querySelectorAll('#image-list .image-item');
+    const files = currentModelConfig.imageFiles || [];
+    items.forEach((item, i) => {
+        if (!files[i]) return;
+        files[i].idle = item.querySelector('.cat-idle').checked;
+        files[i].talking = item.querySelector('.cat-talking').checked;
+        const emotionCb = item.querySelector('.cat-emotion');
+        files[i].emotionName = emotionCb.checked
+            ? (item.querySelector('.emotion-name').value.trim() || '')
+            : '';
+    });
+    return files;
+}
 
 // Bubble frame
 document.getElementById('btn-select-bubble').addEventListener('click', async () => {
@@ -337,6 +427,29 @@ document.getElementById('btn-select-icon').addEventListener('click', async () =>
 
 // Save model config
 document.getElementById('btn-save-model').addEventListener('click', async () => {
+    // Collect image folder data if in image mode
+    if (currentModelConfig.type === 'image' && currentModelConfig.imageFolderPath) {
+        currentModelConfig.imageFiles = collectImageFiles();
+        currentModelConfig.imageCropScale = parseFloat(
+            document.getElementById('image-crop-slider').value
+        ) || 1.0;
+
+        // Auto-generate expressions from emotion names for the emotion system
+        const emotionNames = new Set();
+        for (const f of currentModelConfig.imageFiles) {
+            if (f.emotionName) emotionNames.add(f.emotionName);
+        }
+        if (emotionNames.size > 0) {
+            currentModelConfig.hasExpressions = true;
+            currentModelConfig.expressions = [...emotionNames].map(name => ({
+                name, label: name, file: ''
+            }));
+        } else {
+            currentModelConfig.hasExpressions = false;
+            currentModelConfig.expressions = [];
+        }
+    }
+
     await window.electronAPI.saveConfig({ model: currentModelConfig });
     showStatus('model-status', '模型设置已保存', 'success');
 });
@@ -348,6 +461,7 @@ document.getElementById('btn-clear-model').addEventListener('click', async () =>
         copyToUserData: true, userDataModelPath: null,
         staticImagePath: null, bottomAlignOffset: 0.5,
         gifExpressions: {},
+        imageFolderPath: null, imageFiles: [], imageCropScale: 1.0,
         paramMapping: { angleX: null, angleY: null, angleZ: null, bodyAngleX: null, eyeBallX: null, eyeBallY: null },
         hasExpressions: false, expressions: [],
         expressionDurations: {}, defaultExpressionDuration: 5000,
@@ -356,6 +470,9 @@ document.getElementById('btn-clear-model').addEventListener('click', async () =>
     };
     await window.electronAPI.saveConfig({ model: currentModelConfig });
     document.getElementById('model-type').value = 'none';
+    document.getElementById('image-list').innerHTML = '';
+    document.getElementById('image-list-container').style.display = 'none';
+    document.getElementById('folder-info').textContent = '';
     updateModelCards();
     showStatus('model-status', '模型已清除', 'success');
 });

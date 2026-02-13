@@ -21,8 +21,11 @@
             position: absolute; top: 0; left: 0;
         }
         #static-image {
-            max-width: 90%; max-height: 90%;
-            object-fit: contain;
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%;
+            height: auto;
+            transform-origin: top center;
             display: none;
         }
         #placeholder {
@@ -209,6 +212,14 @@
         if (window.electronAPI && window.electronAPI.onCharacterUpdate) {
             window.electronAPI.onCharacterUpdate((data) => {
                 console.log('[DesktopPet] Character update:', data);
+            });
+        }
+
+        // ========== Talking State (for Image Adapter) ==========
+        if (window.electronAPI && window.electronAPI.onTalkingStateChanged) {
+            window.electronAPI.onTalkingStateChanged((isTalking) => {
+                // ImageAdapter handles this internally via its own listener
+                // This is a fallback in case the adapter registered after the event
             });
         }
 
