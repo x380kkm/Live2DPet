@@ -71,6 +71,9 @@ node launch.js
 - コスパ推奨：Grok シリーズ
 - 高品質推奨：Gemini 3 Pro Preview
 
+翻訳 API（TTS 日本語翻訳用）推奨：
+- OpenRouter `x-ai/grok-4-fast`
+
 ### 2. Live2D モデルのインポート
 
 「モデル」タブで「モデルフォルダを選択」をクリックし、`.model.json` または `.model3.json` を含むディレクトリを選択。システムが自動的に：

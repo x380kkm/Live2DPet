@@ -71,6 +71,9 @@ Vision-capable models are recommended for screenshot awareness:
 - Budget-friendly: Grok series
 - High quality: Gemini 3 Pro Preview
 
+Translation API (for TTS Japanese translation):
+- OpenRouter `x-ai/grok-4-fast`
+
 ### 2. Import Live2D Model
 
 In the "Model" tab, click "Select Model Folder" and choose a directory containing `.model.json` or `.model3.json`. The system will automatically:
