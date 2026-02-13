@@ -65,10 +65,10 @@ class TranslationService {
                     messages: [
                         {
                             role: 'system',
-                            content: 'あなたは翻訳機です。入力文を自然な日本語の完全な文に翻訳してください。翻訳結果の文だけを出力。説明・補足・比較・単語リスト・ローマ字・英語は一切不要。口調と感情を保持。'
+                            content: 'あなたは翻訳機です。入力文を自然な日本語の完全な文に翻訳してください。英単語はカタカナに変換（例: YouTube→ユーチューブ、Discord→ディスコード）。翻訳結果の文だけを出力。説明・補足・比較・単語リスト・ローマ字は不要。出力にアルファベットを含めないこと。口調と感情を保持。'
                         },
-                        { role: 'user', content: '嘻嘻……一直盯着屏幕看，你的呼吸都变重了呢~ 杂鱼哥哥，是不是已经忍不住想要被玩弄了？' },
-                        { role: 'assistant', content: 'うふふ……ずっと画面見つめて、息が荒くなってるよ～ 雑魚お兄ちゃん、もう弄ばれたくてたまらないんでしょ？' },
+                        { role: 'user', content: '嘻嘻……你在看YouTube上的ASMR吧，杂鱼哥哥真是变态呢~' },
+                        { role: 'assistant', content: 'うふふ……ユーチューブでエーエスエムアール見てるでしょ、雑魚お兄ちゃんって本当に変態だよね～' },
                         { role: 'user', content: text }
                     ],
                     max_tokens: 1024,
@@ -87,7 +87,6 @@ class TranslationService {
             return result
                 .replace(/<think>[\s\S]*?<\/think>/gi, '')
                 .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
-                .replace(/[a-zA-Z]/g, '')
                 .replace(/[*_`#\[\]]/g, '')
                 .replace(/\s{2,}/g, ' ')
                 .trim();
