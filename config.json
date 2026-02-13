@@ -1,0 +1,97 @@
+{
+  "configVersion": 1,
+  "apiKey": "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",
+  "baseURL": "https://openrouter.ai/api/v1",
+  "modelName": "x-ai/grok-4.1-fast",
+  "interval": 10,
+  "emotionFrequency": 30,
+  "enabledEmotions": [
+    "1握手抓头发",
+    "1比心",
+    "2晕",
+    "2流泪",
+    "2生气",
+    "2脸红",
+    "2脸黑",
+    "待机动画",
+    "打瞌睡"
+  ],
+  "model": {
+    "type": "live2d",
+    "folderPath": "E:\\live2d\\live2d\\Pink devil",
+    "modelJsonFile": "Pink devil.model3.json",
+    "copyToUserData": true,
+    "userDataModelPath": "models\\Pink devil",
+    "staticImagePath": null,
+    "bottomAlignOffset": 0.5,
+    "gifExpressions": {},
+    "paramMapping": {
+      "angleX": "ParamAngleX",
+      "angleY": "ParamAngleY",
+      "angleZ": "ParamAngleZ",
+      "bodyAngleX": "ParamBodyAngleX",
+      "eyeBallX": "ParamEyeBallX",
+      "eyeBallY": "ParamEyeBallY"
+    },
+    "hasExpressions": true,
+    "expressions": [
+      {
+        "name": "1握手抓头发",
+        "label": "1握手抓头发",
+        "file": "1握手抓头发.exp3.json"
+      },
+      {
+        "name": "1比心",
+        "label": "1比心",
+        "file": "1比心.exp3.json"
+      },
+      {
+        "name": "2晕",
+        "label": "2晕",
+        "file": "2晕.exp3.json"
+      },
+      {
+        "name": "2流泪",
+        "label": "2流泪",
+        "file": "2流泪.exp3.json"
+      },
+      {
+        "name": "2生气",
+        "label": "2生气",
+        "file": "2生气.exp3.json"
+      },
+      {
+        "name": "2脸红",
+        "label": "2脸红",
+        "file": "2脸红.exp3.json"
+      },
+      {
+        "name": "2脸黑",
+        "label": "2脸黑",
+        "file": "2脸黑.exp3.json"
+      }
+    ],
+    "expressionDurations": {},
+    "defaultExpressionDuration": 5000,
+    "canvasYRatio": 0.6,
+    "motionEmotions": [
+      {
+        "name": "待机动画",
+        "group": "Default",
+        "index": 0
+      },
+      {
+        "name": "打瞌睡",
+        "group": "Default",
+        "index": 1
+      }
+    ],
+    "motionDurations": {},
+    "defaultMotionDuration": 5000
+  },
+  "bubble": {
+    "frameImagePath": "E:\\live2d\\live2d\\对话边框.png"
+  },
+  "appIcon": "C:\\Users\\380kk\\AppData\\Roaming\\live2dpet\\app-icon.png",
+  "allowSimultaneous": true
+}

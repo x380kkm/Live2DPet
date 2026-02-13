@@ -1,0 +1,826 @@
+/**
+ * Unit tests for Desktop Pet Standalone core modules
+ * Run with: node --test tests/test-core.js
+ */
+const { describe, it, beforeEach } = require('node:test');
+const assert = require('node:assert');
+const fs = require('fs');
+const path = require('path');
+
+// ========== Test: AIChatClient ==========
+
+describe('AIChatClient', () => {
+    let AIChatClient;
+
+    beforeEach(() => {
+        // Load the class by evaluating the source (browser-style class)
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'ai-chat.js'), 'utf-8');
+        // Mock browser globals
+        global.window = {};
+        global.localStorage = {
+            _store: {},
+            getItem(k) { return this._store[k] || null; },
+            setItem(k, v) { this._store[k] = v; },
+            removeItem(k) { delete this._store[k]; }
+        };
+        global.fetch = async () => { throw new Error('fetch not mocked'); };
+        eval(src);
+        AIChatClient = global.window.AIChatClient;
+    });
+
+    it('should instantiate with defaults', () => {
+        const client = new AIChatClient();
+        assert.strictEqual(client.baseURL, 'https://openrouter.ai/api/v1');
+        assert.strictEqual(client.modelName, 'x-ai/grok-4.1-fast');
+        assert.strictEqual(client.apiKey, '');
+        assert.strictEqual(client.isLoading, false);
+    });
+
+    it('isConfigured returns false when no apiKey', () => {
+        const client = new AIChatClient();
+        assert.strictEqual(client.isConfigured(), false);
+    });
+
+    it('isConfigured returns true when all fields set', () => {
+        const client = new AIChatClient();
+        client.apiKey = 'test-key';
+        client.baseURL = 'https://api.test.com/v1';
+        client.modelName = 'test-model';
+        assert.strictEqual(client.isConfigured(), true);
+    });
+
+    it('saveConfig updates in-memory values', () => {
+        const client = new AIChatClient();
+        client.saveConfig({ apiKey: 'sk-123', baseURL: 'https://test.com/v1', modelName: 'gpt-4' });
+        assert.strictEqual(client.apiKey, 'sk-123');
+        assert.strictEqual(client.baseURL, 'https://test.com/v1');
+        assert.strictEqual(client.modelName, 'gpt-4');
+    });
+
+    it('loadConfig reads from electronAPI', async () => {
+        global.window.electronAPI = {
+            loadConfig: async () => ({
+                apiKey: 'sk-saved', baseURL: 'https://saved.com/v1', modelName: 'saved-model'
+            })
+        };
+        const client = new AIChatClient();
+        await client.loadConfig();
+        assert.strictEqual(client.apiKey, 'sk-saved');
+        assert.strictEqual(client.baseURL, 'https://saved.com/v1');
+    });
+
+    it('getConfig returns current config', () => {
+        const client = new AIChatClient();
+        client.apiKey = 'key1';
+        const config = client.getConfig();
+        assert.strictEqual(config.apiKey, 'key1');
+        assert.strictEqual(config.baseURL, 'https://openrouter.ai/api/v1');
+    });
+
+    it('cleanResponse removes think tags', () => {
+        const client = new AIChatClient();
+        assert.strictEqual(client.cleanResponse('<think>internal</think>Hello'), 'Hello');
+        assert.strictEqual(client.cleanResponse('<thinking>hmm</thinking>Hi'), 'Hi');
+    });
+
+    it('cleanResponse handles empty input', () => {
+        const client = new AIChatClient();
+        assert.strictEqual(client.cleanResponse(''), '');
+        assert.strictEqual(client.cleanResponse(null), null);
+    });
+
+    it('callAPI throws when not configured', async () => {
+        const client = new AIChatClient();
+        await assert.rejects(
+            () => client.callAPI([{ role: 'user', content: 'test' }]),
+            { message: 'API not configured' }
+        );
+    });
+
+    it('callAPI sends correct request format', async () => {
+        const client = new AIChatClient();
+        client.apiKey = 'sk-test';
+        client.baseURL = 'https://api.test.com/v1';
+        client.modelName = 'test-model';
+
+        let capturedRequest = null;
+        global.fetch = async (url, options) => {
+            capturedRequest = { url, ...options };
+            return {
+                ok: true,
+                json: async () => ({
+                    choices: [{ message: { content: 'test response' } }]
+                })
+            };
+        };
+
+        const result = await client.callAPI([
+            { role: 'system', content: 'sys' },
+            { role: 'user', content: 'hello' }
+        ]);
+
+        assert.strictEqual(result, 'test response');
+        assert.strictEqual(capturedRequest.url, 'https://api.test.com/v1/chat/completions');
+        assert.strictEqual(capturedRequest.method, 'POST');
+
+        const body = JSON.parse(capturedRequest.body);
+        assert.strictEqual(body.model, 'test-model');
+        assert.strictEqual(body.messages.length, 2);
+
+        const headers = capturedRequest.headers;
+        assert.strictEqual(headers['Authorization'], 'Bearer sk-test');
+    });
+
+    it('callAPI handles API error response', async () => {
+        const client = new AIChatClient();
+        client.apiKey = 'sk-test';
+
+        global.fetch = async () => ({
+            ok: false, status: 429,
+            text: async () => 'rate limited'
+        });
+
+        await assert.rejects(
+            () => client.callAPI([{ role: 'user', content: 'test' }]),
+            (err) => err.message.includes('429')
+        );
+    });
+});
+
+// ========== Test: PetPromptBuilder ==========
+
+describe('PetPromptBuilder', () => {
+    let PetPromptBuilder;
+
+    beforeEach(() => {
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'prompt-builder.js'), 'utf-8');
+        global.window = {};
+        global.fetch = async () => { throw new Error('fetch not mocked'); };
+        eval(src);
+        PetPromptBuilder = global.window.PetPromptBuilder;
+    });
+
+    it('should instantiate with defaults', () => {
+        const builder = new PetPromptBuilder();
+        assert.strictEqual(builder.characterPrompt, null);
+    });
+
+    it('getAppDetectionPrompt includes app name', () => {
+        const builder = new PetPromptBuilder();
+        const prompt = builder.getAppDetectionPrompt('Chrome');
+        assert.ok(prompt.includes('Chrome'));
+        assert.ok(prompt.includes('system'));
+    });
+
+    it('getIdlePrompt returns a string', () => {
+        const builder = new PetPromptBuilder();
+        const prompt = builder.getIdlePrompt();
+        assert.strictEqual(typeof prompt, 'string');
+        assert.ok(prompt.length > 0);
+    });
+
+    it('buildSystemPrompt returns default when no character loaded', () => {
+        const builder = new PetPromptBuilder();
+        const prompt = builder.buildSystemPrompt();
+        assert.ok(prompt.includes('desktop pet'));
+    });
+
+    it('buildSystemPrompt uses loaded character data', () => {
+        const builder = new PetPromptBuilder();
+        builder.characterPrompt = {
+            description: 'Test description',
+            personality: 'Test personality',
+            scenario: 'Test scenario'
+        };
+        const prompt = builder.buildSystemPrompt();
+        assert.ok(prompt.includes('Test description'));
+        assert.ok(prompt.includes('Test personality'));
+        assert.ok(prompt.includes('Test scenario'));
+    });
+
+    it('init falls back to default on fetch failure', async () => {
+        global.fetch = async () => { throw new Error('network error'); };
+        const builder = new PetPromptBuilder();
+        await builder.init();
+        assert.ok(builder.characterPrompt !== null);
+        assert.ok(builder.characterPrompt.description.length > 0);
+    });
+});
+
+// ========== Test: DesktopPetSystem ==========
+
+describe('DesktopPetSystem', () => {
+    let DesktopPetSystem, AIChatClient, PetPromptBuilder;
+
+    beforeEach(() => {
+        global.window = {};
+        global.localStorage = {
+            _store: {},
+            getItem(k) { return this._store[k] || null; },
+            setItem(k, v) { this._store[k] = v; },
+            removeItem(k) { delete this._store[k]; }
+        };
+        global.fetch = async () => { throw new Error('fetch not mocked'); };
+
+        // Load dependencies in order
+        const aiSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'ai-chat.js'), 'utf-8');
+        eval(aiSrc);
+        AIChatClient = global.window.AIChatClient;
+
+        const promptSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'prompt-builder.js'), 'utf-8');
+        eval(promptSrc);
+        PetPromptBuilder = global.window.PetPromptBuilder;
+
+        const emotionSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'emotion-system.js'), 'utf-8');
+        eval(emotionSrc);
+        global.EmotionSystem = global.window.EmotionSystem;
+
+        const sysSrc = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'desktop-pet-system.js'), 'utf-8');
+        eval(sysSrc);
+        DesktopPetSystem = global.window.DesktopPetSystem;
+    });
+
+    it('should instantiate with defaults', () => {
+        const sys = new DesktopPetSystem();
+        assert.strictEqual(sys.isActive, false);
+        assert.strictEqual(sys.detectionIntervalMs, 30000);
+        assert.strictEqual(sys.aiClient, null);
+        assert.strictEqual(sys.emotionSystem, null);
+    });
+
+    it('setInterval enforces minimum 10s', () => {
+        const sys = new DesktopPetSystem();
+        sys.setInterval(5000);
+        assert.strictEqual(sys.detectionIntervalMs, 10000);
+    });
+
+    it('setInterval accepts valid values', () => {
+        const sys = new DesktopPetSystem();
+        sys.setInterval(60000);
+        assert.strictEqual(sys.detectionIntervalMs, 60000);
+    });
+
+    it('shouldSkipApp skips electron and desktop-pet', () => {
+        const sys = new DesktopPetSystem();
+        assert.strictEqual(sys.shouldSkipApp('Electron'), true);
+        assert.strictEqual(sys.shouldSkipApp('desktop-pet-standalone'), true);
+        assert.strictEqual(sys.shouldSkipApp('Chrome'), false);
+        assert.strictEqual(sys.shouldSkipApp('Houdini'), false);
+    });
+
+    it('init creates aiClient and promptBuilder', async () => {
+        const sys = new DesktopPetSystem();
+        await sys.init();
+        assert.ok(sys.aiClient instanceof AIChatClient);
+        assert.ok(sys.promptBuilder instanceof PetPromptBuilder);
+        assert.strictEqual(typeof sys.systemPrompt, 'string');
+    });
+
+    it('stop resets state', async () => {
+        const sys = new DesktopPetSystem();
+        sys.isActive = true;
+        sys.emotionSystem = { stop() {} };
+        sys.focusTracker = { 'Chrome': 5 };
+        sys.screenshotBuffers = { 'Chrome': ['data'] };
+        global.window.electronAPI = { closePetWindow: async () => ({}) };
+        await sys.stop();
+        assert.strictEqual(sys.isActive, false);
+        assert.deepStrictEqual(sys.focusTracker, {});
+        assert.deepStrictEqual(sys.screenshotBuffers, {});
+    });
+});
+
+// ========== Test: EmotionSystem ==========
+
+describe('EmotionSystem', () => {
+    const ctx = {};
+
+    beforeEach(() => {
+        global.window = {};
+        global.fetch = async () => { throw new Error('fetch not mocked'); };
+
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'core', 'emotion-system.js'), 'utf-8');
+        eval(src);
+        ctx.EmotionSystem = global.window.EmotionSystem;
+    });
+
+    it('should instantiate with empty expressions (decoupled)', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        assert.strictEqual(es.emotionValue, 0);
+        assert.strictEqual(es.emotionThreshold, 100);
+        assert.strictEqual(es.expectedFrequencySeconds, 60);
+        assert.strictEqual(es.isPlayingExpression, false);
+        assert.strictEqual(es.nextEmotionBuffer, null);
+        assert.strictEqual(es.enabledEmotions.length, 0);
+        assert.strictEqual(es.emotionExpressions.length, 0);
+    });
+
+    it('configureExpressions sets up dynamic expression list', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        const exprs = [
+            { name: '脸红', label: 'Blush' },
+            { name: '生气', label: 'Angry' }
+        ];
+        es.configureExpressions(exprs, { '脸红': 3000 }, 5000);
+        assert.strictEqual(es.emotionExpressions.length, 2);
+        assert.deepStrictEqual(es.enabledEmotions, ['脸红', '生气']);
+        assert.strictEqual(es.expressionDurations['脸红'], 3000);
+        assert.strictEqual(es.defaultExpressionDuration, 5000);
+    });
+
+    it('start does nothing when no expressions configured', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.start();
+        assert.strictEqual(es.accumulationTimer, null);
+    });
+
+    it('start works when expressions are configured', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions([{ name: 'test', label: 'Test' }], {}, 5000);
+        es.start();
+        assert.ok(es.accumulationTimer !== null);
+        es.stop(); // cleanup
+    });
+
+    it('_recalculateRates computes correct base rate', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        assert.ok(Math.abs(es.baseAccumulationRate - 100 / 60) < 0.001);
+        assert.ok(Math.abs(es.hoverAccumulationRate - es.baseAccumulationRate * 0.5) < 0.001);
+    });
+
+    it('setExpectedFrequency enforces minimum 30', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.setExpectedFrequency(10);
+        assert.strictEqual(es.expectedFrequencySeconds, 30);
+    });
+
+    it('setExpectedFrequency recalculates rates', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.setExpectedFrequency(120);
+        assert.strictEqual(es.expectedFrequencySeconds, 120);
+        assert.ok(Math.abs(es.baseAccumulationRate - 100 / 120) < 0.001);
+    });
+
+    it('_tick accumulates base rate', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es._tick();
+        assert.ok(Math.abs(es.emotionValue - es.baseAccumulationRate) < 0.001);
+    });
+
+    it('_tick adds hover bonus when hovering', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.setHoverState(true);
+        es._tick();
+        const expected = es.baseAccumulationRate + es.hoverAccumulationRate;
+        assert.ok(Math.abs(es.emotionValue - expected) < 0.001);
+    });
+
+    it('_tick does not accumulate during expression playback', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.isPlayingExpression = true;
+        es._tick();
+        assert.strictEqual(es.emotionValue, 0);
+    });
+
+    it('onAIResponse adds bonus', () => {
+        const es = new ctx.EmotionSystem({ aiClient: { callAPI: async () => '脸红' } });
+        es.configureExpressions([{ name: '脸红', label: 'Blush' }], {}, 5000);
+        es.onAIResponse('Hello world test response');
+        assert.ok(es.emotionValue > 0);
+    });
+
+    it('setEnabledEmotions filters invalid names', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions([
+            { name: '脸红', label: 'Blush' },
+            { name: '生气', label: 'Angry' }
+        ], {}, 5000);
+        es.setEnabledEmotions(['脸红', 'invalid', '生气']);
+        assert.deepStrictEqual(es.enabledEmotions, ['脸红', '生气']);
+    });
+
+    it('stop resets all state', () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.emotionValue = 50;
+        es.nextEmotionBuffer = '脸红';
+        es.isPlayingExpression = true;
+        es.stop();
+        assert.strictEqual(es.emotionValue, 0);
+        assert.strictEqual(es.nextEmotionBuffer, null);
+        assert.strictEqual(es.isPlayingExpression, false);
+    });
+
+    it('onEmotionTriggered callback is called', async () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions([{ name: 'test', label: 'Test' }], {}, 100);
+        let triggered = null;
+        es.onEmotionTriggered = (name) => { triggered = name; };
+        es.emotionValue = 100;
+        es.enabledEmotions = ['test'];
+        await es._triggerExpression();
+        assert.strictEqual(triggered, 'test');
+        es.stop(); // cleanup timer
+    });
+
+    it('per-expression duration is used', async () => {
+        const es = new ctx.EmotionSystem({ aiClient: {} });
+        es.configureExpressions(
+            [{ name: 'fast', label: 'Fast' }],
+            { 'fast': 100 },
+            5000
+        );
+        es.enabledEmotions = ['fast'];
+        es.emotionValue = 100;
+        await es._triggerExpression();
+        // Timer should be set
+        assert.ok(es.expressionTimer !== null);
+        es.stop(); // cleanup
+    });
+});
+
+// ========== Test: PathUtils ==========
+
+describe('PathUtils', () => {
+    const { createPathUtils } = require('../src/utils/path-utils');
+
+    it('should create path utils with mock app (dev mode)', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: (name) => name === 'userData' ? '/fake/userData' : '/fake/' + name
+        };
+        const pu = createPathUtils(mockApp, path);
+        assert.strictEqual(pu.isPackaged, false);
+        assert.strictEqual(typeof pu.getAppBasePath(), 'string');
+    });
+
+    it('getVoicevoxPath returns correct dev path', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.getVoicevoxPath('python/python.exe');
+        assert.ok(result.includes('resources'));
+        assert.ok(result.includes('voicevox'));
+        assert.ok(result.includes('python.exe'));
+    });
+
+    it('getVoicevoxPath returns unpacked path in production', () => {
+        const origResourcesPath = process.resourcesPath;
+        process.resourcesPath = '/prod/resources';
+        const mockApp = {
+            isPackaged: true,
+            getAppPath: () => '/prod/app.asar',
+            getPath: () => '/prod/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.getVoicevoxPath('python/python.exe');
+        assert.ok(result.includes('app.asar.unpacked'));
+        assert.ok(result.includes('voicevox'));
+        process.resourcesPath = origResourcesPath;
+    });
+
+    it('getProfilePath returns userData-based path', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.getProfilePath('abc-123');
+        assert.ok(result.includes('profiles'));
+        assert.ok(result.includes('abc-123'));
+    });
+
+    it('getDefaultAudioPath is under profile', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.getDefaultAudioPath('abc-123');
+        assert.ok(result.includes('abc-123'));
+        assert.ok(result.includes('default-audio'));
+    });
+
+    it('resolveModelPath prefers userDataModelPath', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.resolveModelPath({
+            userDataModelPath: 'models/test',
+            folderPath: '/original/path'
+        });
+        assert.ok(result.includes('userData'));
+        assert.ok(result.includes('test'));
+    });
+
+    it('resolveModelPath falls back to folderPath', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.resolveModelPath({
+            userDataModelPath: null,
+            folderPath: '/original/path'
+        });
+        assert.strictEqual(result, '/original/path');
+    });
+
+    it('resolveModelPath returns null when no paths', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        const result = pu.resolveModelPath({
+            userDataModelPath: null,
+            folderPath: null
+        });
+        assert.strictEqual(result, null);
+    });
+
+    it('getLogsPath returns userData/logs', () => {
+        const mockApp = {
+            isPackaged: false,
+            getAppPath: () => '/fake/app',
+            getPath: () => '/fake/userData'
+        };
+        const pu = createPathUtils(mockApp, path);
+        assert.ok(pu.getLogsPath().includes('logs'));
+    });
+
+    it('works without app (null fallback)', () => {
+        const pu = createPathUtils(null, path);
+        assert.strictEqual(pu.isPackaged, false);
+        assert.strictEqual(typeof pu.getAppBasePath(), 'string');
+    });
+});
+
+// ========== Test: Config Schema & Migration ==========
+
+describe('ConfigSchema', () => {
+    // We test the pure functions by extracting them from main.js logic
+    // Since main.js uses electron requires, we replicate the pure config functions here
+
+    function getDefaultModelConfig() {
+        return {
+            type: 'none', folderPath: null, modelJsonFile: null,
+            copyToUserData: true, userDataModelPath: null,
+            staticImagePath: null, bottomAlignOffset: 0.5,
+            gifExpressions: {},
+            paramMapping: {
+                angleX: null, angleY: null, angleZ: null,
+                bodyAngleX: null, eyeBallX: null, eyeBallY: null
+            },
+            hasExpressions: false, expressions: [],
+            expressionDurations: {}, defaultExpressionDuration: 5000,
+            canvasYRatio: 0.60
+        };
+    }
+
+    function getDefaultConfig() {
+        return {
+            configVersion: 1, apiKey: '', baseURL: 'https://openrouter.ai/api/v1',
+            modelName: 'x-ai/grok-4.1-fast', interval: 10,
+            emotionFrequency: 30, enabledEmotions: [],
+            model: getDefaultModelConfig(),
+            bubble: { frameImagePath: null }, appIcon: null
+        };
+    }
+
+    function migrateConfig(config) {
+        if (config.configVersion >= 1) return config;
+        if (!config.configVersion) {
+            config.configVersion = 1;
+            if (!config.model) config.model = getDefaultModelConfig();
+            if (!config.bubble) config.bubble = { frameImagePath: null };
+            if (config.appIcon === undefined) config.appIcon = null;
+            if (Array.isArray(config.enabledEmotions) && config.enabledEmotions.length > 0) {
+                config.enabledEmotions = [];
+            }
+        }
+        return config;
+    }
+
+    it('getDefaultConfig has all required fields', () => {
+        const cfg = getDefaultConfig();
+        assert.strictEqual(cfg.configVersion, 1);
+        assert.strictEqual(cfg.model.type, 'none');
+        assert.strictEqual(cfg.model.canvasYRatio, 0.60);
+        assert.strictEqual(cfg.model.paramMapping.angleX, null);
+        assert.strictEqual(cfg.bubble.frameImagePath, null);
+        assert.strictEqual(cfg.appIcon, null);
+        assert.deepStrictEqual(cfg.enabledEmotions, []);
+    });
+
+    it('migrateConfig upgrades v0 (no version) to v1', () => {
+        const oldConfig = {
+            apiKey: 'sk-test',
+            baseURL: 'https://api.test.com/v1',
+            modelName: 'test-model',
+            interval: 10,
+            emotionFrequency: 30,
+            enabledEmotions: ['脸红', '生气']
+        };
+        const migrated = migrateConfig(oldConfig);
+        assert.strictEqual(migrated.configVersion, 1);
+        assert.strictEqual(migrated.model.type, 'none');
+        assert.deepStrictEqual(migrated.enabledEmotions, []);
+        assert.strictEqual(migrated.appIcon, null);
+        assert.ok(migrated.bubble);
+    });
+
+    it('migrateConfig does not touch v1 config', () => {
+        const v1Config = getDefaultConfig();
+        v1Config.apiKey = 'sk-keep';
+        v1Config.enabledEmotions = ['custom'];
+        const migrated = migrateConfig(v1Config);
+        assert.strictEqual(migrated.apiKey, 'sk-keep');
+        assert.deepStrictEqual(migrated.enabledEmotions, ['custom']);
+    });
+
+    it('getDefaultModelConfig has correct paramMapping keys', () => {
+        const model = getDefaultModelConfig();
+        const keys = Object.keys(model.paramMapping);
+        assert.deepStrictEqual(keys, ['angleX', 'angleY', 'angleZ', 'bodyAngleX', 'eyeBallX', 'eyeBallY']);
+        keys.forEach(k => assert.strictEqual(model.paramMapping[k], null));
+    });
+
+    it('migrateConfig preserves existing API settings', () => {
+        const old = { apiKey: 'sk-123', baseURL: 'https://custom.api/v1', modelName: 'gpt-4' };
+        const migrated = migrateConfig(old);
+        assert.strictEqual(migrated.apiKey, 'sk-123');
+        assert.strictEqual(migrated.baseURL, 'https://custom.api/v1');
+        assert.strictEqual(migrated.modelName, 'gpt-4');
+    });
+});
+
+// ========== Test: Parameter Fuzzy Mapping ==========
+
+describe('ParamFuzzyMapping', () => {
+    const PARAM_FUZZY_MAP = {
+        angleX:     ['ParamAngleX', 'ParamX', 'Angle_X', 'PARAM_ANGLE_X', 'AngleX'],
+        angleY:     ['ParamAngleY', 'ParamY', 'Angle_Y', 'PARAM_ANGLE_Y', 'AngleY'],
+        angleZ:     ['ParamAngleZ', 'ParamZ', 'Angle_Z', 'PARAM_ANGLE_Z', 'AngleZ'],
+        bodyAngleX: ['ParamBodyAngleX', 'BodyAngleX', 'PARAM_BODY_ANGLE_X', 'ParamBodyX'],
+        eyeBallX:   ['ParamEyeBallX', 'EyeBallX', 'PARAM_EYE_BALL_X', 'ParamEyeX'],
+        eyeBallY:   ['ParamEyeBallY', 'EyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeY']
+    };
+
+    function suggestParamMapping(parameterIds) {
+        const suggested = {};
+        for (const [key, candidates] of Object.entries(PARAM_FUZZY_MAP)) {
+            const match = candidates.find(c =>
+                parameterIds.some(p => p.toLowerCase() === c.toLowerCase())
+            );
+            if (match) {
+                suggested[key] = parameterIds.find(p => p.toLowerCase() === match.toLowerCase());
+            } else {
+                suggested[key] = null;
+            }
+        }
+        return suggested;
+    }
+
+    it('maps standard Cubism4 parameters', () => {
+        const ids = ['ParamAngleX', 'ParamAngleY', 'ParamAngleZ', 'ParamBodyAngleX', 'ParamEyeBallX', 'ParamEyeBallY'];
+        const result = suggestParamMapping(ids);
+        assert.strictEqual(result.angleX, 'ParamAngleX');
+        assert.strictEqual(result.angleY, 'ParamAngleY');
+        assert.strictEqual(result.bodyAngleX, 'ParamBodyAngleX');
+        assert.strictEqual(result.eyeBallX, 'ParamEyeBallX');
+    });
+
+    it('handles case-insensitive matching', () => {
+        const ids = ['paramangleX', 'PARAMANGLEY'];
+        const result = suggestParamMapping(ids);
+        assert.strictEqual(result.angleX, 'paramangleX');
+        assert.strictEqual(result.angleY, 'PARAMANGLEY');
+    });
+
+    it('returns null for unmatched parameters', () => {
+        const ids = ['CustomParam1', 'CustomParam2'];
+        const result = suggestParamMapping(ids);
+        assert.strictEqual(result.angleX, null);
+        assert.strictEqual(result.angleY, null);
+        assert.strictEqual(result.bodyAngleX, null);
+    });
+
+    it('handles empty parameter list', () => {
+        const result = suggestParamMapping([]);
+        Object.values(result).forEach(v => assert.strictEqual(v, null));
+    });
+
+    it('preserves original case from model', () => {
+        const ids = ['paramAngleX'];
+        const result = suggestParamMapping(ids);
+        assert.strictEqual(result.angleX, 'paramAngleX');
+    });
+});
+
+// ========== Test: ModelAdapter ==========
+
+describe('ModelAdapter', () => {
+    const ctx = {};
+
+    beforeEach(() => {
+        global.window = {};
+        const src = fs.readFileSync(path.join(__dirname, '..', 'src', 'renderer', 'model-adapter.js'), 'utf-8');
+        global.PIXI = { live2d: { Live2DModel: { registerTicker: async () => {} } }, Application: class {}, Ticker: {} };
+        global.document = {
+            getElementById: () => null,
+            createElement: () => ({ style: {}, appendChild: () => {} })
+        };
+        eval(src);
+        ctx.ModelAdapter = global.window.ModelAdapter;
+        ctx.Live2DAdapter = global.window.Live2DAdapter;
+        ctx.ImageAdapter = global.window.ImageAdapter;
+        ctx.NullAdapter = global.window.NullAdapter;
+        ctx.createModelAdapter = global.window.createModelAdapter;
+    });
+
+    it('createModelAdapter returns Live2DAdapter for live2d type', () => {
+        const adapter = ctx.createModelAdapter({ type: 'live2d' });
+        assert.strictEqual(adapter.getType(), 'live2d');
+        assert.ok(adapter instanceof ctx.Live2DAdapter);
+    });
+
+    it('createModelAdapter returns ImageAdapter for image type', () => {
+        const adapter = ctx.createModelAdapter({ type: 'image' });
+        assert.strictEqual(adapter.getType(), 'image');
+        assert.ok(adapter instanceof ctx.ImageAdapter);
+    });
+
+    it('createModelAdapter returns NullAdapter for none type', () => {
+        const adapter = ctx.createModelAdapter({ type: 'none' });
+        assert.strictEqual(adapter.getType(), 'none');
+        assert.ok(adapter instanceof ctx.NullAdapter);
+    });
+
+    it('createModelAdapter defaults to NullAdapter for unknown type', () => {
+        const adapter = ctx.createModelAdapter({ type: 'unknown' });
+        assert.strictEqual(adapter.getType(), 'none');
+    });
+
+    it('NullAdapter methods are no-ops', () => {
+        const adapter = new ctx.NullAdapter({});
+        adapter.setExpression('test');
+        adapter.revertExpression();
+        adapter.updateParams(0.5, 0.5);
+        adapter.resize(300, 300);
+        adapter.destroy();
+        assert.ok(true);
+    });
+
+    it('ImageAdapter stores config', () => {
+        const config = { type: 'image', staticImagePath: '/test/img.png', bottomAlignOffset: 0.3 };
+        const adapter = new ctx.ImageAdapter(config);
+        assert.strictEqual(adapter.config.staticImagePath, '/test/img.png');
+        assert.strictEqual(adapter.config.bottomAlignOffset, 0.3);
+    });
+
+    it('Live2DAdapter stores paramMapping config', () => {
+        const config = {
+            type: 'live2d',
+            paramMapping: { angleX: 'ParamAngleX', angleY: null },
+            canvasYRatio: 0.55
+        };
+        const adapter = new ctx.Live2DAdapter(config);
+        assert.strictEqual(adapter.config.paramMapping.angleX, 'ParamAngleX');
+        assert.strictEqual(adapter.config.paramMapping.angleY, null);
+        assert.strictEqual(adapter.config.canvasYRatio, 0.55);
+    });
+
+    it('ImageAdapter setExpression switches GIF', () => {
+        const config = {
+            type: 'image',
+            staticImagePath: '/base.png',
+            gifExpressions: { '脸红': '/blush.gif', '生气': '/angry.gif' }
+        };
+        const adapter = new ctx.ImageAdapter(config);
+        adapter.imgElement = { src: '/base.png', style: {} };
+        adapter.setExpression('脸红');
+        assert.strictEqual(adapter.imgElement.src, '/blush.gif');
+        assert.strictEqual(adapter.currentGif, '脸红');
+    });
+
+    it('ImageAdapter revertExpression restores base image', () => {
+        const config = { type: 'image', staticImagePath: '/base.png', gifExpressions: { '脸红': '/blush.gif' } };
+        const adapter = new ctx.ImageAdapter(config);
+        adapter.imgElement = { src: '/blush.gif', style: {} };
+        adapter.currentGif = '脸红';
+        adapter.revertExpression();
+        assert.strictEqual(adapter.imgElement.src, '/base.png');
+        assert.strictEqual(adapter.currentGif, null);
+    });
+});

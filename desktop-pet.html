@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>Desktop Pet</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html, body {
+            width: 100%; height: 100%;
+            background: transparent;
+            overflow: hidden;
+            user-select: none;
+            -webkit-app-region: drag;
+        }
+        #pet-container {
+            width: 100%; height: 100%;
+            display: flex; align-items: center; justify-content: center;
+            position: relative;
+        }
+        #live2d-canvas {
+            position: absolute; top: 0; left: 0;
+        }
+        #static-image {
+            max-width: 90%; max-height: 90%;
+            object-fit: contain;
+            display: none;
+        }
+        #placeholder {
+            max-width: 80%; max-height: 80%;
+            object-fit: contain;
+            display: none;
+        }
+        .controls {
+            position: absolute; bottom: 5px; right: 5px;
+            display: flex; gap: 3px;
+            -webkit-app-region: no-drag;
+            opacity: 0; transition: opacity 0.3s;
+            z-index: 100;
+        }
+        #pet-container:hover .controls { opacity: 1; }
+        .ctrl-btn {
+            width: 24px; height: 24px;
+            border: none; border-radius: 50%;
+            background: rgba(255,255,255,0.8);
+            cursor: pointer; font-size: 12px;
+            display: flex; align-items: center; justify-content: center;
+        }
+        .ctrl-btn:hover { background: rgba(255,255,255,1); }
+        .ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+    </style>
+</head>
+<body>
+    <div id="pet-container">
+        <canvas id="live2d-canvas"></canvas>
+        <img id="static-image" alt="pet">
+        <img id="placeholder" alt="placeholder">
+        <div class="controls">
+            <button class="ctrl-btn" id="btn-smaller" title="Smaller">−</button>
+            <button class="ctrl-btn" id="btn-bigger" title="Bigger">+</button>
+            <button class="ctrl-btn" id="btn-settings" title="Settings">⚙</button>
+            <button class="ctrl-btn" id="btn-close" title="Close">✕</button>
+        </div>
+    </div>
+
+    <script src="libs/live2dcubismcore.min.js"></script>
+    <script src="libs/pixi.min.js"></script>
+    <script src="libs/cubism4.min.js"></script>
+    <script src="src/renderer/model-adapter.js"></script>
+    <script>
+        const sizePresets = [200, 300, 400, 500];
+        let currentSizeIndex = 1;
+        let currentAdapter = null;
+        let trackX = 0, trackY = 0;
+
+        // ========== Adapter-based Init ==========
+        async function initModel() {
+            try {
+                const config = await window.electronAPI.loadConfig();
+                const modelConfig = config.model || { type: 'none' };
+
+                // Resolve model directory for Live2D
+                if (modelConfig.type === 'live2d') {
+                    const validation = await window.electronAPI.validateModelPaths();
+                    if (!validation.valid) {
+                        console.warn('[DesktopPet] Model validation failed:', validation.error);
+                        modelConfig.type = 'none';
+                    } else if (validation.modelDir) {
+                        modelConfig._resolvedModelDir = validation.modelDir;
+                    }
+                }
+
+                currentAdapter = createModelAdapter(modelConfig);
+                const container = document.getElementById('pet-container');
+                await currentAdapter.load(container);
+
+                if (currentAdapter.getType() === 'live2d') {
+                    startMouseTracking();
+                }
+
+                console.log('[DesktopPet] Model loaded, type:', currentAdapter.getType());
+            } catch (error) {
+                console.warn('[DesktopPet] Model load failed, falling back to placeholder:', error);
+                currentAdapter = new NullAdapter({});
+                await currentAdapter.load(document.getElementById('pet-container'));
+            }
+        }
+
+        // ========== Mouse Tracking ==========
+        function startMouseTracking() {
+            setInterval(async () => {
+                if (!window.electronAPI) return;
+                try {
+                    const cursor = await window.electronAPI.getCursorPosition();
+                    const bounds = await window.electronAPI.getWindowBounds();
+                    const cx = bounds.x + bounds.width / 2;
+                    const cy = bounds.y + bounds.height / 2;
+                    trackX = Math.max(-1, Math.min(1, (cursor.x - cx) / 300));
+                    trackY = Math.max(-1, Math.min(1, (cursor.y - cy) / 300));
+                    if (currentAdapter) {
+                        currentAdapter.updateParams(trackX, trackY);
+                    }
+                } catch (e) {}
+            }, 50);
+        }
+
+        // ========== Resize ==========
+        window.addEventListener('resize', () => {
+            if (currentAdapter) {
+                currentAdapter.resize(window.innerWidth, window.innerHeight);
+            }
+        });
+
+        // ========== Controls ==========
+        function updateSizeBtns() {
+            document.getElementById('btn-smaller').disabled = (currentSizeIndex <= 0);
+            document.getElementById('btn-bigger').disabled = (currentSizeIndex >= sizePresets.length - 1);
+        }
+        updateSizeBtns();
+
+        document.getElementById('btn-smaller').addEventListener('click', () => {
+            if (currentSizeIndex <= 0) return;
+            currentSizeIndex--;
+            const size = sizePresets[currentSizeIndex];
+            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
+            updateSizeBtns();
+        });
+
+        document.getElementById('btn-bigger').addEventListener('click', () => {
+            if (currentSizeIndex >= sizePresets.length - 1) return;
+            currentSizeIndex++;
+            const size = sizePresets[currentSizeIndex];
+            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
+            updateSizeBtns();
+        });
+
+        document.getElementById('btn-settings').addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.showSettings();
+        });
+
+        document.getElementById('btn-close').addEventListener('click', () => {
+            if (window.electronAPI) window.electronAPI.closePetWindow();
+        });
+
+        // Right-click context menu
+        document.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            if (window.electronAPI) window.electronAPI.showPetContextMenu();
+        });
+
+        // Listen for size changes from context menu
+        if (window.electronAPI && window.electronAPI.onSizeChanged) {
+            window.electronAPI.onSizeChanged((size) => {
+                currentSizeIndex = sizePresets.indexOf(size);
+                if (currentSizeIndex < 0) currentSizeIndex = 1;
+                updateSizeBtns();
+            });
+        }
+
+        // ========== Expression System (via Adapter) ==========
+        if (window.electronAPI && window.electronAPI.onPlayExpression) {
+            window.electronAPI.onPlayExpression((expressionName) => {
+                if (currentAdapter) {
+                    console.log('[DesktopPet] Playing expression:', expressionName);
+                    currentAdapter.setExpression(expressionName);
+                }
+            });
+        }
+
+        if (window.electronAPI && window.electronAPI.onRevertExpression) {
+            window.electronAPI.onRevertExpression(() => {
+                if (currentAdapter) {
+                    console.log('[DesktopPet] Reverting expression');
+                    currentAdapter.revertExpression();
+                }
+            });
+        }
+
+        // ========== Motion System (via Adapter) ==========
+        if (window.electronAPI && window.electronAPI.onPlayMotion) {
+            window.electronAPI.onPlayMotion((group, index) => {
+                if (currentAdapter) {
+                    console.log(`[DesktopPet] Playing motion: ${group}[${index}]`);
+                    currentAdapter.playMotion(group, index);
+                }
+            });
+        }
+
+        // ========== Character Update ==========
+        if (window.electronAPI && window.electronAPI.onCharacterUpdate) {
+            window.electronAPI.onCharacterUpdate((data) => {
+                console.log('[DesktopPet] Character update:', data);
+            });
+        }
+
+        // ========== Model Config Hot-Reload ==========
+        if (window.electronAPI && window.electronAPI.onModelConfigUpdate) {
+            window.electronAPI.onModelConfigUpdate(async (newConfig) => {
+                console.log('[DesktopPet] Model config update, reloading...');
+                if (currentAdapter) {
+                    currentAdapter.destroy();
+                }
+                await initModel();
+            });
+        }
+
+        // ========== Hover Detection ==========
+        document.getElementById('pet-container').addEventListener('mouseenter', () => {
+            if (window.electronAPI && window.electronAPI.reportHoverState) {
+                window.electronAPI.reportHoverState(true);
+            }
+        });
+        document.getElementById('pet-container').addEventListener('mouseleave', () => {
+            if (window.electronAPI && window.electronAPI.reportHoverState) {
+                window.electronAPI.reportHoverState(false);
+            }
+        });
+
+        // ========== Init ==========
+        initModel();
+        console.log('[DesktopPet] Window loaded');
+    </script>
+</body>
+</html>

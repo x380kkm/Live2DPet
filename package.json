@@ -1,0 +1,46 @@
+{
+  "name": "live2dpet",
+  "version": "1.0.0",
+  "description": "Standalone desktop pet companion with AI chat",
+  "main": "main.js",
+  "scripts": {
+    "start": "node launch.js",
+    "dev": "node launch.js --dev",
+    "test": "node --test tests/test-core.js",
+    "build": "electron-builder --win portable",
+    "build:dir": "electron-builder --win dir"
+  },
+  "dependencies": {
+    "active-win": "^8.2.1",
+    "electron-log": "^5.4.3"
+  },
+  "devDependencies": {
+    "electron": "^28.3.3",
+    "electron-builder": "^24.9.1"
+  },
+  "build": {
+    "appId": "com.live2dpet.app",
+    "productName": "Live2DPet",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "index.html",
+      "desktop-pet.html",
+      "pet-chat-bubble.html",
+      "src/**/*",
+      "assets/**/*",
+      "libs/**/*"
+    ],
+    "win": {
+      "target": "portable",
+      "icon": null,
+      "signAndEditExecutable": false
+    },
+    "portable": {
+      "artifactName": "Live2DPet.exe"
+    }
+  }
+}

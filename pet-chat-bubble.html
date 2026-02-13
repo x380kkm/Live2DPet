@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>聊天框</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            user-select: none;
+        }
+
+        body {
+            background: transparent;
+            overflow: hidden;
+            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            width: 100%;
+            height: 100%;
+        }
+
+        .chat-frame {
+            position: relative;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: fadeIn 0.3s ease-out;
+        }
+
+        .frame-bg {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            object-fit: fill;
+            pointer-events: none;
+        }
+
+        .message-text {
+            position: relative;
+            z-index: 1;
+            font-weight: 500;
+            color: #555;
+            font-size: 14px;
+            line-height: 1.6;
+            text-align: center;
+            padding: 30px 25px;
+            word-wrap: break-word;
+            word-break: break-word;
+        }
+
+        @keyframes fadeIn {
+            0% { opacity: 0; transform: scale(0.95); }
+            100% { opacity: 1; transform: scale(1); }
+        }
+
+        @keyframes fadeOut {
+            0% { opacity: 1; transform: scale(1); }
+            100% { opacity: 0; transform: scale(0.9); }
+        }
+
+        .fade-out {
+            animation: fadeOut 0.3s ease-in-out forwards;
+        }
+    </style>
+</head>
+<body>
+    <div class="chat-frame">
+        <img class="frame-bg" src="assets/dialog-frame.png" alt="">
+        <div class="message-text" id="message-text"></div>
+    </div>
+
+    <script src="src/renderer/pet-chat-bubble.js"></script>
+</body>
+</html>
