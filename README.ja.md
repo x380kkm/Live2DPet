@@ -230,15 +230,13 @@ MIT — [LICENSE](LICENSE) を参照。
 
 ## コントリビューター
 
-すべてのコントリビューターに感謝します。重要度ではなく時系列順に掲載。完全なリストは [CONTRIBUTORS.md](CONTRIBUTORS.md) を参照。
-
 <a href="https://github.com/x380kkm/Live2DPet/graphs/contributors">
   <img src="https://contrib.rocks/image?repo=x380kkm/Live2DPet" />
 </a>
 
 ## スポンサー
 
-すべてのスポンサーに感謝します。重要度ではなく時系列順に掲載。完全なリストは [SPONSORS.md](SPONSORS.md) を参照。
+完全なリストは [SPONSORS.md](SPONSORS.md) を参照。
 
 | スポンサー |
 |-----------|
