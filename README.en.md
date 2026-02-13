@@ -199,6 +199,14 @@ Please record the log output when the issue occurs and include it when submittin
 
 ## Changelog
 
+### v1.3.0 — Documentation & UX Improvements
+
+- Streamlined API configuration guide with model recommendations (Grok / Gemini 3 Pro Preview)
+- Detailed VOICEVOX voice setup workflow documentation
+- Added troubleshooting guide and known issues
+- Added contributors and sponsors lists
+- Collapsed developer-facing sections for cleaner reading
+
 ### v1.2.0 — Image Model
 
 - New image folder model: select an image folder, tag each image as idle/talking/emotion
