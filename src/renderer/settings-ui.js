@@ -39,6 +39,10 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('interval').value = fileConfig.interval;
             petSystem.setInterval(parseInt(fileConfig.interval) * 1000);
         }
+        if (fileConfig.chatGap != null) {
+            document.getElementById('chat-gap').value = fileConfig.chatGap;
+            petSystem.chatGapMs = parseInt(fileConfig.chatGap) * 1000;
+        }
         // Load model config
         currentModelConfig = fileConfig.model || { type: 'none' };
         loadModelUI();
@@ -89,8 +93,10 @@ document.getElementById('btn-test-api').addEventListener('click', async () => {
 
 document.getElementById('btn-save-interval').addEventListener('click', () => {
     const seconds = parseInt(document.getElementById('interval').value);
-    if (window.electronAPI) window.electronAPI.saveConfig({ interval: seconds });
+    const chatGap = parseInt(document.getElementById('chat-gap').value);
+    if (window.electronAPI) window.electronAPI.saveConfig({ interval: seconds, chatGap });
     petSystem.setInterval(seconds * 1000);
+    petSystem.chatGapMs = chatGap * 1000;
 });
 
 // ========== Start/Stop ==========

@@ -134,8 +134,10 @@
     </div>
     <div class="card">
         <h2>Detection Settings</h2>
-        <label>Interval (seconds)</label>
+        <label>API 发送频率 (秒)</label>
         <input type="number" id="interval" value="30" min="10" max="300">
+        <label>对话最小间隔 (秒)</label>
+        <input type="number" id="chat-gap" value="5" min="0" max="60">
         <button class="btn btn-primary" id="btn-save-interval">Save</button>
     </div>
     <div class="card">

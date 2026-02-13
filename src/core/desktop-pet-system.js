@@ -32,6 +32,11 @@ class DesktopPetSystem {
         // Conversation history buffer (avoid repeating topics)
         this.conversationHistory = [];
         this.maxHistoryPairs = 4;
+
+        // Message double-buffer: always play the latest, skip stale ones
+        this.pendingMessage = null;   // next message to play (overwritten by newer)
+        this.isPlayingMessage = false; // lock: currently playing a session
+        this.chatGapMs = 5000;        // minimum gap between two message sessions
     }
 
     async init() {
@@ -122,6 +127,8 @@ class DesktopPetSystem {
         this.focusTracker = {};
         this.screenshotBuffers = {};
         this.conversationHistory = [];
+        this.pendingMessage = null;
+        this.isPlayingMessage = false;
         console.log('[DesktopPetSystem] Stopped');
     }
 
@@ -345,6 +352,34 @@ class DesktopPetSystem {
         return skip.some(s => appName.toLowerCase().includes(s));
     }
 
+    // ========== Message Double-Buffer ==========
+
+    async _processQueue() {
+        if (this.isPlayingMessage) return;
+        this.isPlayingMessage = true;
+
+        while (this.pendingMessage && this.isActive) {
+            // Grab latest and clear the slot
+            const text = this.pendingMessage;
+            this.pendingMessage = null;
+
+            if (this.currentSession) this.currentSession.cancel();
+            this.stopCurrentAudio();
+            if (this.emotionSystem) this.emotionSystem.forceRevert();
+
+            const session = MessageSession.create(text);
+            this.currentSession = session;
+            await session.run(this);
+
+            // Wait minimum gap before playing next message
+            if (this.chatGapMs > 0 && this.pendingMessage) {
+                await new Promise(r => setTimeout(r, this.chatGapMs));
+            }
+        }
+
+        this.isPlayingMessage = false;
+    }
+
     async sendRequest(appName) {
         if (this.isRequesting) return;
         this.isRequesting = true;
@@ -412,13 +447,9 @@ class DesktopPetSystem {
                     this.conversationHistory.splice(0, 2);
                 }
 
-                // Cancel previous session, create new one
-                if (this.currentSession) this.currentSession.cancel();
-                this.stopCurrentAudio();
-                if (this.emotionSystem) this.emotionSystem.forceRevert();
-                const session = MessageSession.create(response);
-                this.currentSession = session;
-                await session.run(this);
+                // Double-buffer: overwrite pending with latest
+                this.pendingMessage = response;
+                this._processQueue();
             }
 
             // Clear focus tracker after each AI request

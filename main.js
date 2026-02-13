@@ -46,6 +46,7 @@ function getDefaultConfig() {
         baseURL: 'https://openrouter.ai/api/v1',
         modelName: 'x-ai/grok-4.1-fast',
         interval: 10,
+        chatGap: 5,
         emotionFrequency: 30,
         enabledEmotions: [],
         model: getDefaultModelConfig(),
