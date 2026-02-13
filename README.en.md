@@ -24,7 +24,8 @@ An Electron-based desktop pet. A Live2D character stays on your desktop, perceiv
   <img src="assets/example-kiritan.png" width="60%" alt="Usage Example 3">
 </p>
 
-**Model Credits**
+<details>
+<summary>Model Credits</summary>
 
 【Model】Little Demon
 Author：Cai Cat様
@@ -38,6 +39,8 @@ Author：Cai Cat様
 配布：君临德雷克様
 
 *The models shown in this example are borrowed for demonstration purposes. All rights belong to the original creators.*
+
+</details>
 
 ## Quick Start
 
@@ -60,23 +63,11 @@ node launch.js
 
 ### 1. Configure API
 
-Open the settings panel and fill in the "API Settings" tab:
+Open the settings panel and fill in the "API Settings" tab with your API URL, key, and model name. This app is compatible with any OpenAI-format API endpoint. You can use aggregation platforms such as OpenRouter.
 
-| Field | Description |
-|-------|-------------|
-| API URL | OpenAI-compatible endpoint |
-| API Key | Your API key |
-| Model Name | e.g. `x-ai/grok-4.1-fast` |
-
-Supported services:
-
-| Service | baseURL | Model Example |
-|---------|---------|---------------|
-| OpenRouter | `https://openrouter.ai/api/v1` | `x-ai/grok-4.1-fast` |
-| Grok Direct | `https://api.x.ai/v1` | `grok-4.1-fast` |
-| Deepseek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-
-Vision-capable models are recommended for screenshot awareness.
+Vision-capable models are recommended for screenshot awareness:
+- Budget-friendly: Grok series
+- High quality: Gemini 3 Pro Preview
 
 ### 2. Import Live2D Model
 
@@ -87,9 +78,24 @@ In the "Model" tab, click "Select Model Folder" and choose a directory containin
 
 Image folders (PNG/JPG/WebP) are also supported as character visuals — see "Image Model" below.
 
-### 3. Launch Pet
+### 3. Configure VOICEVOX Text-to-Speech (Optional)
 
-Click "Launch Pet". The character appears as a transparent window at the bottom-right of your desktop.
+1. In the "TTS" tab, install VOICEVOX components (Core + ONNX Runtime + Open JTalk dictionary)
+2. Select and download VVM voice models (do not download all at once to avoid freezing)
+3. Restart the application
+4. Return to the "TTS" tab and check the downloaded models for auto-loading on next launch
+5. Restart the application for the configuration to take effect
+6. Set the speaker, style, and fine-tune other voice parameters
+
+Supports GPU acceleration (DirectML). AI responses are auto-translated to Japanese and spoken aloud.
+
+### 4. Customize Character
+
+In the "Character" tab, create a new character card and edit the character's name, personality, and behavior rules. Supports template variables `{{petName}}` and `{{userIdentity}}`.
+
+### 5. Launch Pet
+
+Click "Launch Pet" at the bottom of the settings panel. The character appears as a transparent window at the bottom-right of your desktop.
 - Drag to reposition
 - Eyes follow your mouse cursor (Live2D mode)
 - AI periodically takes screenshots and chats via speech bubbles
@@ -105,19 +111,6 @@ Besides Live2D, you can use an image folder as the character visual:
 
 The character automatically switches to "talking" images when the AI speaks, emotion images on mood triggers, and "idle" images otherwise.
 
-### 4. Customize Character
-
-In the "Character" tab, edit the character's name, personality, and behavior rules. Supports template variables `{{petName}}` and `{{userIdentity}}`.
-
-### 5. VOICEVOX Text-to-Speech (Optional)
-
-In the "TTS" tab, one-click install VOICEVOX components:
-- VOICEVOX Core + ONNX Runtime
-- VVM voice models (selectable in UI)
-- Open JTalk dictionary
-
-Supports GPU acceleration (DirectML). AI responses are auto-translated to Japanese and spoken aloud.
-
 ## Features
 
 - **Live2D Desktop Character** — Transparent frameless window, always on top, eyes follow cursor
@@ -129,7 +122,8 @@ Supports GPU acceleration (DirectML). AI responses are auto-translated to Japane
 - **Hot Model Import** — Any Live2D model, auto parameter mapping, auto expression/motion scan
 - **Character Personas** — JSON templates define personality and behavior rules, multi-character support
 
-## Architecture
+<details>
+<summary>Architecture</summary>
 
 ```
 Electron Main Process
@@ -151,18 +145,26 @@ Core Modules (renderer)
 └── prompt-builder.js       System prompt builder (template variables)
 ```
 
-## Requirements
+</details>
+
+<details>
+<summary>Requirements</summary>
 
 - Windows 10/11
 - Node.js >= 18 (when running from source)
 - OpenAI-compatible API Key
 - VOICEVOX Core (optional, for TTS)
 
-## Testing
+</details>
+
+<details>
+<summary>Testing</summary>
 
 ```bash
 node tests/test-core.js
 ```
+
+</details>
 
 ## Notes
 
@@ -185,12 +187,15 @@ Please record the log output when the issue occurs and include it when submittin
 - Screenshot-related warnings can be safely ignored — they do not affect normal operation
 - VVM voice model read errors: go to `C:\Users\YourUsername\AppData\Roaming\live2dpet\voicevox_core`, find the model folder, delete the corrupted files, and re-download
 
-## Tech Stack
+<details>
+<summary>Tech Stack</summary>
 
 - [Electron](https://www.electronjs.org/) — Desktop application framework
 - [Live2D Cubism SDK](https://www.live2d.com/en/sdk/about/) + [PixiJS](https://pixijs.com/) + [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [VOICEVOX Core](https://github.com/VOICEVOX/voicevox_core) — Japanese TTS engine
 - [koffi](https://koffi.dev/) — Node.js FFI
+
+</details>
 
 ## Changelog
 

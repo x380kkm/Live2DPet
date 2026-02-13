@@ -24,7 +24,8 @@ Electron ベースのデスクトップペット。Live2D キャラクターが�
   <img src="assets/example-kiritan.png" width="60%" alt="Usage Example 3">
 </p>
 
-**モデルクレジット**
+<details>
+<summary>モデルクレジット</summary>
 
 【Model】Little Demon
 Author：Cai Cat様
@@ -38,6 +39,8 @@ Author：Cai Cat様
 配布：君临德雷克様
 
 *この例で使用されているモデル素材は借用したものです。すべての権利は原作者に帰属します。*
+
+</details>
 
 ## クイックスタート
 
@@ -60,23 +63,11 @@ node launch.js
 
 ### 1. API 設定
 
-設定パネルの「API 設定」タブに以下を入力：
+設定パネルの「API 設定」タブに API アドレス、キー、モデル名を入力してください。本アプリは OpenAI 形式の API エンドポイントすべてに対応しており、OpenRouter などのアグリゲーションプラットフォームも利用可能です。
 
-| フィールド | 説明 |
-|-----------|------|
-| API URL | OpenAI 互換エンドポイント |
-| API Key | API キー |
-| モデル名 | 例: `x-ai/grok-4.1-fast` |
-
-対応サービス：
-
-| サービス | baseURL | モデル例 |
-|---------|---------|---------|
-| OpenRouter | `https://openrouter.ai/api/v1` | `x-ai/grok-4.1-fast` |
-| Grok 直接 | `https://api.x.ai/v1` | `grok-4.1-fast` |
-| Deepseek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-
-スクリーンショット認識のため、Vision 対応モデルを推奨。
+スクリーンショット認識のため、Vision 対応モデルを推奨：
+- コスパ推奨：Grok シリーズ
+- 高品質推奨：Gemini 3 Pro Preview
 
 ### 2. Live2D モデルのインポート
 
@@ -87,9 +78,24 @@ node launch.js
 
 画像フォルダ（PNG/JPG/WebP）もキャラクター画像として使用可能 — 下記「画像モデル」を参照。
 
-### 3. ペットを起動
+### 3. VOICEVOX 音声合成の設定（オプション）
 
-「ペットを起動」をクリック。キャラクターがデスクトップ右下に透明ウィンドウで表示されます。
+1. 「TTS」タブで VOICEVOX コンポーネントをインストール（Core + ONNX Runtime + Open JTalk 辞書）
+2. VVM 音声モデルを選択してダウンロード（フリーズを避けるため一度に全部ダウンロードしないでください）
+3. アプリケーションを再起動
+4. 「TTS」タブに戻り、ダウンロード済みモデルにチェックを入れて次回自動ロードを設定
+5. アプリケーションを再起動して設定を反映
+6. スピーカー、スタイル、その他の音声パラメータを微調整
+
+GPU アクセラレーション（DirectML）対応。AI の応答は自動的に日本語に翻訳され、音声で再生されます。
+
+### 4. キャラクターのカスタマイズ
+
+「キャラクター」タブで新しいキャラクターカードを作成し、名前、性格、行動ルールを編集。テンプレート変数 `{{petName}}`、`{{userIdentity}}` に対応。
+
+### 5. ペットを起動
+
+設定画面下部の「ペットを起動」をクリック。キャラクターがデスクトップ右下に透明ウィンドウで表示されます。
 - ドラッグで位置を移動
 - 目がマウスカーソルを追従（Live2D モード）
 - AI が定期的にスクリーンショットを撮り、吹き出しで会話
@@ -105,19 +111,6 @@ Live2D の他に、画像フォルダをキャラクター画像として使用�
 
 AI が話すと自動的に「会話」画像に切り替わり、感情トリガー時は対応する表情画像に、それ以外は「待機」画像を表示します。
 
-### 4. キャラクターのカスタマイズ
-
-「キャラクター」タブで名前、性格、行動ルールを編集。テンプレート変数 `{{petName}}`、`{{userIdentity}}` に対応。
-
-### 5. VOICEVOX 音声合成（オプション）
-
-「TTS」タブでワンクリックで VOICEVOX コンポーネントをインストール：
-- VOICEVOX Core + ONNX Runtime
-- VVM 音声モデル（UI で選択可能）
-- Open JTalk 辞書
-
-GPU アクセラレーション（DirectML）対応。AI の応答は自動的に日本語に翻訳され、音声で再生されます。
-
 ## 機能
 
 - **Live2D デスクトップキャラクター** — 透明フレームレスウィンドウ、常に最前面、目がカーソルを追従
@@ -129,7 +122,8 @@ GPU アクセラレーション（DirectML）対応。AI の応答は自動的�
 - **モデルホットインポート** — 任意の Live2D モデル、パラメータ自動マッピング、表情・モーション自動スキャン
 - **キャラクターペルソナ** — JSON テンプレートで性格と行動ルールを定義、マルチキャラクター対応
 
-## アーキテクチャ
+<details>
+<summary>アーキテクチャ</summary>
 
 ```
 Electron Main Process
@@ -151,18 +145,26 @@ Core Modules (renderer)
 └── prompt-builder.js       システムプロンプト構築 (テンプレート変数)
 ```
 
-## 動作環境
+</details>
+
+<details>
+<summary>動作環境</summary>
 
 - Windows 10/11
 - Node.js >= 18（ソースから実行する場合）
 - OpenAI 互換 API キー
 - VOICEVOX Core（オプション、音声合成用）
 
-## テスト
+</details>
+
+<details>
+<summary>テスト</summary>
 
 ```bash
 node tests/test-core.js
 ```
+
+</details>
 
 ## 注意事項
 
@@ -185,12 +187,15 @@ node tests/test-core.js
 - スクリーンショット関連の warning は無視して問題ありません。通常動作に影響しません
 - VVM 音声モデルの読み取りエラー：`C:\Users\ユーザー名\AppData\Roaming\live2dpet\voicevox_core` でモデルフォルダを見つけ、破損したファイルを削除して再ダウンロードしてください
 
-## 技術スタック
+<details>
+<summary>技術スタック</summary>
 
 - [Electron](https://www.electronjs.org/) — デスクトップアプリケーションフレームワーク
 - [Live2D Cubism SDK](https://www.live2d.com/en/sdk/about/) + [PixiJS](https://pixijs.com/) + [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [VOICEVOX Core](https://github.com/VOICEVOX/voicevox_core) — 日本語音声合成エンジン
 - [koffi](https://koffi.dev/) — Node.js FFI
+
+</details>
 
 ## 更新履歴
 

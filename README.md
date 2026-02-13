@@ -24,7 +24,8 @@
   <img src="assets/example-kiritan.png" width="60%" alt="Usage Example 3">
 </p>
 
-**模型借物说明**
+<details>
+<summary>模型借物说明</summary>
 
 【Model】Little Demon
 Author：Cai Cat様
@@ -38,6 +39,8 @@ Author：Cai Cat様
 配布：君临德雷克様
 
 *本示例使用的模型素材为借物展示，版权归原作者所有。*
+
+</details>
 
 ## 快速开始
 
@@ -60,23 +63,11 @@ node launch.js
 
 ### 1. 配置 API
 
-启动后打开设置面板，在「API 设置」标签页填入：
+启动后打开设置面板，在「API 设置」标签页填入 API 地址、密钥和模型名称。本应用兼容所有 OpenAI 格式的 API 接口，可使用 OpenRouter 等聚合平台。
 
-| 字段 | 说明 |
-|------|------|
-| API URL | 兼容 OpenAI 格式的接口地址 |
-| API Key | 你的 API 密钥 |
-| 模型名称 | 如 `x-ai/grok-4.1-fast` |
-
-支持的服务：
-
-| 服务 | baseURL | 模型示例 |
-|------|---------|---------|
-| OpenRouter | `https://openrouter.ai/api/v1` | `x-ai/grok-4.1-fast` |
-| Grok 直连 | `https://api.x.ai/v1` | `grok-4.1-fast` |
-| Deepseek | `https://api.deepseek.com/v1` | `deepseek-chat` |
-
-推荐支持 Vision 的模型以获得截屏感知能力。
+推荐使用支持 Vision 的模型以获得截屏感知能力：
+- 性价比推荐：Grok 系列
+- 高质量推荐：Gemini 3 Pro Preview
 
 ### 2. 导入 Live2D 模型
 
@@ -87,9 +78,24 @@ node launch.js
 
 也支持使用图片文件夹作为角色形象，详见下方「图片模型」。
 
-### 3. 启动宠物
+### 3. 配置 VOICEVOX 语音合成（可选）
 
-点击「启动宠物」，角色会以透明窗口出现在桌面右下角。
+1. 在「TTS」标签页安装 VOICEVOX 组件（Core + ONNX Runtime + Open JTalk 辞書）
+2. 选择并下载 VVM 语音模型（不要一次全部下载，避免卡顿）
+3. 重启应用
+4. 回到「TTS」标签页，勾选已下载的模型以便下次自动加载
+5. 重启应用使配置生效
+6. 设置角色（Speaker）、风格（Style）及其他语音参数微调
+
+支持 GPU 加速（DirectML）。AI 回复会自动翻译为日语并语音播放。
+
+### 4. 自定义角色人设
+
+在「角色」标签页新增角色卡，编辑角色的名称、性格、行为规则等。支持模板变量 `{{petName}}`、`{{userIdentity}}`。
+
+### 5. 启动宠物
+
+在设置界面底部点击「启动宠物」，角色会以透明窗口出现在桌面右下角。
 - 拖拽角色可移动位置
 - 角色眼睛会跟随鼠标（Live2D 模式）
 - AI 会定时截屏并通过气泡对话
@@ -105,19 +111,6 @@ node launch.js
 
 AI 说话时自动切换到「说话」图片，触发情绪时切换到对应表情图片，空闲时显示「待机」图片。
 
-### 4. 自定义角色人设
-
-在「角色」标签页可以编辑角色的名称、性格、行为规则等。支持模板变量 `{{petName}}`、`{{userIdentity}}`。
-
-### 5. VOICEVOX 语音合成（可选）
-
-在「TTS」标签页可一键安装 VOICEVOX 组件。需要下载：
-- VOICEVOX Core + ONNX Runtime
-- VVM 语音模型（可在 UI 中选择下载）
-- Open JTalk 辞書
-
-支持 GPU 加速（DirectML）。AI 回复会自动翻译为日语并语音播放。
-
 ## 功能特性
 
 - **Live2D 桌面角色** — 透明无边框窗口，始终置顶，眼睛跟随鼠标
@@ -129,7 +122,8 @@ AI 说话时自动切换到「说话」图片，触发情绪时切换到对应�
 - **模型热导入** — 任意 Live2D 模型，参数自动映射，表情/动作自动扫描
 - **角色人设** — JSON 模板定义角色性格和行为规则，支持多角色切换
 
-## 项目架构
+<details>
+<summary>项目架构</summary>
 
 ```
 Electron Main Process
@@ -151,18 +145,26 @@ Core Modules (renderer)
 └── prompt-builder.js       System Prompt 构建 (模板变量替换)
 ```
 
-## 环境要求
+</details>
+
+<details>
+<summary>环境要求</summary>
 
 - Windows 10/11
 - Node.js >= 18（从源码运行时）
 - OpenAI 兼容 API Key
 - VOICEVOX Core（可选，用于语音合成）
 
-## 测试
+</details>
+
+<details>
+<summary>测试</summary>
 
 ```bash
 node tests/test-core.js
 ```
+
+</details>
 
 ## 注意事项
 
@@ -185,12 +187,15 @@ node tests/test-core.js
 - 关于截屏错误的 warning 请忽视，不影响正常使用
 - VVM 语音模型读取错误：前往 `C:\Users\你的用户名\AppData\Roaming\live2dpet\voicevox_core`，找到存放模型的文件夹，删除损坏的文件后重新下载
 
-## 技术栈
+<details>
+<summary>技术栈</summary>
 
 - [Electron](https://www.electronjs.org/) — 桌面应用框架
 - [Live2D Cubism SDK](https://www.live2d.com/en/sdk/about/) + [PixiJS](https://pixijs.com/) + [pixi-live2d-display](https://github.com/guansss/pixi-live2d-display)
 - [VOICEVOX Core](https://github.com/VOICEVOX/voicevox_core) — 日语语音合成引擎
 - [koffi](https://koffi.dev/) — Node.js FFI
+
+</details>
 
 ## 更新日志
 
