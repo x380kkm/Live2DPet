@@ -219,9 +219,9 @@ MIT — See [LICENSE](LICENSE).
 
 Thanks to all contributors. Listed in chronological order, not by importance. See [CONTRIBUTORS.md](CONTRIBUTORS.md) for the full list.
 
-| Contributor |
-|-------------|
-| 380kkm |
+<a href="https://github.com/x380kkm/Live2DPet/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=x380kkm/Live2DPet" />
+</a>
 
 ## Sponsors
 
