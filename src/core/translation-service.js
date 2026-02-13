@@ -65,10 +65,10 @@ class TranslationService {
                     messages: [
                         {
                             role: 'system',
-                            content: '【応答モード】翻訳のみを行ってください。どの言語の入力でも、また複数言語が混在していても、全体を自然な日本語に統一してください。翻訳結果だけを出力し、説明や補足やローマ字や選択肢は不要です。原文の口調と感情を保持してください。英単語はカタカナに変換してください。出力は日本語のみ、句読点は簡略化してください。'
+                            content: 'あなたは翻訳機です。入力文を自然な日本語の完全な文に翻訳してください。翻訳結果の文だけを出力。説明・補足・比較・単語リスト・ローマ字・英語は一切不要。口調と感情を保持。'
                         },
-                        { role: 'user', content: 'へー，奈可可开播了！别管那些复杂的代码了，看直播比较重要だし！' },
-                        { role: 'assistant', content: 'へー、奈可可が配信始めたよ！ややこしいコードなんかほっといて、配信見る方が大事だし！' },
+                        { role: 'user', content: '嘻嘻……一直盯着屏幕看，你的呼吸都变重了呢~ 杂鱼哥哥，是不是已经忍不住想要被玩弄了？' },
+                        { role: 'assistant', content: 'うふふ……ずっと画面見つめて、息が荒くなってるよ～ 雑魚お兄ちゃん、もう弄ばれたくてたまらないんでしょ？' },
                         { role: 'user', content: text }
                     ],
                     max_tokens: 1024,
@@ -87,6 +87,9 @@ class TranslationService {
             return result
                 .replace(/<think>[\s\S]*?<\/think>/gi, '')
                 .replace(/<thinking>[\s\S]*?<\/thinking>/gi, '')
+                .replace(/[a-zA-Z]/g, '')
+                .replace(/[*_`#\[\]]/g, '')
+                .replace(/\s{2,}/g, ' ')
                 .trim();
         } catch (err) {
             clearTimeout(timeoutId);

@@ -43,6 +43,12 @@ document.addEventListener('DOMContentLoaded', async () => {
             document.getElementById('chat-gap').value = fileConfig.chatGap;
             petSystem.chatGapMs = parseInt(fileConfig.chatGap) * 1000;
         }
+        // Load translation API config
+        if (fileConfig.translation) {
+            document.getElementById('tl-api-url').value = fileConfig.translation.baseURL || '';
+            document.getElementById('tl-api-key').value = fileConfig.translation.apiKey || '';
+            document.getElementById('tl-model-name').value = fileConfig.translation.modelName || '';
+        }
         // Load model config
         currentModelConfig = fileConfig.model || { type: 'none' };
         loadModelUI();
@@ -79,6 +85,17 @@ document.getElementById('btn-save-api').addEventListener('click', () => {
     petSystem.aiClient.saveConfig(cfg);
     petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
     showStatus('api-status', 'Saved', 'success');
+});
+
+// ========== Translation API Settings ==========
+document.getElementById('btn-save-tl').addEventListener('click', () => {
+    const tl = {
+        baseURL: document.getElementById('tl-api-url').value.trim(),
+        apiKey: document.getElementById('tl-api-key').value.trim(),
+        modelName: document.getElementById('tl-model-name').value.trim()
+    };
+    if (window.electronAPI) window.electronAPI.saveConfig({ translation: tl });
+    showStatus('tl-status', 'Saved', 'success');
 });
 
 document.getElementById('btn-test-api').addEventListener('click', async () => {

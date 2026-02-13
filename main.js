@@ -132,6 +132,18 @@ function saveConfigFile(data) {
         if (data.bubble) {
             merged.bubble = { ...existing.bubble, ...data.bubble };
         }
+        if (data.translation) {
+            merged.translation = { ...(existing.translation || {}), ...data.translation };
+            // Reconfigure translation service with new settings (fallback to main API)
+            if (translationService) {
+                const tl = merged.translation;
+                translationService.configure({
+                    apiKey: tl.apiKey || merged.apiKey,
+                    baseURL: tl.baseURL || merged.baseURL || 'https://openrouter.ai/api/v1',
+                    modelName: tl.modelName || merged.modelName || 'x-ai/grok-4.1-fast'
+                });
+            }
+        }
         fs.writeFileSync(userConfigPath, JSON.stringify(merged, null, 2), 'utf-8');
         return true;
     } catch (e) { console.error('Failed to save config:', e.message); return false; }
@@ -158,10 +170,11 @@ app.whenReady().then(() => {
             if (ok) {
                 if (config.tts) ttsService.setConfig(config.tts);
                 if (config.apiKey) {
+                    const tl = config.translation || {};
                     translationService.configure({
-                        apiKey: config.apiKey,
-                        baseURL: config.baseURL || 'https://openrouter.ai/api/v1',
-                        modelName: config.modelName || 'x-ai/grok-4.1-fast'
+                        apiKey: tl.apiKey || config.apiKey,
+                        baseURL: tl.baseURL || config.baseURL || 'https://openrouter.ai/api/v1',
+                        modelName: tl.modelName || config.modelName || 'x-ai/grok-4.1-fast'
                     });
                 }
             }

@@ -447,8 +447,8 @@ class DesktopPetSystem {
                     this.conversationHistory.splice(0, 2);
                 }
 
-                // Double-buffer: overwrite pending with latest (strip English letters for display)
-                this.pendingMessage = response.replace(/[a-zA-Z]/g, '').replace(/\s{2,}/g, ' ').trim();
+                // Double-buffer: overwrite pending with latest
+                this.pendingMessage = response;
                 this._processQueue();
             }
 
