@@ -1,0 +1,20 @@
+THIRD-PARTY COMPONENTS
+
+This software does NOT bundle the following components. They are downloaded
+at runtime from their original sources by the user. Users must comply with
+each component's license terms independently.
+
+VOICEVOX (TTS Engine, Voice Models, ONNX Runtime)
+  - Source: https://github.com/VOICEVOX
+  - License: MIT (Core) / Custom License (VVM, ONNX Runtime binary)
+  - Credit: This software uses VOICEVOX for text-to-speech synthesis.
+  - Voice character terms: https://voicevox.hiroshiba.jp/term/
+  - Users of generated audio must credit "VOICEVOX:[character name]"
+
+Open JTalk Dictionary
+  - Source: https://open-jtalk.sourceforge.net/
+  - License: BSD 3-Clause (NAIST / UniDic Consortium / Nagoya Inst. of Tech.)
+
+Electron — MIT (GitHub Inc.)
+koffi — MIT (Niels Martignène)
+All npm dependencies — MIT / ISC / Apache-2.0 / BSD
