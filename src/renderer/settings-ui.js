@@ -96,6 +96,10 @@ document.getElementById('btn-save-interval').addEventListener('click', () => {
 // ========== Start/Stop ==========
 document.getElementById('btn-start').addEventListener('click', () => petSystem.start());
 document.getElementById('btn-stop').addEventListener('click', () => petSystem.stop());
+document.getElementById('link-github').addEventListener('click', (e) => {
+    e.preventDefault();
+    if (window.electronAPI) window.electronAPI.openExternal('https://github.com/x380kkm/Live2DPet');
+});
 
 if (window.electronAPI) {
     window.electronAPI.onPetWindowClosed(() => {

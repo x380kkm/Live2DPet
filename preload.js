@@ -87,5 +87,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onPlayMotion: (cb) => ipcRenderer.on('play-motion', (e, group, index) => cb(group, index)),
     onTalkingStateChanged: (cb) => ipcRenderer.on('talking-state-changed', (e, isTalking) => cb(isTalking)),
     onPetHoverState: (cb) => ipcRenderer.on('pet-hover-state', (e, hovering) => cb(hovering)),
-    onModelConfigUpdate: (cb) => ipcRenderer.on('model-config-update', (e, config) => cb(config))
+    onModelConfigUpdate: (cb) => ipcRenderer.on('model-config-update', (e, config) => cb(config)),
+
+    // External links
+    openExternal: (url) => ipcRenderer.invoke('open-external', url)
 });

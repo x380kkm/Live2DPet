@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, dialog } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
@@ -445,6 +445,10 @@ ipcMain.handle('open-dev-tools', async () => {
 
 ipcMain.handle('get-app-path', async () => {
     return app.getAppPath();
+});
+
+ipcMain.handle('open-external', async (_, url) => {
+    await shell.openExternal(url);
 });
 
 // ========== Character Card Management (UUID-based) ==========
