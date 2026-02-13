@@ -168,6 +168,21 @@ node tests/test-core.js
 - **API 费用**: 视觉模型调用会产生费用，合理设置检测间隔
 - **VOICEVOX**: 使用语音时需标注 "VOICEVOX:キャラ名"
 
+## 问题排查
+
+遇到问题时，请打开命令提示符（cmd），通过以下命令启动程序以开启控制台日志：
+
+```bash
+"你的文件夹地址\Live2DPet.exe" --enable-logging 2>&1
+```
+
+请记录出现问题时的日志输出，提交 Issue 时附上相关信息。
+
+### 已知问题
+
+- 关于截屏错误的 warning 请忽视，不影响正常使用
+- VVM 语音模型读取错误：前往 `C:\Users\你的用户名\AppData\Roaming\live2dpet\voicevox_core`，找到存放模型的文件夹，删除损坏的文件后重新下载
+
 ## 技术栈
 
 - [Electron](https://www.electronjs.org/) — 桌面应用框架

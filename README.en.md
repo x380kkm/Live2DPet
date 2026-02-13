@@ -168,6 +168,21 @@ node tests/test-core.js
 - **API Costs**: Vision model calls incur costs — set a reasonable detection interval
 - **VOICEVOX**: When using voice, credit "VOICEVOX:[character name]"
 
+## Troubleshooting
+
+To enable console logging for debugging, open a command prompt (cmd) and run:
+
+```bash
+"path\to\Live2DPet.exe" --enable-logging 2>&1
+```
+
+Please record the log output when the issue occurs and include it when submitting an Issue.
+
+### Known Issues
+
+- Screenshot-related warnings can be safely ignored — they do not affect normal operation
+- VVM voice model read errors: go to `C:\Users\YourUsername\AppData\Roaming\live2dpet\voicevox_core`, find the model folder, delete the corrupted files, and re-download
+
 ## Tech Stack
 
 - [Electron](https://www.electronjs.org/) — Desktop application framework
