@@ -86,6 +86,22 @@
         .expr-dur { width: 60px; }
         .icon-preview { width: 32px; height: 32px; object-fit: contain; border-radius: 4px; }
         .model-info { font-size: 12px; color: #888; margin: 4px 0; }
+        .image-item {
+            display: flex; align-items: center; gap: 8px;
+            padding: 8px 0; border-bottom: 1px solid #f0f0f0;
+            font-size: 12px; flex-wrap: wrap;
+        }
+        .image-item:last-child { border-bottom: none; }
+        .image-thumb {
+            width: 50px; height: 50px;
+            object-fit: cover; border-radius: 4px;
+            flex-shrink: 0;
+        }
+        .image-item .cats { display: flex; gap: 8px; align-items: center; }
+        .image-item .emotion-name {
+            width: 70px; padding: 2px 4px; font-size: 12px;
+            border: 1px solid #ddd; border-radius: 4px;
+        }
     </style>
 </head>
 <body>
@@ -137,7 +153,7 @@
         <select id="model-type">
             <option value="none">无模型 (引导)</option>
             <option value="live2d">Live2D</option>
-            <option value="image">纯图片 / GIF</option>
+            <option value="image">图片文件夹</option>
         </select>
         <div class="status" id="model-status"></div>
     </div>
@@ -167,17 +183,20 @@
         </div>
     </div>
     <div class="card" id="card-image" style="display:none">
-        <h2>静态图片</h2>
+        <h2>图片文件夹</h2>
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-import-image">选择图片</button>
+            <button class="btn btn-primary" id="btn-select-image-folder">选择图片文件夹</button>
         </div>
-        <div id="image-info" class="model-info"></div>
-    </div>
-    <div class="card" id="card-bottom-align" style="display:none">
-        <h2>底边对齐偏移</h2>
-        <div class="slider-row">
-            <input type="range" id="bottom-align-slider" min="0" max="1" step="0.01" value="0.5">
-            <span class="slider-val" id="bottom-align-val">0.50</span>
+        <div id="folder-info" class="model-info"></div>
+        <div id="image-list-container" style="display:none; margin-top:12px;">
+            <div style="margin-bottom:8px;">
+                <label>裁剪缩放 (1.0=原始, 越大裁剪越多底部)</label>
+                <div class="slider-row">
+                    <input type="range" id="image-crop-slider" min="0.8" max="2.0" step="0.05" value="1.0">
+                    <span class="slider-val" id="image-crop-val">1.00</span>
+                </div>
+            </div>
+            <div id="image-list" style="max-height:400px; overflow-y:auto;"></div>
         </div>
     </div>
     <div class="card">
