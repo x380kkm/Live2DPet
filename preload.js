@@ -42,6 +42,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     renameCharacter: (id, name) => ipcRenderer.invoke('rename-character', id, name),
     setActiveCharacter: (id) => ipcRenderer.invoke('set-active-character', id),
     importCharacter: () => ipcRenderer.invoke('import-character'),
+    resetBuiltinCards: () => ipcRenderer.invoke('reset-builtin-cards'),
 
     // Emotion system
     triggerExpression: (name) => ipcRenderer.invoke('trigger-expression', name),

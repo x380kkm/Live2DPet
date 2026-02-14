@@ -17,7 +17,7 @@ An Electron-based desktop pet. A Live2D character stays on your desktop, perceiv
 ## Usage Example
 
 <p align="center">
-  <img src="assets/example-little-demon.png" width="60%" alt="Usage Example 1">
+  <img src="assets/example-little-demon-en.png" width="60%" alt="Usage Example 1">
 </p>
 <p align="center">
   <img src="assets/example-kasukabe.jpg" width="60%" alt="Usage Example 2">
@@ -84,7 +84,11 @@ In the "Model" tab, click "Select Model Folder" and choose a directory containin
 
 Image folders (PNG/JPG/WebP) are also supported as character visuals — see "Image Model" below.
 
+> Don't have a Live2D model? Download free samples from the [Live2D official gallery](https://www.live2d.com/en/learn/sample/) to try it out.
+
 ### 3. Configure VOICEVOX Text-to-Speech (Optional)
+
+> Visit the [VOICEVOX website](https://voicevox.hiroshiba.jp/) first to preview characters and styles, then download the model you like.
 
 1. In the "TTS" tab, install VOICEVOX components (Core + ONNX Runtime + Open JTalk dictionary)
 2. Select and download VVM voice models (do not download all at once to avoid freezing)

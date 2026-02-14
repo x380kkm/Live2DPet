@@ -32,7 +32,11 @@ function setLanguage(lang) {
     applyI18n();
     if (window.electronAPI) window.electronAPI.saveConfig({ uiLanguage: lang });
     // Reload character card in new language (for built-in i18n cards)
-    if (currentCharacterId) loadCharacterPrompt(currentCharacterId);
+    if (currentCharacterId) {
+        loadCharacterPrompt(currentCharacterId);
+        // Also refresh the character list labels (builtin tag is localized)
+        loadCharacterList();
+    }
     reloadPetPrompt();
 }
 
@@ -880,6 +884,17 @@ document.getElementById('btn-delete-character').addEventListener('click', async 
         showStatus('prompt-status', t('status.deleted'), 'success');
     } else {
         showStatus('prompt-status', result.error, 'error');
+    }
+});
+
+document.getElementById('btn-reset-builtin').addEventListener('click', async () => {
+    if (!window.electronAPI?.resetBuiltinCards) return;
+    const result = await window.electronAPI.resetBuiltinCards();
+    if (result.success) {
+        await loadCharacterList();
+        await loadCharacterPrompt(currentCharacterId);
+        await reloadPetPrompt();
+        showStatus('prompt-status', t('status.builtinReset'), 'success');
     }
 });
 

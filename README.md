@@ -84,7 +84,11 @@ node launch.js
 
 也支持使用图片文件夹作为角色形象，详见下方「图片模型」。
 
+> 没有 Live2D 模型？可以从 [Live2D 官方示例](https://www.live2d.com/en/learn/sample/) 下载免费模型体验。
+
 ### 3. 配置 VOICEVOX 语音合成（可选）
+
+> 先到 [VOICEVOX 官网](https://voicevox.hiroshiba.jp/) 试听角色和风格，找到喜欢的再下载对应模型。
 
 1. 在「TTS」标签页安装 VOICEVOX 组件（Core + ONNX Runtime + Open JTalk 辞書）
 2. 选择并下载 VVM 语音模型（不要一次全部下载，避免卡顿）

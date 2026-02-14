@@ -370,12 +370,15 @@
     <div id="tab-prompt" class="tab-content">
     <div class="card">
         <h2 data-i18n="prompt.card">Character Card</h2>
-        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:4px;">
             <select id="character-select" style="flex:1;"></select>
+        </div>
+        <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
             <button class="btn btn-secondary" id="btn-new-character" title="New">+</button>
             <button class="btn btn-secondary" id="btn-import-character" title="Import">↓</button>
             <button class="btn btn-secondary" id="btn-rename-character" title="Rename">✎</button>
             <button class="btn btn-secondary" id="btn-delete-character" title="Delete">✕</button>
+            <button class="btn btn-secondary" id="btn-reset-builtin" title="Reset Built-in Cards">⟲</button>
         </div>
         <div id="character-name-input-row" style="display:none; gap:8px; align-items:center;">
             <input type="text" id="character-name-input" data-i18n-ph="prompt.newName.ph" style="flex:1;">

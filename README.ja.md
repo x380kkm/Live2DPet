@@ -17,7 +17,7 @@ Electron ベースのデスクトップペット。Live2D キャラクターが�
 ## 使用例
 
 <p align="center">
-  <img src="assets/example-little-demon.png" width="60%" alt="Usage Example 1">
+  <img src="assets/example-little-demon-ja.png" width="60%" alt="Usage Example 1">
 </p>
 <p align="center">
   <img src="assets/example-kasukabe.jpg" width="60%" alt="Usage Example 2">
@@ -84,7 +84,11 @@ node launch.js
 
 画像フォルダ（PNG/JPG/WebP）もキャラクター画像として使用可能 — 下記「画像モデル」を参照。
 
+> Live2D モデルをお持ちでない方は、[Live2D 公式サンプル](https://www.live2d.com/en/learn/sample/)から無料モデルをダウンロードしてお試しください。
+
 ### 3. VOICEVOX 音声合成の設定（オプション）
+
+> まず [VOICEVOX 公式サイト](https://voicevox.hiroshiba.jp/) でキャラクターとスタイルを試聴し、お気に入りのモデルをダウンロードしてください。
 
 1. 「TTS」タブで VOICEVOX コンポーネントをインストール（Core + ONNX Runtime + Open JTalk 辞書）
 2. VVM 音声モデルを選択してダウンロード（フリーズを避けるため一度に全部ダウンロードしないでください）

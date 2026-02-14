@@ -614,9 +614,33 @@ ipcMain.handle('load-prompt', async (event, id) => {
 
 ipcMain.handle('save-prompt', async (event, id, promptData) => {
     try {
-        const json = { data: promptData };
-        fs.writeFileSync(getCharacterPath(id), JSON.stringify(json, null, 2), 'utf-8');
+        const filePath = getCharacterPath(id);
+        // Preserve builtin and i18n fields if they exist in the original file
+        let json = { data: promptData };
+        if (fs.existsSync(filePath)) {
+            try {
+                const existing = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
+                if (existing.builtin) json.builtin = true;
+                if (existing.i18n) json.i18n = existing.i18n;
+            } catch {}
+        }
+        fs.writeFileSync(filePath, JSON.stringify(json, null, 2), 'utf-8');
         return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('reset-builtin-cards', async () => {
+    try {
+        const files = fs.readdirSync(bundledPromptsDir);
+        let count = 0;
+        for (const f of files) {
+            if (!f.endsWith('.json')) continue;
+            fs.copyFileSync(path.join(bundledPromptsDir, f), path.join(promptsDir, f));
+            count++;
+        }
+        return { success: true, count };
     } catch (e) {
         return { success: false, error: e.message };
     }
