@@ -91,11 +91,9 @@ Image folders (PNG/JPG/WebP) are also supported as character visuals — see "Im
 > Visit the [VOICEVOX website](https://voicevox.hiroshiba.jp/) first to preview characters and styles, then download the model you like.
 
 1. In the "TTS" tab, install VOICEVOX components (Core + ONNX Runtime + Open JTalk dictionary)
-2. Select and download VVM voice models (do not download all at once to avoid freezing)
-3. Restart the application
-4. Return to the "TTS" tab and check the downloaded models for auto-loading on next launch
-5. Restart the application for the configuration to take effect
-6. Set the speaker, style, and fine-tune other voice parameters
+2. Select and download VVM voice models
+3. Click "Save & Restart" to restart the app and load the models
+4. Set the speaker, style, and fine-tune other voice parameters
 
 Supports GPU acceleration (DirectML). AI responses are auto-translated to Japanese and spoken aloud.
 

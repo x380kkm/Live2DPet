@@ -91,11 +91,9 @@ node launch.js
 > 先到 [VOICEVOX 官网](https://voicevox.hiroshiba.jp/) 试听角色和风格，找到喜欢的再下载对应模型。
 
 1. 在「TTS」标签页安装 VOICEVOX 组件（Core + ONNX Runtime + Open JTalk 辞書）
-2. 选择并下载 VVM 语音模型（不要一次全部下载，避免卡顿）
-3. 重启应用
-4. 回到「TTS」标签页，勾选已下载的模型以便下次自动加载
-5. 重启应用使配置生效
-6. 设置角色（Speaker）、风格（Style）及其他语音参数微调
+2. 选择并下载 VVM 语音模型
+3. 点击「保存并重启」按钮，等待应用重启加载模型
+4. 设置角色（Speaker）、风格（Style）及其他语音参数微调
 
 支持 GPU 加速（DirectML）。AI 回复会自动翻译为日语并语音播放。
 
