@@ -74,7 +74,7 @@ class AIChatClient {
                     model: this.modelName,
                     messages: messages,
                     max_tokens: 2048,
-                    temperature: 1.0
+                    temperature: 0.86
                 }),
                 signal: controller.signal
             });
