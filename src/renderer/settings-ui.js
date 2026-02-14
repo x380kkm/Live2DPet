@@ -128,7 +128,7 @@ document.getElementById('btn-save-api').addEventListener('click', () => {
     };
     petSystem.aiClient.saveConfig(cfg);
     petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
-    showStatus('api-status', 'Saved', 'success');
+    showStatus('api-status', t('status.saved'), 'success');
 });
 
 // ========== Translation API Settings ==========
@@ -139,16 +139,16 @@ document.getElementById('btn-save-tl').addEventListener('click', () => {
         modelName: document.getElementById('tl-model-name').value.trim()
     };
     if (window.electronAPI) window.electronAPI.saveConfig({ translation: tl });
-    showStatus('tl-status', 'Saved', 'success');
+    showStatus('tl-status', t('status.saved'), 'success');
 });
 
 document.getElementById('btn-test-api').addEventListener('click', async () => {
-    showStatus('api-status', 'Testing...', 'info');
+    showStatus('api-status', t('status.testing'), 'info');
     const result = await petSystem.aiClient.testConnection();
     if (result.success) {
-        showStatus('api-status', 'Connected: ' + result.response, 'success');
+        showStatus('api-status', t('status.connected') + result.response, 'success');
     } else {
-        showStatus('api-status', 'Failed: ' + result.error, 'error');
+        showStatus('api-status', t('status.failed') + result.error, 'error');
     }
 });
 
@@ -198,7 +198,7 @@ function loadModelUI() {
     // Load existing values
     if (currentModelConfig.type === 'live2d') {
         document.getElementById('l2d-info').textContent =
-            currentModelConfig.modelJsonFile ? `模型: ${currentModelConfig.modelJsonFile}` : '';
+            currentModelConfig.modelJsonFile ? `${t('status.modelInfo')}${currentModelConfig.modelJsonFile}` : '';
         document.getElementById('canvas-y-slider').value = currentModelConfig.canvasYRatio || 0.60;
         document.getElementById('canvas-y-val').textContent = (currentModelConfig.canvasYRatio || 0.60).toFixed(2);
         renderParamMapping();
@@ -207,7 +207,7 @@ function loadModelUI() {
         // Restore folder mode
         if (currentModelConfig.imageFolderPath) {
             document.getElementById('folder-info').textContent =
-                `文件夹: ${currentModelConfig.imageFolderPath}`;
+                `${t('status.folderInfo')}${currentModelConfig.imageFolderPath}`;
             document.getElementById('image-list-container').style.display = '';
             // Restore crop slider
             const cropScale = currentModelConfig.imageCropScale || 1.0;
@@ -255,7 +255,7 @@ document.getElementById('btn-import-l2d').addEventListener('click', async () => 
     const modelFile = result.modelFiles[0]; // Use first found
 
     // Scan model info
-    showStatus('model-status', '扫描模型...', 'info');
+    showStatus('model-status', t('status.scanning'), 'info');
     const scanResult = await window.electronAPI.scanModelInfo(folderPath, modelFile);
     if (!scanResult.success) {
         showStatus('model-status', scanResult.error, 'error');
@@ -274,12 +274,12 @@ document.getElementById('btn-import-l2d').addEventListener('click', async () => 
 
     // Show info
     const motionCount = Object.values(scanResult.motions || {}).reduce((sum, arr) => sum + arr.length, 0);
-    const info = [`模型: ${scanResult.modelName}`,
-        `参数: ${scannedParamIds.length}个`,
-        `表情: ${scanResult.expressions.length}个`,
-        `动作: ${motionCount}个`,
+    const info = [`${t('status.modelInfo')}${scanResult.modelName}`,
+        `${scannedParamIds.length} params`,
+        `${scanResult.expressions.length} expr`,
+        `${motionCount} motions`,
         `Moc: ${scanResult.validation.mocValid ? '✓' : '✗'}`,
-        `纹理: ${scanResult.validation.texturesValid ? '✓' : '✗'}`
+        `Tex: ${scanResult.validation.texturesValid ? '✓' : '✗'}`
     ].join(' | ');
     document.getElementById('l2d-info').textContent = info;
 
@@ -320,16 +320,16 @@ document.getElementById('btn-import-l2d').addEventListener('click', async () => 
 
     // Copy to userData if checked
     if (document.getElementById('copy-to-userdata').checked) {
-        showStatus('model-status', '复制模型到应用数据目录...', 'info');
+        showStatus('model-status', t('status.copyingModel'), 'info');
         const copyResult = await window.electronAPI.copyModelToUserdata(folderPath, scanResult.modelName);
         if (copyResult.success) {
             currentModelConfig.userDataModelPath = copyResult.userDataModelPath;
-            showStatus('model-status', '模型已导入', 'success');
+            showStatus('model-status', t('status.modelImported'), 'success');
         } else {
-            showStatus('model-status', '复制失败: ' + copyResult.error, 'error');
+            showStatus('model-status', t('status.copyFailed') + copyResult.error, 'error');
         }
     } else {
-        showStatus('model-status', '模型已选择', 'success');
+        showStatus('model-status', t('status.modelSelected'), 'success');
     }
 });
 
@@ -351,7 +351,7 @@ function renderParamMapping() {
         row.innerHTML = `
             <span class="param-label">${t(labelKey)}</span>
             <select class="param-select" data-key="${key}" style="flex:1;padding:4px;font-size:12px;border-radius:4px;">
-                <option value="">未映射</option>
+                <option value="">${t('status.unmapped')}</option>
                 ${sorted.map(id =>
                     `<option value="${id}" ${id === mapped ? 'selected' : ''}>${id}${id === suggested ? ' ★' : ''}</option>`
                 ).join('')}
@@ -375,7 +375,7 @@ document.getElementById('btn-apply-suggested').addEventListener('click', () => {
         if (val) currentModelConfig.paramMapping[key] = val;
     }
     renderParamMapping();
-    showStatus('model-status', '已应用建议映射', 'success');
+    showStatus('model-status', t('status.suggestedApplied'), 'success');
 });
 
 // Import image folder
@@ -392,7 +392,7 @@ document.getElementById('btn-select-image-folder').addEventListener('click', asy
     updateModelCards();
 
     // Scan folder for images
-    showStatus('model-status', '扫描图片...', 'info');
+    showStatus('model-status', t('status.scanningImages'), 'info');
     const scanResult = await window.electronAPI.scanImageFolder(folderPath);
     if (!scanResult.success) {
         showStatus('model-status', scanResult.error, 'error');
@@ -400,7 +400,7 @@ document.getElementById('btn-select-image-folder').addEventListener('click', asy
     }
 
     document.getElementById('folder-info').textContent =
-        `文件夹: ${folderPath} (${scanResult.images.length} 张图片)`;
+        `${t('status.folderInfo')}${folderPath} (${scanResult.images.length})`;
     document.getElementById('image-list-container').style.display = '';
 
     // Build imageFiles from scan, preserving existing config if same folder
@@ -414,7 +414,7 @@ document.getElementById('btn-select-image-folder').addEventListener('click', asy
     });
 
     renderImageList(currentModelConfig);
-    showStatus('model-status', `已扫描 ${scanResult.images.length} 张图片`, 'success');
+    showStatus('model-status', t('status.imagesScanned').replace('{0}', scanResult.images.length), 'success');
 });
 
 function renderImageList(modelConfig) {
@@ -433,10 +433,10 @@ function renderImageList(modelConfig) {
             <img class="image-thumb" src="file:///${folderPath}/${encodeURIComponent(f.file)}" alt="${f.file}">
             <span style="flex:1;min-width:60px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="${f.file}">${f.file}</span>
             <div class="cats">
-                <label><input type="checkbox" class="cat-idle" ${f.idle ? 'checked' : ''}> 待机</label>
-                <label><input type="checkbox" class="cat-talking" ${f.talking ? 'checked' : ''}> 说话</label>
-                <label><input type="checkbox" class="cat-emotion" ${f.emotionName ? 'checked' : ''}> 表情</label>
-                <input type="text" class="emotion-name" value="${f.emotionName || ''}" placeholder="表情名" style="${emotionDisplay}">
+                <label><input type="checkbox" class="cat-idle" ${f.idle ? 'checked' : ''}> ${t('img.idle')}</label>
+                <label><input type="checkbox" class="cat-talking" ${f.talking ? 'checked' : ''}> ${t('img.talking')}</label>
+                <label><input type="checkbox" class="cat-emotion" ${f.emotionName ? 'checked' : ''}> ${t('img.emotion')}</label>
+                <input type="text" class="emotion-name" value="${f.emotionName || ''}" placeholder="${t('img.emotionPh')}" style="${emotionDisplay}">
             </div>
         `;
 
@@ -476,7 +476,7 @@ function collectImageFiles() {
 document.getElementById('btn-select-bubble').addEventListener('click', async () => {
     const result = await window.electronAPI.selectBubbleImage();
     if (!result.success) return;
-    document.getElementById('bubble-info').textContent = `气泡框: ${result.filePath}`;
+    document.getElementById('bubble-info').textContent = `${t('status.bubbleInfo')}${result.filePath}`;
     // Save to config
     await window.electronAPI.saveConfig({ bubble: { frameImagePath: result.filePath } });
 });
@@ -492,7 +492,7 @@ document.getElementById('btn-select-icon').addEventListener('click', async () =>
     if (!result.success) return;
     document.getElementById('icon-preview').src = result.iconPath;
     document.getElementById('icon-preview').style.display = '';
-    document.getElementById('icon-info').textContent = `图标: ${result.iconPath}`;
+    document.getElementById('icon-info').textContent = `${t('status.iconInfo')}${result.iconPath}`;
     await window.electronAPI.saveConfig({ appIcon: result.iconPath });
 });
 
@@ -522,7 +522,7 @@ document.getElementById('btn-save-model').addEventListener('click', async () => 
     }
 
     await window.electronAPI.saveConfig({ model: currentModelConfig });
-    showStatus('model-status', '模型设置已保存', 'success');
+    showStatus('model-status', t('status.modelSaved'), 'success');
 });
 
 // Clear model
@@ -545,7 +545,7 @@ document.getElementById('btn-clear-model').addEventListener('click', async () =>
     document.getElementById('image-list-container').style.display = 'none';
     document.getElementById('folder-info').textContent = '';
     updateModelCards();
-    showStatus('model-status', '模型已清除', 'success');
+    showStatus('model-status', t('status.modelCleared'), 'success');
 });
 
 // ========== Emotion Tab ==========
@@ -589,8 +589,8 @@ function renderExpressionList(modelConfig) {
             <input type="checkbox" class="expr-enabled" data-name="${expr.name}" checked>
             <input type="text" class="expr-name" value="${expr.name}" style="width:80px;padding:2px 4px;font-size:12px;" data-index="${i}">
             <span style="color:#888;font-size:11px;">${expr.file || ''}</span>
-            <input type="number" class="expr-dur" value="${durSec}" placeholder="默认" step="0.5" min="0" style="width:60px;padding:2px 4px;font-size:12px;" data-name="${expr.name}">
-            <span style="color:#888;font-size:11px;">秒</span>
+            <input type="number" class="expr-dur" value="${durSec}" placeholder="${t('status.default')}" step="0.5" min="0" style="width:60px;padding:2px 4px;font-size:12px;" data-name="${expr.name}">
+            <span style="color:#888;font-size:11px;">${t('sec')}</span>
             <button class="btn btn-danger btn-sm expr-del" data-index="${i}" style="padding:2px 8px;">✕</button>
         `;
         container.appendChild(row);
@@ -608,7 +608,7 @@ function renderExpressionList(modelConfig) {
 
 document.getElementById('btn-add-expr').addEventListener('click', () => {
     if (!currentModelConfig.expressions) currentModelConfig.expressions = [];
-    currentModelConfig.expressions.push({ name: '新表情', label: '新表情', file: '' });
+    currentModelConfig.expressions.push({ name: t('status.newExpr'), label: t('status.newExpr'), file: '' });
     currentModelConfig.hasExpressions = true;
     renderExpressionList(currentModelConfig);
 });
@@ -643,8 +643,8 @@ function renderMotionList(modelConfig) {
                 ${!groupOptions.includes(m.group) ? `<option value="${m.group}" selected>${m.group}</option>` : ''}
             </select>
             <input type="number" class="motion-index" value="${m.index}" min="0" max="${maxIdx}" style="width:45px;padding:2px 4px;font-size:12px;" data-index="${i}">
-            <input type="number" class="motion-dur" value="${durSec}" placeholder="默认" step="0.5" min="0" style="width:60px;padding:2px 4px;font-size:12px;" data-name="${m.name}">
-            <span style="color:#888;font-size:11px;">秒</span>
+            <input type="number" class="motion-dur" value="${durSec}" placeholder="${t('status.default')}" step="0.5" min="0" style="width:60px;padding:2px 4px;font-size:12px;" data-name="${m.name}">
+            <span style="color:#888;font-size:11px;">${t('sec')}</span>
             <button class="btn btn-danger btn-sm motion-del" data-index="${i}" style="padding:2px 8px;">✕</button>
         `;
         container.appendChild(row);
@@ -663,7 +663,7 @@ function renderMotionList(modelConfig) {
 document.getElementById('btn-add-motion').addEventListener('click', () => {
     if (!currentModelConfig.motionEmotions) currentModelConfig.motionEmotions = [];
     const firstGroup = Object.keys(scannedMotions)[0] || 'Default';
-    currentModelConfig.motionEmotions.push({ name: '新动作', group: firstGroup, index: 0 });
+    currentModelConfig.motionEmotions.push({ name: t('status.newMotion'), group: firstGroup, index: 0 });
     renderMotionList(currentModelConfig);
 });
 
@@ -674,7 +674,7 @@ document.getElementById('btn-save-emotion-freq').addEventListener('click', () =>
     petSystem.emotionSystem.setExpectedFrequency(freq);
     petSystem.emotionSystem.allowSimultaneous = simultaneous;
     if (window.electronAPI) window.electronAPI.saveConfig({ allowSimultaneous: simultaneous });
-    showStatus('emotion-status', 'Saved', 'success');
+    showStatus('emotion-status', t('status.saved'), 'success');
 });
 
 document.getElementById('btn-save-expressions').addEventListener('click', async () => {
@@ -745,7 +745,7 @@ document.getElementById('btn-save-expressions').addEventListener('click', async 
         petSystem.emotionSystem.setEnabledEmotions(enabledEmotions);
     }
 
-    showStatus('save-emotion-status', '表情设置已保存', 'success');
+    showStatus('save-emotion-status', t('status.exprSaved'), 'success');
 });
 
 // ========== Character Card Management ==========
@@ -932,11 +932,11 @@ async function loadTTSStatus() {
         if (status.degraded) {
             const elapsed = Date.now() - status.degradedAt;
             const remaining = Math.max(0, Math.ceil((status.retryInterval - elapsed) / 1000));
-            el.textContent = `TTS: 熔断中 (${remaining}s 后自动重试)`;
+            el.textContent = t('tts.circuitBreak').replace('{0}', remaining);
             el.className = 'status error';
             restartBtn.style.display = '';
         } else {
-            el.textContent = 'TTS: 已就绪' + (status.gpuMode ? ' (GPU)' : ' (CPU)');
+            el.textContent = t('tts.ready') + (status.gpuMode ? t('tts.readyGpu') : t('tts.readyCpu'));
             el.className = 'status success';
             restartBtn.style.display = 'none';
         }
@@ -945,7 +945,7 @@ async function loadTTSStatus() {
         ttsMetas = await window.electronAPI.ttsGetMetas();
         populateSpeakerDropdown();
     } else {
-        el.textContent = 'TTS: 离线 (voicevox_core 未找到)';
+        el.textContent = t('tts.offline');
         el.className = 'status error';
         restartBtn.style.display = '';
     }
@@ -1035,22 +1035,22 @@ document.getElementById('btn-save-tts').addEventListener('click', async () => {
     fullConfig.tts.volumeScale = ttsConfig.volumeScale;
     fullConfig.tts.gpuMode = document.getElementById('tts-gpu-mode')?.checked || false;
     await window.electronAPI.saveConfig(fullConfig);
-    showStatus('tts-save-status', '已保存', 'success');
+    showStatus('tts-save-status', t('status.saved'), 'success');
 });
 
 document.getElementById('btn-test-tts').addEventListener('click', async () => {
     const text = document.getElementById('tts-test-text').value.trim();
     if (!text) return;
-    showStatus('tts-test-status', '合成中...', '');
+    showStatus('tts-test-status', t('tts.synthesizing'), '');
     const result = await window.electronAPI.ttsSynthesize(text);
     if (result.success) {
-        showStatus('tts-test-status', `翻译: ${result.jaText}`, 'success');
+        showStatus('tts-test-status', t('tts.translated') + result.jaText, 'success');
         const wavBytes = Uint8Array.from(atob(result.wav), c => c.charCodeAt(0));
         const blob = new Blob([wavBytes], { type: 'audio/wav' });
         const audio = new Audio(URL.createObjectURL(blob));
         audio.play();
     } else {
-        showStatus('tts-test-status', '失败: ' + result.error, 'error');
+        showStatus('tts-test-status', t('tts.synthFailed') + result.error, 'error');
     }
 });
 
@@ -1059,13 +1059,13 @@ loadTTSStatus();
 // Restart TTS button
 document.getElementById('btn-restart-tts')?.addEventListener('click', async () => {
     const el = document.getElementById('tts-status');
-    el.textContent = 'TTS: 重启中...';
+    el.textContent = t('tts.restarting');
     el.className = 'status';
     const result = await window.electronAPI.ttsRestart();
     if (result.success) {
         await loadTTSStatus();
     } else {
-        el.textContent = 'TTS: 重启失败 - ' + (result.error || '未知错误');
+        el.textContent = t('tts.restartFailed') + (result.error || t('tts.unknownError'));
         el.className = 'status error';
     }
 });
@@ -1075,8 +1075,8 @@ document.getElementById('btn-setup-voicevox')?.addEventListener('click', async (
     const btn = document.getElementById('btn-setup-voicevox');
     const status = document.getElementById('voicevox-setup-status');
     btn.disabled = true;
-    btn.textContent = '安装中...';
-    status.textContent = '准备中...';
+    btn.textContent = t('tts.installing');
+    status.textContent = t('tts.preparing');
     status.className = 'status';
 
     if (window.electronAPI.onVoicevoxSetupProgress) {
@@ -1087,18 +1087,18 @@ document.getElementById('btn-setup-voicevox')?.addEventListener('click', async (
 
     const result = await window.electronAPI.setupVoicevox();
     btn.disabled = false;
-    btn.textContent = '一键安装 VOICEVOX';
+    btn.textContent = t('tts.setup');
     if (result.success) {
-        status.textContent = '安装完成! 重启 TTS 生效。';
+        status.textContent = t('tts.installDone');
         status.className = 'status success';
         // Auto-restart TTS
         const restartResult = await window.electronAPI.ttsRestart();
         if (restartResult.success) {
             await loadTTSStatus();
-            status.textContent = '安装完成，TTS 已启动!';
+            status.textContent = t('tts.installDoneTts');
         }
     } else {
-        status.textContent = '安装失败: ' + result.error;
+        status.textContent = t('tts.installFail') + result.error;
         status.className = 'status error';
     }
 });
@@ -1108,17 +1108,17 @@ document.getElementById('btn-generate-default-audio')?.addEventListener('click',
     const textarea = document.getElementById('default-audio-phrases');
     const phrases = textarea.value.split('\n').map(s => s.trim()).filter(Boolean);
     if (phrases.length === 0) {
-        showStatus('default-audio-status', '请输入至少一个语气词', 'error');
+        showStatus('default-audio-status', t('tts.enterPhrase'), 'error');
         return;
     }
     const styleId = parseInt(document.getElementById('tts-style-id').value) || 0;
-    showStatus('default-audio-status', `生成中... (${phrases.length} 个)`, '');
+    showStatus('default-audio-status', t('tts.generating').replace('{0}', phrases.length), '');
     const result = await window.electronAPI.generateDefaultAudio(phrases, styleId);
     if (result.success) {
         const ok = result.results.filter(r => r.success).length;
-        showStatus('default-audio-status', `完成: ${ok}/${phrases.length} 个成功`, 'success');
+        showStatus('default-audio-status', t('tts.generateDone').replace('{0}', ok).replace('{1}', phrases.length), 'success');
     } else {
-        showStatus('default-audio-status', '失败: ' + result.error, 'error');
+        showStatus('default-audio-status', t('status.failed') + result.error, 'error');
     }
 });
 
@@ -1176,7 +1176,7 @@ async function loadVvmConfig() {
         const desc = VVM_CHARACTERS[f] || '';
         const dlBtn = onDisk
             ? '<span style="color:#4a4;font-size:11px;">OK</span>'
-            : `<button class="btn-dl-vvm" data-vvm="${f}" style="font-size:11px;padding:1px 6px;cursor:pointer;">下载</button>`;
+            : `<button class="btn-dl-vvm" data-vvm="${f}" style="font-size:11px;padding:1px 6px;cursor:pointer;">${t('tts.vvm.dl')}</button>`;
         return `<label style="display:flex;align-items:center;gap:4px;padding:2px 0;font-size:12px;">
             <input type="checkbox" value="${f}" ${checked} ${disabled}>
             <b>${f}</b> ${desc} ${dlBtn}
@@ -1193,8 +1193,8 @@ async function loadVvmConfig() {
             if (result.success) {
                 await loadVvmConfig();
             } else {
-                btn.textContent = '失败';
-                showStatus('vvm-save-status', `下载失败: ${result.error}`, 'error');
+                btn.textContent = t('status.failed');
+                showStatus('vvm-save-status', t('tts.vvm.dlFail') + result.error, 'error');
             }
         });
     });
@@ -1204,14 +1204,14 @@ document.getElementById('btn-save-vvm')?.addEventListener('click', async () => {
     const checks = document.querySelectorAll('#vvm-checkboxes input[type=checkbox]:checked');
     const vvmFiles = Array.from(checks).map(c => c.value);
     if (vvmFiles.length === 0) {
-        showStatus('vvm-save-status', '至少选择一个 VVM', 'error');
+        showStatus('vvm-save-status', t('tts.vvm.selectOne'), 'error');
         return;
     }
     const config = await window.electronAPI.loadConfig();
     config.tts = config.tts || {};
     config.tts.vvmFiles = vvmFiles;
     await window.electronAPI.saveConfig(config);
-    showStatus('vvm-save-status', '已保存，重启后生效', 'success');
+    showStatus('vvm-save-status', t('tts.vvm.savedRestart'), 'success');
 });
 
 loadVvmConfig();

@@ -4,6 +4,7 @@ const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
 const { TTSService } = require('./src/core/tts-service');
 const { TranslationService } = require('./src/core/translation-service');
+const I18N = require('./src/i18n/locales');
 
 let petWindow = null;
 let chatBubbleWindow = null;
@@ -149,10 +150,20 @@ function saveConfigFile(data) {
     } catch (e) { console.error('Failed to save config:', e.message); return false; }
 }
 
+// ========== i18n Helper for Main Process ==========
+
+let _cachedLang = 'en';
+
+function mt(key) {
+    return (I18N[_cachedLang] && I18N[_cachedLang][key]) || (I18N['en'] && I18N['en'][key]) || key;
+}
+
 // ========== App Lifecycle ==========
 
 app.whenReady().then(() => {
     pathUtils = createPathUtils(app, path);
+    // Cache UI language for i18n
+    try { _cachedLang = loadConfigFile().uiLanguage || 'en'; } catch {}
 
     // Create windows first, then init TTS in background
     ttsService = new TTSService();
@@ -418,6 +429,7 @@ ipcMain.handle('load-config', async () => {
 });
 
 ipcMain.handle('save-config', async (event, data) => {
+    if (data.uiLanguage) _cachedLang = data.uiLanguage;
     return saveConfigFile(data);
 });
 
@@ -430,7 +442,7 @@ ipcMain.handle('show-pet-context-menu', async () => {
     if (!petWindow || petWindow.isDestroyed()) return;
     const sizes = [200, 300, 400, 500];
     const template = [
-        { label: '大小', submenu: sizes.map(s => ({
+        { label: mt('main.size'), submenu: sizes.map(s => ({
             label: `${s}x${s}`,
             click: () => {
                 petWindow.setSize(s, s);
@@ -438,18 +450,18 @@ ipcMain.handle('show-pet-context-menu', async () => {
             }
         }))},
         { type: 'separator' },
-        { label: '设置', click: () => {
+        { label: mt('main.settings'), click: () => {
             if (settingsWindow && !settingsWindow.isDestroyed()) {
                 settingsWindow.show(); settingsWindow.focus();
             } else { createSettingsWindow(); }
         }},
-        { label: '关闭', click: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); }}
+        { label: mt('main.close'), click: () => { if (petWindow && !petWindow.isDestroyed()) petWindow.close(); }}
     ];
     Menu.buildFromTemplate(template).popup({ window: petWindow });
 });
 
 ipcMain.handle('get-gender-term', async () => {
-    return { success: true, term: '你' };
+    return { success: true, term: 'you' };
 });
 
 ipcMain.handle('open-dev-tools', async () => {
@@ -927,61 +939,61 @@ ipcMain.handle('setup-voicevox', async (event) => {
         // 1. Core DLL
         const coreDll = path.join(cApiDir, 'voicevox_core-windows-x64-0.16.3', 'lib', 'voicevox_core.dll');
         if (!fs.existsSync(coreDll)) {
-            send('下载 voicevox_core...');
+            send(mt('main.setupDlCore'));
             const coreZip = path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip');
             await run('curl', ['-L', '-o', coreZip,
                 'https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.3/voicevox_core-windows-x64-0.16.3.zip']);
-            send('解压 voicevox_core...');
+            send(mt('main.setupExtractCore'));
             await run('powershell', ['-Command',
                 `Expand-Archive -Path "${path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip')}" -DestinationPath "${cApiDir}" -Force`]);
             fs.unlinkSync(path.join(baseDir, 'voicevox_core-windows-x64-0.16.3.zip'));
         } else {
-            send('voicevox_core 已存在');
+            send(mt('main.setupCoreExists'));
         }
 
         // 2. ONNX Runtime (CPU)
         const onnxDll = path.join(baseDir, 'voicevox_onnxruntime-win-x64-1.17.3', 'lib', 'voicevox_onnxruntime.dll');
         if (!fs.existsSync(onnxDll)) {
-            send('下载 ONNX Runtime...');
+            send(mt('main.setupDlOnnx'));
             const onnxTgz = path.join(baseDir, 'voicevox_onnxruntime-win-x64-1.17.3.tgz');
             await run('curl', ['-L', '-o', onnxTgz,
                 'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-1.17.3.tgz']);
-            send('解压 ONNX Runtime...');
+            send(mt('main.setupExtractOnnx'));
             await run('tar', ['xzf', onnxTgz, '-C', baseDir]);
             fs.unlinkSync(onnxTgz);
         } else {
-            send('ONNX Runtime 已存在');
+            send(mt('main.setupOnnxExists'));
         }
 
         // 3. Open JTalk dictionary
         const dictDir = path.join(baseDir, 'open_jtalk_dic_utf_8-1.11');
         if (!fs.existsSync(dictDir)) {
-            send('下载 Open JTalk 辞書...');
+            send(mt('main.setupDlDict'));
             const dictTgz = path.join(baseDir, 'dict.tar.gz');
             await run('curl', ['-L', '-o', dictTgz,
                 'https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download'],
                 { timeout: 300000 });
-            send('解压 Open JTalk 辞書...');
+            send(mt('main.setupExtractDict'));
             await run('tar', ['xzf', dictTgz, '-C', baseDir]);
             fs.unlinkSync(dictTgz);
         } else {
-            send('Open JTalk 辞書 已存在');
+            send(mt('main.setupDictExists'));
         }
 
         // 4. Default VVM (0.vvm)
         const vvm0 = path.join(modelsDir, '0.vvm');
         if (!fs.existsSync(vvm0)) {
-            send('下载 0.vvm...');
+            send(mt('main.setupDlVvm'));
             await run('curl', ['-L', '-o', vvm0,
                 'https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.3/0.vvm']);
         } else {
-            send('0.vvm 已存在');
+            send(mt('main.setupVvmExists'));
         }
 
-        send('安装完成!');
+        send(mt('main.setupDone'));
         return { success: true, path: baseDir };
     } catch (e) {
-        send('安装失败: ' + e.message);
+        send(mt('main.setupFail') + e.message);
         return { success: false, error: e.message };
     }
 });
@@ -1093,7 +1105,7 @@ ipcMain.handle('select-model-folder', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
             properties: ['openDirectory'],
-            title: '选择 Live2D 模型文件夹'
+            title: mt('main.selectL2d')
         });
         if (result.canceled || !result.filePaths.length) {
             return { success: false, error: 'cancelled' };
@@ -1121,7 +1133,7 @@ ipcMain.handle('select-model-folder', async () => {
             }
         }
         if (modelFiles.length === 0) {
-            return { success: false, error: '该文件夹中未找到 .model3.json 文件' };
+            return { success: false, error: mt('main.noModel3Json') };
         }
         return { success: true, folderPath: actualFolder, modelFiles };
     } catch (error) {
@@ -1133,7 +1145,7 @@ ipcMain.handle('scan-model-info', async (event, folderPath, modelJsonFile) => {
     try {
         const modelJsonPath = path.join(folderPath, modelJsonFile);
         if (!fs.existsSync(modelJsonPath)) {
-            return { success: false, error: 'model3.json 不存在' };
+            return { success: false, error: mt('main.model3NotExist') };
         }
         const modelJson = JSON.parse(fs.readFileSync(modelJsonPath, 'utf-8'));
 
@@ -1241,8 +1253,8 @@ ipcMain.handle('select-static-image', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
             properties: ['openFile'],
-            title: '选择静态图片或 GIF',
-            filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }]
+            title: mt('main.selectImage'),
+            filters: [{ name: mt('main.filterImage'), extensions: ['png', 'jpg', 'jpeg', 'gif', 'webp', 'svg'] }]
         });
         if (result.canceled || !result.filePaths.length) {
             return { success: false, error: 'cancelled' };
@@ -1257,7 +1269,7 @@ ipcMain.handle('select-image-folder', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
             properties: ['openDirectory'],
-            title: '选择图片文件夹'
+            title: mt('main.selectImageFolder')
         });
         if (result.canceled || !result.filePaths.length) {
             return { success: false, error: 'cancelled' };
@@ -1292,8 +1304,8 @@ ipcMain.handle('select-bubble-image', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
             properties: ['openFile'],
-            title: '选择气泡框图片',
-            filters: [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'svg'] }]
+            title: mt('main.selectBubble'),
+            filters: [{ name: mt('main.filterImage'), extensions: ['png', 'jpg', 'jpeg', 'svg'] }]
         });
         if (result.canceled || !result.filePaths.length) {
             return { success: false, error: 'cancelled' };
@@ -1308,8 +1320,8 @@ ipcMain.handle('select-app-icon', async () => {
     try {
         const result = await dialog.showOpenDialog(settingsWindow || BrowserWindow.getFocusedWindow(), {
             properties: ['openFile'],
-            title: '选择应用图标',
-            filters: [{ name: '图标', extensions: ['png', 'ico', 'jpg'] }]
+            title: mt('main.selectIcon'),
+            filters: [{ name: mt('main.filterIcon'), extensions: ['png', 'ico', 'jpg'] }]
         });
         if (result.canceled || !result.filePaths.length) {
             return { success: false, error: 'cancelled' };
@@ -1353,23 +1365,23 @@ ipcMain.handle('validate-model-paths', async () => {
                 modelDir = model.folderPath;
             }
             if (!modelDir || !fs.existsSync(modelDir)) {
-                return { success: true, valid: false, error: '模型文件夹不存在' };
+                return { success: true, valid: false, error: mt('main.modelFolderNotExist') };
             }
             if (model.modelJsonFile) {
                 const jsonPath = path.join(modelDir, model.modelJsonFile);
                 if (!fs.existsSync(jsonPath)) {
-                    return { success: true, valid: false, error: 'model3.json 不存在' };
+                    return { success: true, valid: false, error: mt('main.model3NotExist') };
                 }
                 // Validate it parses
                 try { JSON.parse(fs.readFileSync(jsonPath, 'utf-8')); }
-                catch { return { success: true, valid: false, error: 'model3.json 解析失败' }; }
+                catch { return { success: true, valid: false, error: mt('main.model3ParseFail') }; }
             }
             return { success: true, valid: true, type: 'live2d', modelDir };
         }
 
         if (model.type === 'image') {
             if (!model.staticImagePath || !fs.existsSync(model.staticImagePath)) {
-                return { success: true, valid: false, error: '图片文件不存在' };
+                return { success: true, valid: false, error: mt('main.imageNotExist') };
             }
             return { success: true, valid: true, type: 'image' };
         }

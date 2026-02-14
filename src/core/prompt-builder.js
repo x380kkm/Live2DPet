@@ -5,6 +5,17 @@
 class PetPromptBuilder {
     constructor() {
         this.characterPrompt = null;
+        this.lang = 'en';
+    }
+
+    /**
+     * i18n helper — reads from window.I18N using stored language
+     */
+    _t(key) {
+        const l = this.lang;
+        return (window.I18N && window.I18N[l] && window.I18N[l][key])
+            || (window.I18N && window.I18N['en'] && window.I18N['en'][key])
+            || key;
     }
 
     async init() {
@@ -12,6 +23,7 @@ class PetPromptBuilder {
     }
 
     async loadCharacterPrompt(characterId, lang) {
+        if (lang) this.lang = lang;
         try {
             // Use IPC to load from main process (handles both dev and packaged paths)
             if (window.electronAPI?.loadPrompt) {
@@ -42,11 +54,11 @@ class PetPromptBuilder {
             console.warn('[PetPromptBuilder] Failed to load prompt, using default');
             this.characterPrompt = {
                 name: 'Yuki',
-                userIdentity: '妹妹',
-                userTerm: '你',
-                description: '你是{{petName}}，用户的{{userIdentity}}。',
-                personality: '简短、自然、有温度。',
-                scenario: '回复必须简短（1-2句话）。'
+                userIdentity: 'sister',
+                userTerm: 'you',
+                description: 'You are {{petName}}, the user\'s {{userIdentity}}.',
+                personality: 'Brief, natural, warm.',
+                scenario: 'Responses must be short (1-2 sentences).'
             };
         }
     }
@@ -58,8 +70,8 @@ class PetPromptBuilder {
         if (!text || !this.characterPrompt) return text;
         const vars = {
             '{{petName}}': this.characterPrompt.name || 'Yuki',
-            '{{userIdentity}}': this.characterPrompt.userIdentity || '妹妹',
-            '{{userTerm}}': this.characterPrompt.userTerm || '你'
+            '{{userIdentity}}': this.characterPrompt.userIdentity || 'user',
+            '{{userTerm}}': this.characterPrompt.userTerm || 'you'
         };
         let result = text;
         for (const [placeholder, value] of Object.entries(vars)) {
@@ -73,7 +85,7 @@ class PetPromptBuilder {
         const parts = [];
 
         // Fast response instruction at the top
-        parts.push('【响应模式】不要过渡思考过程，尽快给出最终回复。');
+        parts.push(this._t('sys.responseMode'));
 
         // Character setup
         if (this.characterPrompt.description) parts.push(this.resolveTemplate(this.characterPrompt.description));
@@ -85,27 +97,27 @@ class PetPromptBuilder {
         if (this.characterPrompt.rules) {
             parts.push('---');
             parts.push(this.resolveTemplate(this.characterPrompt.rules));
-            parts.push('【重要提醒】以上规则必须严格遵守，每次回复前请检查是否符合所有规则。');
+            parts.push(this._t('sys.importantReminder'));
         }
 
         // Language instruction (from separate field, backward compatible)
         if (this.characterPrompt.language) {
-            parts.push(`使用${this.characterPrompt.language}。`);
+            parts.push(this._t('sys.useLanguage').replace('{0}', this.characterPrompt.language));
         }
 
         return parts.join('\n\n');
     }
 
     getAppDetectionPrompt(appName) {
-        return `（system：当前用户正在使用应用${appName}，请自然地回应一句）`;
+        return this._t('sys.appDetection').replace('{0}', appName);
     }
 
     getIdlePrompt() {
         const triggers = [
-            '（system：用户一段时间没有操作，根据屏幕内容说说自己想说的吧）',
-            '（system：主动找个话题，可以是屏幕上看到的内容，也可以是你自己的想法）',
-            '（system：对屏幕上的内容发表一下你的看法或感想吧）',
-            '（system：分享一下此刻的心情，或者对用户正在做的事情表达关心）'
+            this._t('sys.idle1'),
+            this._t('sys.idle2'),
+            this._t('sys.idle3'),
+            this._t('sys.idle4')
         ];
         return triggers[Math.floor(Math.random() * triggers.length)];
     }

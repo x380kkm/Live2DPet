@@ -229,26 +229,34 @@ class DesktopPetSystem {
 
     // ========== Knowledge Layer ==========
 
+    /**
+     * i18n helper — delegates to prompt builder's _t()
+     */
+    _t(key) {
+        return this.promptBuilder ? this.promptBuilder._t(key) : key;
+    }
+
     buildDynamicContext() {
         const parts = [];
 
         // Self-awareness: appearance (know but don't mention)
-        parts.push('【自我认知】你的外观是一个粉色恶魔(Pink Devil)风格的Live2D角色，但你不应该主动提及自己的外观或Live2D相关的事情。');
+        parts.push(this._t('sys.selfAwareness'));
 
         // Self-awareness: emotion state
         if (this.emotionSystem) {
             const emotionVal = Math.round(this.emotionSystem.emotionValue);
             const nextEmotion = this.emotionSystem.nextEmotionBuffer;
-            parts.push(`【当前情绪状态】情绪值: ${emotionVal}/100${nextEmotion ? '，下一个表情倾向: ' + nextEmotion : ''}`);
+            parts.push(this._t('sys.emotionState') + `${emotionVal}/100${nextEmotion ? this._t('sys.emotionNext') + nextEmotion : ''}`);
         }
 
         // Window focus tracking summary
         if (Object.keys(this.focusTracker).length > 0) {
+            const secLabel = this._t('sys.seconds');
             const focusEntries = Object.entries(this.focusTracker)
                 .sort((a, b) => b[1] - a[1])
-                .map(([name, seconds]) => `${name}: ${seconds}秒`)
+                .map(([name, seconds]) => `${name}: ${seconds}${secLabel}`)
                 .join(', ');
-            parts.push(`【最近窗口使用情况】${focusEntries}`);
+            parts.push(this._t('sys.windowUsage') + focusEntries);
         }
 
         return parts.join('\n');
@@ -406,7 +414,7 @@ class DesktopPetSystem {
                 const now = new Date();
                 const timeStr = `${now.getHours()}:${String(now.getMinutes()).padStart(2, '0')}`;
                 const userContent = [
-                    { type: 'text', text: `[${timeStr}] ${textPrompt}（附上屏幕截图）` }
+                    { type: 'text', text: `[${timeStr}] ${textPrompt}${this._t('sys.screenshotAttached')}` }
                 ];
 
                 for (const screenshot of windowScreenshots) {
@@ -436,8 +444,8 @@ class DesktopPetSystem {
             if (response) {
                 // Append to conversation history (text-only summary for user turn)
                 const userSummary = windowScreenshots.length > 0
-                    ? `（用户正在使用${appName}，已查看截图）`
-                    : `（用户正在使用${appName}）`;
+                    ? this._t('sys.historyScreenshot').replace('{0}', appName)
+                    : this._t('sys.historyUsing').replace('{0}', appName);
                 this.conversationHistory.push(
                     { role: 'user', content: userSummary },
                     { role: 'assistant', content: response }
