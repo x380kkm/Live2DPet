@@ -490,6 +490,16 @@ ipcMain.handle('get-active-window', async () => {
     }
 });
 
+ipcMain.handle('get-open-windows', async () => {
+    try {
+        const { getOpenWindows } = await import('active-win');
+        const windows = await getOpenWindows();
+        return { success: true, data: windows || [] };
+    } catch (error) {
+        return { success: false, error: error.message };
+    }
+});
+
 // ========== Utility ==========
 
 ipcMain.handle('load-config', async () => {
@@ -1048,6 +1058,20 @@ ipcMain.handle('setup-voicevox', async (event) => {
             fs.unlinkSync(onnxTgz);
         } else {
             send(mt('main.setupOnnxExists'));
+        }
+
+        // 2b. ONNX Runtime (DirectML / GPU)
+        const dmlDll = path.join(baseDir, 'voicevox_onnxruntime-win-x64-dml-1.17.3', 'lib', 'voicevox_onnxruntime.dll');
+        if (!fs.existsSync(dmlDll)) {
+            send(mt('main.setupDlDml'));
+            const dmlTgz = path.join(baseDir, 'voicevox_onnxruntime-win-x64-dml-1.17.3.tgz');
+            await run('curl', ['-L', '-o', dmlTgz,
+                'https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-dml-1.17.3.tgz']);
+            send(mt('main.setupExtractDml'));
+            await run('tar', ['xzf', dmlTgz, '-C', baseDir]);
+            fs.unlinkSync(dmlTgz);
+        } else {
+            send(mt('main.setupDmlExists'));
         }
 
         // 3. Open JTalk dictionary

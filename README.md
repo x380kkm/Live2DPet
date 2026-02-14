@@ -207,6 +207,15 @@ node tests/test-core.js
 
 ## 更新日志
 
+### v1.7.0 — 窗口感知增强 & GPU TTS
+
+- 窗口检测现在读取窗口标题（如浏览器 tab 标题），不同标题独立追踪
+- 发送 AI 请求时附带桌面窗口布局信息和窗口尺寸
+- 一键安装现在同时下载 DirectML (GPU) 版 ONNX Runtime，支持 GPU 加速 TTS
+
+<details>
+<summary>早期版本</summary>
+
 ### v1.6.1 — 热重载与自动重启优化
 
 - 模型配置修改后宠物窗口自动热重载，无需重启
@@ -262,6 +271,8 @@ node tests/test-core.js
 
 - v1.1.0 — 快速响应模式、对话历史缓冲、截图去重、翻译与情绪系统语言无关化
 - v1.0.0 — 初始版本：Live2D 桌面宠物、AI 视觉感知对话、VOICEVOX 语音合成、情绪/表情系统
+
+</details>
 
 </details>
 

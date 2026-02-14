@@ -207,6 +207,15 @@ Please record the log output when the issue occurs and include it when submittin
 
 ## Changelog
 
+### v1.7.0 — Window Awareness & GPU TTS
+
+- Window detection now reads window titles (e.g. browser tab titles), tracked independently per title
+- AI requests now include desktop window layout info and window dimensions
+- One-click setup now downloads DirectML (GPU) ONNX Runtime for GPU-accelerated TTS
+
+<details>
+<summary>Earlier Versions</summary>
+
 ### v1.6.1 — Hot-Reload & Auto-Restart Improvements
 
 - Model config changes now hot-reload the pet window without restart
@@ -262,6 +271,8 @@ Please record the log output when the issue occurs and include it when submittin
 
 - v1.1.0 — Fast response mode, conversation history buffer, screenshot dedup, language-agnostic translation & emotion
 - v1.0.0 — Initial release: Live2D desktop pet, AI visual awareness, VOICEVOX TTS, emotion/expression system
+
+</details>
 
 </details>
 

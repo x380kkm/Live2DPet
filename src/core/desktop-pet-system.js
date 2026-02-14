@@ -173,8 +173,8 @@ class DesktopPetSystem {
             const result = await window.electronAPI.getActiveWindow();
             if (!result?.success || !result.data?.owner?.name) return;
 
-            const appName = result.data.owner.name;
-            if (this.shouldSkipApp(appName)) return;
+            if (this.shouldSkipApp(result.data.owner.name)) return;
+            const windowKey = result.data.title || result.data.owner.name;
 
             // Capture screenshot
             let screenBase64 = null;
@@ -183,17 +183,16 @@ class DesktopPetSystem {
             } catch (e) { return; }
             if (!screenBase64) return;
 
-            // Store in per-window buffer
-            if (!this.screenshotBuffers[appName]) this.screenshotBuffers[appName] = [];
-            this.screenshotBuffers[appName].push({
+            // Store in per-window buffer (keyed by title for per-tab granularity)
+            if (!this.screenshotBuffers[windowKey]) this.screenshotBuffers[windowKey] = [];
+            this.screenshotBuffers[windowKey].push({
                 base64: screenBase64,
                 timestamp: Date.now(),
                 sent: false
             });
 
-            // Keep only the most recent N per window
-            while (this.screenshotBuffers[appName].length > this.maxScreenshotsPerWindow) {
-                this.screenshotBuffers[appName].shift();
+            while (this.screenshotBuffers[windowKey].length > this.maxScreenshotsPerWindow) {
+                this.screenshotBuffers[windowKey].shift();
             }
         } catch (error) {
             console.error('[DesktopPetSystem] Screenshot tick error:', error);
@@ -220,10 +219,10 @@ class DesktopPetSystem {
         try {
             const result = await window.electronAPI.getActiveWindow();
             if (!result?.success || !result.data?.owner?.name) return;
-            const appName = result.data.owner.name;
-            if (this.shouldSkipApp(appName)) return;
-            if (!this.focusTracker[appName]) this.focusTracker[appName] = 0;
-            this.focusTracker[appName] += 1;
+            if (this.shouldSkipApp(result.data.owner.name)) return;
+            const windowKey = result.data.title || result.data.owner.name;
+            if (!this.focusTracker[windowKey]) this.focusTracker[windowKey] = 0;
+            this.focusTracker[windowKey] += 1;
         } catch (e) {}
     }
 
@@ -271,11 +270,12 @@ class DesktopPetSystem {
             const result = await window.electronAPI.getActiveWindow();
             if (!result?.success || !result.data?.owner?.name) return;
 
-            const appName = result.data.owner.name;
-            if (this.shouldSkipApp(appName)) return;
+            if (this.shouldSkipApp(result.data.owner.name)) return;
 
-            this.lastAppName = appName;
-            await this.sendRequest(appName);
+            const windowTitle = result.data.title || result.data.owner.name;
+            const bounds = result.data.bounds;
+            this.lastAppName = windowTitle;
+            await this.sendRequest(windowTitle, bounds);
         } catch (error) {
             console.error('[DesktopPetSystem] Tick error:', error);
         }
@@ -388,16 +388,38 @@ class DesktopPetSystem {
         this.isPlayingMessage = false;
     }
 
-    async sendRequest(appName) {
+    async sendRequest(appName, bounds) {
         if (this.isRequesting) return;
         this.isRequesting = true;
 
         try {
+            // Fetch all open windows for layout context
+            let layoutSummary = '';
+            if (window.electronAPI?.getOpenWindows) {
+                try {
+                    const winResult = await window.electronAPI.getOpenWindows();
+                    if (winResult?.success && winResult.data.length > 0) {
+                        const lines = winResult.data
+                            .filter(w => w.owner?.name && !this.shouldSkipApp(w.owner.name))
+                            .slice(0, 10)
+                            .map(w => {
+                                const b = w.bounds;
+                                const size = b ? `${b.width}x${b.height}` : '?';
+                                return `${w.title || w.owner.name} [${size}]`;
+                            });
+                        if (lines.length > 0) {
+                            layoutSummary = '\n' + this._t('sys.windowLayout') + lines.join(', ');
+                        }
+                    }
+                } catch (e) {}
+            }
+
             // Build fresh system prompt with dynamic context
-            const dynamicContext = this.buildDynamicContext();
+            const dynamicContext = this.buildDynamicContext() + layoutSummary;
             const currentSystemPrompt = this.promptBuilder.buildSystemPrompt(dynamicContext);
 
-            const textPrompt = this.promptBuilder.getAppDetectionPrompt(appName);
+            const boundsInfo = bounds ? ` [${bounds.width}x${bounds.height}]` : '';
+            const textPrompt = this.promptBuilder.getAppDetectionPrompt(appName + boundsInfo);
 
             // Only gather NEW (unsent) screenshots
             const windowScreenshots = (this.screenshotBuffers[appName] || []).filter(s => !s.sent);
