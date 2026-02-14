@@ -60,9 +60,10 @@ class AIChatClient {
         if (!this.isConfigured()) throw new Error('API not configured');
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 60000);
+        const timeoutId = setTimeout(() => controller.abort(), 120000);
 
         try {
+            console.log('[AIChatClient] Requesting with max_tokens: 2048');
             const response = await fetch(`${this.baseURL}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -72,8 +73,8 @@ class AIChatClient {
                 body: JSON.stringify({
                     model: this.modelName,
                     messages: messages,
-                    max_tokens: 1024,
-                    temperature: 0.8
+                    max_tokens: 2048,
+                    temperature: 1.0
                 }),
                 signal: controller.signal
             });
@@ -93,7 +94,7 @@ class AIChatClient {
             return this.cleanResponse(data.choices[0].message.content.trim());
         } catch (error) {
             clearTimeout(timeoutId);
-            if (error.name === 'AbortError') throw new Error('API request timeout (60s)');
+            if (error.name === 'AbortError') throw new Error('API request timeout (120s)');
             throw error;
         }
     }
