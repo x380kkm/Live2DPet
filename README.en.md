@@ -207,6 +207,25 @@ Please record the log output when the issue occurs and include it when submittin
 
 ## Changelog
 
+### v1.6.1 — Hot-Reload & Auto-Restart Improvements
+
+- Model config changes now hot-reload the pet window without restart
+- VVM download auto-adds to config and restarts TTS
+- VVM save button now restarts the app automatically
+- Fixed TTS restart failure caused by duplicate koffi type registration
+- Fixed app relaunch for portable exe builds
+
+### v1.6.0 — System Tray Support
+
+- Added system tray icon, app minimizes to tray area
+- Settings window auto-hides to tray when pet starts
+- Left-click tray icon to reopen settings window
+- Right-click tray menu: Show Settings / Show/Hide Pet / Quit
+- Closing settings window no longer quits the app, hides to tray instead
+
+<details>
+<summary>Earlier Versions</summary>
+
 ### v1.5.0 — Multi-Language UI
 
 - Added i18n support for settings UI (English / 中文 / 日本語)
@@ -239,10 +258,12 @@ Please record the log output when the issue occurs and include it when submittin
 - Crop scale control for different aspect ratio character images
 - Supports PNG / JPG / WebP
 
-### Earlier Versions
+### Earlier
 
 - v1.1.0 — Fast response mode, conversation history buffer, screenshot dedup, language-agnostic translation & emotion
 - v1.0.0 — Initial release: Live2D desktop pet, AI visual awareness, VOICEVOX TTS, emotion/expression system
+
+</details>
 
 ## License
 
