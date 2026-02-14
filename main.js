@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, Tray, dialog, shell } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
@@ -9,6 +9,8 @@ const I18N = require('./src/i18n/locales');
 let petWindow = null;
 let chatBubbleWindow = null;
 let settingsWindow = null;
+let tray = null;
+let isQuitting = false;
 let characterData = { isLive2DActive: true, live2dModelPath: null };
 let pathUtils = null;
 let ttsService = null;
@@ -158,6 +160,51 @@ function mt(key) {
     return (I18N[_cachedLang] && I18N[_cachedLang][key]) || (I18N['en'] && I18N['en'][key]) || key;
 }
 
+// ========== System Tray ==========
+
+function createTray() {
+    tray = new Tray(path.join(__dirname, 'assets', 'app-icon.png'));
+    tray.setToolTip('Live2DPet');
+    tray.on('click', () => {
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.show();
+            settingsWindow.focus();
+        } else {
+            createSettingsWindow();
+        }
+    });
+    updateTrayMenu();
+}
+
+function updateTrayMenu() {
+    if (!tray) return;
+    const hasPet = petWindow && !petWindow.isDestroyed();
+    const template = [
+        { label: mt('tray.showSettings'), click: () => {
+            if (settingsWindow && !settingsWindow.isDestroyed()) {
+                settingsWindow.show();
+                settingsWindow.focus();
+            } else {
+                createSettingsWindow();
+            }
+        }},
+        { label: hasPet ? mt('tray.hidePet') : mt('tray.showPet'), click: () => {
+            if (petWindow && !petWindow.isDestroyed()) {
+                petWindow.close();
+            } else if (settingsWindow && !settingsWindow.isDestroyed()) {
+                settingsWindow.show();
+                settingsWindow.focus();
+            }
+        }},
+        { type: 'separator' },
+        { label: mt('tray.quit'), click: () => {
+            isQuitting = true;
+            app.quit();
+        }}
+    ];
+    tray.setContextMenu(Menu.buildFromTemplate(template));
+}
+
 // ========== App Lifecycle ==========
 
 app.whenReady().then(() => {
@@ -169,6 +216,7 @@ app.whenReady().then(() => {
     ttsService = new TTSService();
     translationService = new TranslationService();
     createSettingsWindow();
+    createTray();
 
     // Initialize TTS after windows are created (non-blocking)
     setImmediate(() => {
@@ -196,7 +244,13 @@ app.whenReady().then(() => {
 });
 
 app.on('window-all-closed', () => {
+    // Don't quit while tray is active
+    if (tray) return;
     if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('before-quit', () => {
+    isQuitting = true;
 });
 
 // ========== Settings Window ==========
@@ -214,6 +268,13 @@ function createSettingsWindow() {
         }
     });
     settingsWindow.loadFile('index.html');
+    settingsWindow.on('close', (e) => {
+        if (!isQuitting) {
+            e.preventDefault();
+            settingsWindow.hide();
+            return;
+        }
+    });
     settingsWindow.on('closed', () => { settingsWindow = null; });
 }
 
@@ -253,7 +314,14 @@ ipcMain.handle('create-pet-window', async (event, data) => {
             if (settingsWindow && !settingsWindow.isDestroyed()) {
                 settingsWindow.webContents.send('pet-window-closed');
             }
+            updateTrayMenu();
         });
+
+        // Hide settings window to tray when pet starts
+        if (settingsWindow && !settingsWindow.isDestroyed()) {
+            settingsWindow.hide();
+        }
+        updateTrayMenu();
 
         return { success: true };
     } catch (error) {

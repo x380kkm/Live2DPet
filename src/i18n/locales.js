@@ -167,6 +167,8 @@ const I18N = {
     'main.setupVvmExists': '0.vvm already exists',
     'main.setupDone': 'Installation complete!',
     'main.setupFail': 'Installation failed: ',
+    // Tray menu
+    'tray.showSettings': 'Show Settings', 'tray.showPet': 'Show Pet', 'tray.hidePet': 'Hide Pet', 'tray.quit': 'Quit',
   },
   zh: {
     'lang.label': '语言',
@@ -332,6 +334,8 @@ const I18N = {
     'main.setupVvmExists': '0.vvm 已存在',
     'main.setupDone': '安装完成!',
     'main.setupFail': '安装失败: ',
+    // 托盘菜单
+    'tray.showSettings': '显示设置', 'tray.showPet': '显示宠物', 'tray.hidePet': '隐藏宠物', 'tray.quit': '退出',
   },
   ja: {
     'lang.label': '言語',
@@ -497,6 +501,8 @@ const I18N = {
     'main.setupVvmExists': '0.vvm は既に存在します',
     'main.setupDone': 'インストール完了！',
     'main.setupFail': 'インストール失敗: ',
+    // トレイメニュー
+    'tray.showSettings': '設定を表示', 'tray.showPet': 'ペットを表示', 'tray.hidePet': 'ペットを非表示', 'tray.quit': '終了',
   }
 };
 
