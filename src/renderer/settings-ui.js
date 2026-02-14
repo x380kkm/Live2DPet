@@ -8,6 +8,38 @@ let suggestedMapping = null;
 let scannedParamIds = [];
 let scannedMotions = {};  // {group: [{file}]} from scan-model-info
 
+// ========== i18n System ==========
+let currentLang = 'en';
+
+function t(key) {
+    return (window.I18N && window.I18N[currentLang] && window.I18N[currentLang][key])
+        || (window.I18N && window.I18N['en'] && window.I18N['en'][key])
+        || key;
+}
+
+function applyI18n() {
+    document.querySelectorAll('[data-i18n]').forEach(el => {
+        el.textContent = t(el.dataset.i18n);
+    });
+    document.querySelectorAll('[data-i18n-ph]').forEach(el => {
+        el.placeholder = t(el.dataset.i18nPh);
+    });
+}
+
+function setLanguage(lang) {
+    currentLang = lang;
+    document.getElementById('lang-select').value = lang;
+    applyI18n();
+    if (window.electronAPI) window.electronAPI.saveConfig({ uiLanguage: lang });
+    // Reload character card in new language (for built-in i18n cards)
+    if (currentCharacterId) loadCharacterPrompt(currentCharacterId);
+    reloadPetPrompt();
+}
+
+document.getElementById('lang-select').addEventListener('change', (e) => {
+    setLanguage(e.target.value);
+});
+
 document.addEventListener('DOMContentLoaded', async () => {
     petSystem = new DesktopPetSystem();
     await petSystem.init();
@@ -35,6 +67,12 @@ document.addEventListener('DOMContentLoaded', async () => {
     // Load full config
     if (window.electronAPI && window.electronAPI.loadConfig) {
         const fileConfig = await window.electronAPI.loadConfig();
+        // Load UI language
+        if (fileConfig.uiLanguage && window.I18N && window.I18N[fileConfig.uiLanguage]) {
+            currentLang = fileConfig.uiLanguage;
+            document.getElementById('lang-select').value = currentLang;
+        }
+        applyI18n();
         if (fileConfig.interval) {
             document.getElementById('interval').value = fileConfig.interval;
             petSystem.setInterval(parseInt(fileConfig.interval) * 1000);
@@ -53,6 +91,8 @@ document.addEventListener('DOMContentLoaded', async () => {
         currentModelConfig = fileConfig.model || { type: 'none' };
         loadModelUI();
         loadEmotionUI(fileConfig);
+        // Reload prompt with correct language (after language is set)
+        await reloadPetPrompt();
     }
 });
 
@@ -142,8 +182,8 @@ if (window.electronAPI && window.electronAPI.onPetHoverState) {
 
 // ========== Model Tab ==========
 const PARAM_LABELS = {
-    angleX: '头部左右', angleY: '头部上下', angleZ: '头部倾斜',
-    bodyAngleX: '身体左右', eyeBallX: '眼球左右', eyeBallY: '眼球上下'
+    angleX: 'param.angleX', angleY: 'param.angleY', angleZ: 'param.angleZ',
+    bodyAngleX: 'param.bodyAngleX', eyeBallX: 'param.eyeBallX', eyeBallY: 'param.eyeBallY'
 };
 
 function loadModelUI() {
@@ -293,7 +333,7 @@ function renderParamMapping() {
     const container = document.getElementById('param-mapping-list');
     container.innerHTML = '';
     const pm = currentModelConfig.paramMapping || {};
-    for (const [key, label] of Object.entries(PARAM_LABELS)) {
+    for (const [key, labelKey] of Object.entries(PARAM_LABELS)) {
         const mapped = pm[key];
         const suggested = suggestedMapping ? suggestedMapping[key] : null;
         // Sort: suggested first, then rest alphabetically
@@ -305,7 +345,7 @@ function renderParamMapping() {
         const row = document.createElement('div');
         row.className = 'param-row';
         row.innerHTML = `
-            <span class="param-label">${label}</span>
+            <span class="param-label">${t(labelKey)}</span>
             <select class="param-select" data-key="${key}" style="flex:1;padding:4px;font-size:12px;border-radius:4px;">
                 <option value="">未映射</option>
                 ${sorted.map(id =>
@@ -716,6 +756,7 @@ function fillPromptFields(data) {
     document.getElementById('prompt-personality').value = data.personality || '';
     document.getElementById('prompt-scenario').value = data.scenario || '';
     document.getElementById('prompt-rules').value = data.rules || '';
+    document.getElementById('prompt-language').value = data.language || '';
 }
 
 async function loadCharacterList() {
@@ -726,7 +767,7 @@ async function loadCharacterList() {
     for (const c of characters) {
         const opt = document.createElement('option');
         opt.value = c.id;
-        opt.textContent = c.name;
+        opt.textContent = c.builtin ? `${c.name} ${t('card.builtin')}` : c.name;
         select.appendChild(opt);
     }
     select.value = activeCharacterId;
@@ -739,13 +780,18 @@ async function loadCharacterPrompt(id) {
     const result = await window.electronAPI.loadPrompt(id);
     if (result.success) {
         currentCharacterId = result.id || id;
-        fillPromptFields(result.data);
+        // Resolve i18n for built-in cards (display in current UI language)
+        let data = { ...result.data };
+        if (result.i18n && currentLang && result.i18n[currentLang]) {
+            Object.assign(data, result.i18n[currentLang]);
+        }
+        fillPromptFields(data);
     }
 }
 
 async function reloadPetPrompt() {
     if (petSystem && petSystem.promptBuilder) {
-        await petSystem.promptBuilder.loadCharacterPrompt(currentCharacterId);
+        await petSystem.promptBuilder.loadCharacterPrompt(currentCharacterId, currentLang);
         petSystem.systemPrompt = petSystem.promptBuilder.buildSystemPrompt();
     }
 }
@@ -756,7 +802,7 @@ document.getElementById('character-select').addEventListener('change', async (e)
     currentCharacterId = id;
     await loadCharacterPrompt(id);
     await reloadPetPrompt();
-    showStatus('prompt-status', '已切换角色', 'success');
+    showStatus('prompt-status', t('status.switched'), 'success');
 });
 
 // Inline name input helper
@@ -785,13 +831,13 @@ document.getElementById('btn-confirm-name').addEventListener('click', async () =
         if (result.success) {
             await window.electronAPI.setActiveCharacter(result.id);
             await loadCharacterList();
-            showStatus('prompt-status', '已创建: ' + name, 'success');
+            showStatus('prompt-status', t('status.created') + name, 'success');
         }
     } else if (_nameAction === 'rename' && currentCharacterId) {
         const result = await window.electronAPI.renameCharacter(currentCharacterId, name);
         if (result.success) {
             await loadCharacterList();
-            showStatus('prompt-status', '已改名', 'success');
+            showStatus('prompt-status', t('status.renamed'), 'success');
         }
     }
     hideNameInput();
@@ -808,6 +854,16 @@ document.getElementById('btn-new-character').addEventListener('click', () => {
     showNameInput('', 'new');
 });
 
+document.getElementById('btn-import-character').addEventListener('click', async () => {
+    const result = await window.electronAPI.importCharacter();
+    if (result.success && result.imported.length > 0) {
+        const last = result.imported[result.imported.length - 1];
+        await window.electronAPI.setActiveCharacter(last.id);
+        await loadCharacterList();
+        showStatus('prompt-status', t('status.created') + last.name, 'success');
+    }
+});
+
 document.getElementById('btn-rename-character').addEventListener('click', () => {
     if (!currentCharacterId) return;
     const select = document.getElementById('character-select');
@@ -821,7 +877,7 @@ document.getElementById('btn-delete-character').addEventListener('click', async 
     if (result.success) {
         await loadCharacterList();
         await reloadPetPrompt();
-        showStatus('prompt-status', '已删除', 'success');
+        showStatus('prompt-status', t('status.deleted'), 'success');
     } else {
         showStatus('prompt-status', result.error, 'error');
     }
@@ -836,14 +892,15 @@ document.getElementById('btn-save-prompt').addEventListener('click', async () =>
         description: document.getElementById('prompt-desc').value,
         personality: document.getElementById('prompt-personality').value,
         scenario: document.getElementById('prompt-scenario').value,
-        rules: document.getElementById('prompt-rules').value
+        rules: document.getElementById('prompt-rules').value,
+        language: document.getElementById('prompt-language').value
     };
     const result = await window.electronAPI.savePrompt(currentCharacterId, promptData);
     if (result.success) {
-        showStatus('prompt-status', '已保存', 'success');
+        showStatus('prompt-status', t('status.saved'), 'success');
         await reloadPetPrompt();
     } else {
-        showStatus('prompt-status', '保存失败: ' + result.error, 'error');
+        showStatus('prompt-status', t('status.saveFail') + result.error, 'error');
     }
 });
 

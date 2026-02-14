@@ -198,6 +198,29 @@ describe('PetPromptBuilder', () => {
         assert.ok(prompt.includes('Test scenario'));
     });
 
+    it('buildSystemPrompt appends language instruction when set', () => {
+        const builder = new PetPromptBuilder();
+        builder.characterPrompt = {
+            description: 'Desc',
+            personality: 'Pers',
+            rules: 'Rule 1',
+            language: '中文'
+        };
+        const prompt = builder.buildSystemPrompt();
+        assert.ok(prompt.includes('使用中文。'));
+    });
+
+    it('buildSystemPrompt omits language when empty', () => {
+        const builder = new PetPromptBuilder();
+        builder.characterPrompt = {
+            description: 'Desc',
+            personality: 'Pers',
+            language: ''
+        };
+        const prompt = builder.buildSystemPrompt();
+        assert.ok(!prompt.includes('使用。'));
+    });
+
     it('init falls back to default on fetch failure', async () => {
         global.fetch = async () => { throw new Error('network error'); };
         const builder = new PetPromptBuilder();

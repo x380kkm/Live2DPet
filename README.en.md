@@ -69,6 +69,7 @@ Open the settings panel and fill in the "API Settings" tab with your API URL, ke
 
 Vision-capable models are recommended for screenshot awareness:
 - Budget-friendly: Grok series
+- Mid-range: GPT-o3 / GPT-5.1
 - High quality: Gemini 3 Pro Preview
 
 Translation API (for TTS Japanese translation):
@@ -204,6 +205,23 @@ Please record the log output when the issue occurs and include it when submittin
 
 ## Changelog
 
+### v1.5.0 — Multi-Language UI
+
+- Added i18n support for settings UI (English / 中文 / 日本語)
+- Added UI language switcher
+- Updated built-in character card with a more distinctive default persona
+- Auto-sync built-in cards on version update; user-modified cards are cloned to preserve edits
+- Character card import via file picker and auto-scan of prompts folder
+- Built-in card label in character list
+
+### v1.4.0 — Translation & Chat Improvements
+
+- Separate translation API config from main API
+- Improved translation quality with increased API timeout
+- Message double-buffer mechanism with configurable chat gap
+- Strip English letters from AI response display
+- Added open-source notice with GitHub link in settings
+
 ### v1.3.0 — Documentation & UX Improvements
 
 - Streamlined API configuration guide with model recommendations (Grok / Gemini 3 Pro Preview)
@@ -232,6 +250,18 @@ MIT — See [LICENSE](LICENSE).
 
 - **Live2D Models**: No default model is included due to copyright — redistributable model contributions are welcome
 - **App Icon**: Currently using a developer avatar as placeholder — design submissions welcome
+- **Built-in Character Cards**: Fun character card submissions are welcome! Built-in cards must include zh/en/ja trilingual versions. To submit, modify `assets/prompts/<uuid>.json` (with `i18n` field) and `ensureDefaultCharacters()` in `main.js`. See existing built-in cards for format reference
+
+<details>
+<summary>Built-in Character Cards</summary>
+
+> English and Japanese versions are machine-translated. Proofreading contributions welcome.
+
+| Character | 中文 | English | 日本語 | Note |
+|-----------|------|---------|--------|------|
+| 后辈 / Kouhai / 後輩 | ✅ Source | ✅ MT | ✅ MT | Default character, sharp-tongued kouhai desktop pet |
+
+</details>
 
 ## Contributors
 

@@ -487,6 +487,48 @@ if (app.isPackaged && !fs.existsSync(promptsDir)) {
     }
 }
 
+// Auto-update built-in character cards when app version changes
+if (app.isPackaged) {
+    const versionFile = path.join(promptsDir, '.bundled-version');
+    const currentVersion = app.getVersion();
+    let lastVersion = '';
+    try { lastVersion = fs.readFileSync(versionFile, 'utf-8').trim(); } catch {}
+    if (lastVersion !== currentVersion) {
+        try {
+            const config = loadConfigFile();
+            const files = fs.readdirSync(bundledPromptsDir);
+            const clonedIds = [];
+            for (const f of files) {
+                if (!f.endsWith('.json')) continue;
+                const destPath = path.join(promptsDir, f);
+                // If user modified the built-in card (builtin flag removed by save-prompt), clone it first
+                if (fs.existsSync(destPath)) {
+                    try {
+                        const existing = JSON.parse(fs.readFileSync(destPath, 'utf-8'));
+                        if (!existing.builtin) {
+                            // User modified this card — clone as new card to preserve their edits
+                            const cloneId = crypto.randomUUID();
+                            const clonePath = path.join(promptsDir, `${cloneId}.json`);
+                            fs.copyFileSync(destPath, clonePath);
+                            clonedIds.push(cloneId);
+                            console.log(`[Prompts] Cloned user-modified card ${f} → ${cloneId}`);
+                        }
+                    } catch {}
+                }
+                fs.copyFileSync(path.join(bundledPromptsDir, f), destPath);
+            }
+            if (clonedIds.length > 0) {
+                const characters = [...(config.characters || []), ...clonedIds.map(id => ({ id }))];
+                saveConfigFile({ characters });
+            }
+            fs.writeFileSync(versionFile, currentVersion, 'utf-8');
+            console.log(`[Prompts] Updated bundled cards to v${currentVersion}`);
+        } catch (e) {
+            console.error('[Prompts] Failed to update bundled prompts:', e.message);
+        }
+    }
+}
+
 function getCharacterPath(id) {
     return path.join(promptsDir, `${id}.json`);
 }
@@ -496,31 +538,59 @@ function ensureDefaultCharacters() {
     if (config.characters && config.characters.length > 0) return;
     // Migration: create defaults if no characters exist
     const defaults = [
-        { id: 'c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3' },
-        { id: '41529ce1-c2ad-4e3d-bf4d-85f4472d5209' }
+        { id: '2bcf3d8a-85e8-47dd-aa07-792fe91cca26' }
     ];
     saveConfigFile({
         characters: defaults,
-        activeCharacterId: defaults[1].id
+        activeCharacterId: defaults[0].id
     });
 }
 
-function readCardName(id) {
+function syncUnlinkedCards() {
+    try {
+        const config = loadConfigFile();
+        const knownIds = new Set((config.characters || []).map(c => c.id));
+        const files = fs.readdirSync(promptsDir);
+        const newCards = [];
+        for (const f of files) {
+            if (!f.endsWith('.json')) continue;
+            const id = f.replace('.json', '');
+            if (knownIds.has(id)) continue;
+            // Validate it's a real character card
+            try {
+                const data = JSON.parse(fs.readFileSync(path.join(promptsDir, f), 'utf-8'));
+                if (data.data || data.name || data.cardName) {
+                    newCards.push({ id });
+                    console.log(`[Prompts] Auto-linked unlinked card: ${f}`);
+                }
+            } catch {}
+        }
+        if (newCards.length > 0) {
+            const characters = [...(config.characters || []), ...newCards];
+            saveConfigFile({ characters });
+        }
+    } catch (e) {
+        console.error('[Prompts] Failed to sync unlinked cards:', e.message);
+    }
+}
+
+function readCardInfo(id) {
     try {
         const filePath = getCharacterPath(id);
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
         const d = data.data || data;
-        return d.cardName || d.name || id;
-    } catch { return id; }
+        return { name: d.cardName || d.name || id, builtin: !!data.builtin };
+    } catch { return { name: id, builtin: false }; }
 }
 
 ipcMain.handle('list-characters', async () => {
     ensureDefaultCharacters();
+    syncUnlinkedCards();
     const config = loadConfigFile();
-    const characters = (config.characters || []).map(c => ({
-        id: c.id,
-        name: readCardName(c.id)
-    }));
+    const characters = (config.characters || []).map(c => {
+        const info = readCardInfo(c.id);
+        return { id: c.id, name: info.name, builtin: info.builtin };
+    });
     return {
         characters,
         activeCharacterId: config.activeCharacterId || ''
@@ -536,7 +606,7 @@ ipcMain.handle('load-prompt', async (event, id) => {
         const filePath = getCharacterPath(id);
         if (!fs.existsSync(filePath)) return { success: false, error: 'not found' };
         const data = JSON.parse(fs.readFileSync(filePath, 'utf-8'));
-        return { success: true, data: data.data || data, id };
+        return { success: true, data: data.data || data, i18n: data.i18n || null, builtin: !!data.builtin, id };
     } catch (e) {
         return { success: false, error: e.message };
     }
@@ -555,17 +625,18 @@ ipcMain.handle('save-prompt', async (event, id, promptData) => {
 ipcMain.handle('create-character', async (event, name) => {
     try {
         const id = crypto.randomUUID();
-        const cardName = name || '新角色';
+        const cardName = name || 'New Character';
         const blank = {
             data: {
                 cardName,
                 name: cardName,
                 userIdentity: '',
-                userTerm: '你',
+                userTerm: '',
                 description: '',
                 personality: '',
                 scenario: '',
-                rules: ''
+                rules: '',
+                language: ''
             }
         };
         fs.writeFileSync(getCharacterPath(id), JSON.stringify(blank, null, 2), 'utf-8');
@@ -573,6 +644,35 @@ ipcMain.handle('create-character', async (event, name) => {
         const characters = [...(config.characters || []), { id }];
         saveConfigFile({ characters });
         return { success: true, id, name: cardName };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('import-character', async () => {
+    try {
+        const result = await dialog.showOpenDialog({
+            title: 'Import Character Card',
+            filters: [{ name: 'JSON', extensions: ['json'] }],
+            properties: ['openFile', 'multiSelections']
+        });
+        if (result.canceled || !result.filePaths.length) return { success: false, error: 'canceled' };
+        const imported = [];
+        const config = loadConfigFile();
+        const characters = [...(config.characters || [])];
+        for (const srcPath of result.filePaths) {
+            const data = JSON.parse(fs.readFileSync(srcPath, 'utf-8'));
+            if (!data.data && !data.name && !data.cardName) continue;
+            const id = crypto.randomUUID();
+            // Strip builtin flag from imported cards
+            delete data.builtin;
+            fs.writeFileSync(getCharacterPath(id), JSON.stringify(data, null, 2), 'utf-8');
+            characters.push({ id });
+            const d = data.data || data;
+            imported.push({ id, name: d.cardName || d.name || id });
+        }
+        if (imported.length > 0) saveConfigFile({ characters });
+        return { success: true, imported };
     } catch (e) {
         return { success: false, error: e.message };
     }

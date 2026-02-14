@@ -4,6 +4,7 @@
   "baseURL": "https://openrouter.ai/api/v1",
   "modelName": "x-ai/grok-4.1-fast",
   "interval": 30,
+  "chatGap": 5,
   "emotionFrequency": 30,
   "enabledEmotions": [],
   "model": {
@@ -37,15 +38,10 @@
   },
   "appIcon": "",
   "allowSimultaneous": true,
-  "activeCharacterId": "c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3",
+  "activeCharacterId": "2bcf3d8a-85e8-47dd-aa07-792fe91cca26",
   "characters": [
     {
-      "id": "c4f2fb6a-30df-4f7f-a7b7-d150a9313ab3",
-      "name": "直播主"
-    },
-    {
-      "id": "41529ce1-c2ad-4e3d-bf4d-85f4472d5209",
-      "name": "妹妹"
+      "id": "2bcf3d8a-85e8-47dd-aa07-792fe91cca26"
     }
   ],
   "tts": {
@@ -65,5 +61,6 @@
       "ふーん",
       "あっ"
     ]
-  }
+  },
+  "uiLanguage": "zh"
 }

@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="zh-CN">
+<html lang="en">
 <head>
     <meta charset="UTF-8">
     <title>Desktop Pet Settings</title>
@@ -102,112 +102,128 @@
             width: 70px; padding: 2px 4px; font-size: 12px;
             border: 1px solid #ddd; border-radius: 4px;
         }
+        .lang-switcher {
+            display: flex; align-items: center; gap: 8px;
+            margin-bottom: 12px; font-size: 13px;
+        }
+        .lang-switcher select {
+            width: auto; margin-bottom: 0; padding: 4px 8px;
+        }
     </style>
 </head>
 <body>
+    <div class="lang-switcher">
+        <label data-i18n="lang.label">Language</label>
+        <select id="lang-select">
+            <option value="en">English</option>
+            <option value="zh">中文</option>
+            <option value="ja">日本語</option>
+        </select>
+    </div>
+
     <h1>Desktop Pet</h1>
 
     <div class="tabs">
-        <button class="tab-btn active" data-tab="settings">设置</button>
-        <button class="tab-btn" data-tab="model">模型</button>
-        <button class="tab-btn" data-tab="emotion">表情</button>
-        <button class="tab-btn" data-tab="tts">TTS</button>
-        <button class="tab-btn" data-tab="prompt">Prompt</button>
+        <button class="tab-btn active" data-tab="settings" data-i18n="tab.settings">Settings</button>
+        <button class="tab-btn" data-tab="model" data-i18n="tab.model">Model</button>
+        <button class="tab-btn" data-tab="emotion" data-i18n="tab.emotion">Emotion</button>
+        <button class="tab-btn" data-tab="tts" data-i18n="tab.tts">TTS</button>
+        <button class="tab-btn" data-tab="prompt" data-i18n="tab.prompt">Prompt</button>
     </div>
 
     <!-- Settings Tab -->
     <div id="tab-settings" class="tab-content active">
     <div class="card">
-        <h2>API Configuration</h2>
-        <p style="font-size:12px;color:#888;margin-bottom:8px;">提示：可在淘宝/闲鱼搜索「OpenRouter账号」获取账号，然后前往 openrouter.ai/keys 创建 API Key</p>
-        <label>API Base URL</label>
+        <h2 data-i18n="api.title">API Configuration</h2>
+        <p style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="api.hint">Tip: Register at openrouter.ai and go to openrouter.ai/keys to create an API Key. Supports many models including Grok, Gemini, etc.</p>
+        <label data-i18n="api.baseUrl">API Base URL</label>
         <input type="text" id="api-url" placeholder="https://openrouter.ai/api/v1">
-        <label>API Key</label>
+        <label data-i18n="api.key">API Key</label>
         <input type="password" id="api-key" placeholder="sk-...">
-        <label>Model Name</label>
+        <label data-i18n="api.model">Model Name</label>
         <input type="text" id="model-name" placeholder="x-ai/grok-4.1-fast">
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-save-api">Save</button>
-            <button class="btn btn-secondary" id="btn-test-api">Test</button>
+            <button class="btn btn-primary" id="btn-save-api" data-i18n="btn.save">Save</button>
+            <button class="btn btn-secondary" id="btn-test-api" data-i18n="btn.test">Test</button>
         </div>
         <div class="status" id="api-status"></div>
     </div>
     <div class="card">
-        <h2>翻译 API (TTS用)</h2>
-        <p style="font-size:12px;color:#888;margin-bottom:8px;">留空则复用上方主 API 设置</p>
+        <h2 data-i18n="tl.title">Translation API (for TTS)</h2>
+        <p style="font-size:12px;color:#888;margin-bottom:8px;" data-i18n="tl.hint">Leave empty to reuse main API settings</p>
         <label>API Base URL</label>
-        <input type="text" id="tl-api-url" placeholder="留空=复用主API">
+        <input type="text" id="tl-api-url" data-i18n-ph="tl.placeholder">
         <label>API Key</label>
-        <input type="password" id="tl-api-key" placeholder="留空=复用主API">
+        <input type="password" id="tl-api-key" data-i18n-ph="tl.placeholder">
         <label>Model Name</label>
-        <input type="text" id="tl-model-name" placeholder="留空=复用主API">
-        <button class="btn btn-primary" id="btn-save-tl">Save</button>
+        <input type="text" id="tl-model-name" data-i18n-ph="tl.placeholder">
+        <button class="btn btn-primary" id="btn-save-tl" data-i18n="btn.save">Save</button>
         <div class="status" id="tl-status"></div>
     </div>
     <div class="card">
-        <h2>Detection Settings</h2>
-        <label>API 发送频率 (秒)</label>
+        <h2 data-i18n="detect.title">Detection Settings</h2>
+        <label data-i18n="detect.interval">API send frequency (sec)</label>
         <input type="number" id="interval" value="30" min="10" max="300">
-        <label>对话最小间隔 (秒)</label>
+        <label data-i18n="detect.chatGap">Min chat gap (sec)</label>
         <input type="number" id="chat-gap" value="5" min="0" max="60">
-        <button class="btn btn-primary" id="btn-save-interval">Save</button>
+        <button class="btn btn-primary" id="btn-save-interval" data-i18n="btn.save">Save</button>
     </div>
     <div class="card">
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-start" style="flex:1">Start Pet</button>
-            <button class="btn btn-danger" id="btn-stop" style="flex:1">Stop Pet</button>
+            <button class="btn btn-primary" id="btn-start" style="flex:1" data-i18n="btn.start">Start Pet</button>
+            <button class="btn btn-danger" id="btn-stop" style="flex:1" data-i18n="btn.stop">Stop Pet</button>
         </div>
     </div>
     <div class="card" style="text-align:center;font-size:12px;color:#888;padding:8px">
-        开源免费 到<a href="#" id="link-github" style="color:#58a6ff">GitHub</a>下载最新软件 喜欢的话点个star吧
+        <span data-i18n="footer.text">Open source & free. Get the latest version on</span> <a href="#" id="link-github" style="color:#58a6ff" data-i18n="footer.star">GitHub</a>
     </div>
     </div>
 
     <!-- Model Tab -->
     <div id="tab-model" class="tab-content">
     <div class="card">
-        <h2>模型模式</h2>
+        <h2 data-i18n="model.mode">Model Mode</h2>
         <select id="model-type">
-            <option value="none">无模型 (引导)</option>
-            <option value="live2d">Live2D</option>
-            <option value="image">图片文件夹</option>
+            <option value="none" data-i18n="model.none">No Model (Guide)</option>
+            <option value="live2d" data-i18n="model.live2d">Live2D</option>
+            <option value="image" data-i18n="model.image">Image Folder</option>
         </select>
         <div class="status" id="model-status"></div>
     </div>
     <div class="card" id="card-live2d" style="display:none">
-        <h2>Live2D 模型</h2>
+        <h2 data-i18n="model.l2d.title">Live2D Model</h2>
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-import-l2d">选择模型文件夹</button>
+            <button class="btn btn-primary" id="btn-import-l2d" data-i18n="model.l2d.select">Select Model Folder</button>
         </div>
         <div id="l2d-info" class="model-info"></div>
         <label style="display:inline-flex;align-items:center;gap:4px;margin-top:8px;">
-            <input type="checkbox" id="copy-to-userdata" checked> 复制到应用数据目录
+            <input type="checkbox" id="copy-to-userdata" checked> <span data-i18n="model.l2d.copy">Copy to app data directory</span>
         </label>
         <div id="l2d-path-status"></div>
     </div>
     <div class="card" id="card-param-mapping" style="display:none">
-        <h2>参数映射</h2>
+        <h2 data-i18n="model.param.title">Parameter Mapping</h2>
         <div id="param-mapping-list"></div>
         <div class="btn-row">
-            <button class="btn btn-secondary btn-sm" id="btn-apply-suggested">应用建议映射</button>
+            <button class="btn btn-secondary btn-sm" id="btn-apply-suggested" data-i18n="model.param.apply">Apply Suggested Mapping</button>
         </div>
     </div>
     <div class="card" id="card-canvas-y" style="display:none">
-        <h2>Canvas Y 锚点</h2>
+        <h2 data-i18n="model.canvas.title">Canvas Y Anchor</h2>
         <div class="slider-row">
             <input type="range" id="canvas-y-slider" min="0.3" max="0.9" step="0.01" value="0.60">
             <span class="slider-val" id="canvas-y-val">0.60</span>
         </div>
     </div>
     <div class="card" id="card-image" style="display:none">
-        <h2>图片文件夹</h2>
+        <h2 data-i18n="model.img.title">Image Folder</h2>
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-select-image-folder">选择图片文件夹</button>
+            <button class="btn btn-primary" id="btn-select-image-folder" data-i18n="model.img.select">Select Image Folder</button>
         </div>
         <div id="folder-info" class="model-info"></div>
         <div id="image-list-container" style="display:none; margin-top:12px;">
             <div style="margin-bottom:8px;">
-                <label>裁剪缩放 (1.0=原始, 越大裁剪越多底部)</label>
+                <label data-i18n="model.img.crop">Crop Scale (1.0=original, higher crops more bottom)</label>
                 <div class="slider-row">
                     <input type="range" id="image-crop-slider" min="0.8" max="2.0" step="0.05" value="1.0">
                     <span class="slider-val" id="image-crop-val">1.00</span>
@@ -217,65 +233,65 @@
         </div>
     </div>
     <div class="card">
-        <h2>气泡框</h2>
+        <h2 data-i18n="model.bubble.title">Bubble Frame</h2>
         <div class="btn-row">
-            <button class="btn btn-secondary" id="btn-select-bubble">选择气泡框图片</button>
-            <button class="btn btn-secondary" id="btn-clear-bubble">清除</button>
+            <button class="btn btn-secondary" id="btn-select-bubble" data-i18n="model.bubble.select">Select Bubble Image</button>
+            <button class="btn btn-secondary" id="btn-clear-bubble" data-i18n="model.bubble.clear">Clear</button>
         </div>
         <div id="bubble-info" class="model-info"></div>
     </div>
     <div class="card">
-        <h2>应用图标</h2>
+        <h2 data-i18n="model.icon.title">App Icon</h2>
         <div style="display:flex;align-items:center;gap:8px;">
             <img id="icon-preview" class="icon-preview" src="" style="display:none">
-            <button class="btn btn-secondary" id="btn-select-icon">选择图标</button>
+            <button class="btn btn-secondary" id="btn-select-icon" data-i18n="model.icon.select">Select Icon</button>
         </div>
         <div id="icon-info" class="model-info"></div>
     </div>
     <div class="card">
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-save-model">保存模型设置</button>
-            <button class="btn btn-danger" id="btn-clear-model">清除模型</button>
+            <button class="btn btn-primary" id="btn-save-model" data-i18n="model.save">Save Model Settings</button>
+            <button class="btn btn-danger" id="btn-clear-model" data-i18n="model.clear">Clear Model</button>
         </div>
     </div>
     </div>
 
-    <!-- Emotion Tab (Dynamic) -->
+    <!-- Emotion Tab -->
     <div id="tab-emotion" class="tab-content">
     <div class="card">
-        <h2>表情频率</h2>
-        <label>期望频率 (秒, 最短 30)</label>
+        <h2 data-i18n="emo.freq.title">Expression Frequency</h2>
+        <label data-i18n="emo.freq.label">Expected frequency (sec, min 30)</label>
         <input type="number" id="emotion-frequency" value="60" min="30" max="600">
-        <button class="btn btn-primary" id="btn-save-emotion-freq">Save</button>
+        <button class="btn btn-primary" id="btn-save-emotion-freq" data-i18n="btn.save">Save</button>
         <div style="margin-top:8px;">
-            <label><input type="checkbox" id="allow-simultaneous"> 允许表情和动作同时播放</label>
+            <label><input type="checkbox" id="allow-simultaneous"> <span data-i18n="emo.simultaneous">Allow simultaneous expression & motion</span></label>
         </div>
         <div class="status" id="emotion-status"></div>
     </div>
     <div class="card">
-        <h2>表情列表</h2>
-        <p class="model-info" id="expr-hint">导入模型后，表情将自动加载。</p>
+        <h2 data-i18n="emo.expr.title">Expression List</h2>
+        <p class="model-info" id="expr-hint" data-i18n="emo.expr.hint">Expressions auto-load after model import.</p>
         <div id="expression-list"></div>
         <div class="btn-row">
-            <button class="btn btn-secondary btn-sm" id="btn-add-expr">添加表情</button>
+            <button class="btn btn-secondary btn-sm" id="btn-add-expr" data-i18n="emo.expr.add">Add Expression</button>
         </div>
         <div class="status" id="expr-status"></div>
     </div>
     <div class="card">
-        <h2>动作列表 (Motion)</h2>
-        <p class="model-info" id="motion-hint">导入模型后，动作将自动加载。</p>
+        <h2 data-i18n="emo.motion.title">Motion List</h2>
+        <p class="model-info" id="motion-hint" data-i18n="emo.motion.hint">Motions auto-load after model import.</p>
         <div id="motion-list"></div>
         <div class="btn-row">
-            <button class="btn btn-secondary btn-sm" id="btn-add-motion">添加动作</button>
+            <button class="btn btn-secondary btn-sm" id="btn-add-motion" data-i18n="emo.motion.add">Add Motion</button>
         </div>
         <div class="status" id="motion-status"></div>
     </div>
     <div class="card">
-        <label>默认表情时长 (秒)</label>
+        <label data-i18n="emo.defExprDur">Default expression duration (sec)</label>
         <input type="number" id="default-expr-duration" value="5" min="1" max="30" step="0.5">
-        <label>默认动作时长 (秒)</label>
+        <label data-i18n="emo.defMotionDur">Default motion duration (sec)</label>
         <input type="number" id="default-motion-duration" value="3" min="1" max="30" step="0.5">
-        <button class="btn btn-primary" id="btn-save-expressions">保存表情设置</button>
+        <button class="btn btn-primary" id="btn-save-expressions" data-i18n="emo.save">Save Expression Settings</button>
         <div class="status" id="save-emotion-status"></div>
     </div>
     </div>
@@ -283,69 +299,69 @@
     <!-- TTS Tab -->
     <div id="tab-tts" class="tab-content">
     <div class="card">
-        <h2>VOICEVOX TTS</h2>
+        <h2 data-i18n="tts.title">VOICEVOX TTS</h2>
         <div class="status" id="tts-status"></div>
-        <p class="model-info" id="tts-hint">需要 voicevox_core 目录。状态将在启动时自动检测。</p>
+        <p class="model-info" id="tts-hint" data-i18n="tts.hint">Requires voicevox_core directory. Status auto-detected on startup.</p>
         <div style="display:flex; gap:8px; align-items:center; margin:8px 0;">
-            <button class="btn btn-primary" id="btn-setup-voicevox">一键安装 VOICEVOX</button>
-            <button class="btn btn-secondary" id="btn-restart-tts" style="display:none;">重启 TTS</button>
+            <button class="btn btn-primary" id="btn-setup-voicevox" data-i18n="tts.setup">One-click Install VOICEVOX</button>
+            <button class="btn btn-secondary" id="btn-restart-tts" style="display:none;" data-i18n="tts.restart">Restart TTS</button>
         </div>
         <div class="status" id="voicevox-setup-status"></div>
-        <p class="model-info">需要网络连接。自动下载 Core + ONNX Runtime + 辞書 + 默认语音模型 (约120MB)。</p>
+        <p class="model-info" data-i18n="tts.dlNote">Requires internet. Auto-downloads Core + ONNX Runtime + Dictionary + Default voice model (~120MB).</p>
         <div style="margin-top:8px;">
-            <label><input type="checkbox" id="tts-gpu-mode"> GPU 加速 (DirectML)</label>
-            <p class="model-info">需要下载 voicevox_onnxruntime-win-x64-dml-1.17.3，保存后需重启 TTS。</p>
+            <label><input type="checkbox" id="tts-gpu-mode"> <span data-i18n="tts.gpu">GPU Acceleration (DirectML)</span></label>
+            <p class="model-info" data-i18n="tts.gpuNote">Requires downloading voicevox_onnxruntime-win-x64-dml-1.17.3. Restart TTS after saving.</p>
         </div>
     </div>
     <div class="card">
-        <h2>音频模式</h2>
+        <h2 data-i18n="tts.audioMode">Audio Mode</h2>
         <div style="display:flex;gap:16px;margin:8px 0;">
-            <label><input type="radio" name="audio-mode" value="tts" checked> TTS 语音合成</label>
-            <label><input type="radio" name="audio-mode" value="default-audio"> 默认音声</label>
-            <label><input type="radio" name="audio-mode" value="silent"> 静音</label>
+            <label><input type="radio" name="audio-mode" value="tts" checked> <span data-i18n="tts.mode.tts">TTS Voice Synthesis</span></label>
+            <label><input type="radio" name="audio-mode" value="default-audio"> <span data-i18n="tts.mode.default">Default Audio</span></label>
+            <label><input type="radio" name="audio-mode" value="silent"> <span data-i18n="tts.mode.silent">Silent</span></label>
         </div>
-        <p class="model-info" id="audio-mode-hint">TTS 不可用时自动降级到默认音声，再不可用则静音。</p>
+        <p class="model-info" id="audio-mode-hint" data-i18n="tts.modeHint">Auto fallback: TTS → Default Audio → Silent when unavailable.</p>
     </div>
     <div class="card">
-        <label>角色</label>
+        <label data-i18n="tts.speaker">Speaker</label>
         <select id="tts-speaker"></select>
-        <label>Style</label>
+        <label data-i18n="tts.style">Style</label>
         <select id="tts-style-id"></select>
-        <label>语速 (Speed)</label>
+        <label data-i18n="tts.speed">Speed</label>
         <input type="range" id="tts-speed" min="0.5" max="2.0" step="0.1" value="1.0">
         <span id="tts-speed-val">1.0</span>
-        <label>音高 (Pitch)</label>
+        <label data-i18n="tts.pitch">Pitch</label>
         <input type="range" id="tts-pitch" min="-0.15" max="0.15" step="0.01" value="0.0">
         <span id="tts-pitch-val">0.0</span>
-        <label>音量 (Volume)</label>
+        <label data-i18n="tts.volume">Volume</label>
         <input type="range" id="tts-volume" min="0.0" max="2.0" step="0.1" value="1.0">
         <span id="tts-volume-val">1.0</span>
-        <button class="btn btn-primary" id="btn-save-tts">保存 TTS 设置</button>
+        <button class="btn btn-primary" id="btn-save-tts" data-i18n="tts.save">Save TTS Settings</button>
         <div class="status" id="tts-save-status"></div>
     </div>
     <div class="card">
-        <h2>测试</h2>
-        <input type="text" id="tts-test-text" placeholder="输入中文测试..." value="你好，我是你的桌面宠物">
-        <button class="btn btn-secondary" id="btn-test-tts">测试语音</button>
+        <h2 data-i18n="tts.test.title">Test</h2>
+        <input type="text" id="tts-test-text" data-i18n-ph="tts.test.placeholder" value="">
+        <button class="btn btn-secondary" id="btn-test-tts" data-i18n="tts.test.btn">Test Voice</button>
         <div class="status" id="tts-test-status"></div>
     </div>
     <div class="card">
-        <h2>默认音声</h2>
-        <p class="model-info">TTS 不可用时播放的预生成语气词。用当前角色/Style 合成。</p>
-        <label>语气词列表 (每行一个)</label>
+        <h2 data-i18n="tts.defAudio.title">Default Audio</h2>
+        <p class="model-info" data-i18n="tts.defAudio.desc">Pre-generated filler phrases played when TTS is unavailable. Synthesized with current speaker/style.</p>
+        <label data-i18n="tts.defAudio.label">Phrase list (one per line)</label>
         <textarea id="default-audio-phrases" rows="4" style="width:100%;font-size:12px;resize:vertical;">えっと
 うーん
 へぇ
 ふーん
 あっ</textarea>
-        <button class="btn btn-secondary" id="btn-generate-default-audio">生成默认音声</button>
+        <button class="btn btn-secondary" id="btn-generate-default-audio" data-i18n="tts.defAudio.gen">Generate Default Audio</button>
         <div class="status" id="default-audio-status"></div>
     </div>
     <div class="card">
-        <h2>语音模型 (VVM)</h2>
-        <p class="model-info">勾选要加载的 VVM 文件，保存后需重启生效。</p>
+        <h2 data-i18n="tts.vvm.title">Voice Model (VVM)</h2>
+        <p class="model-info" data-i18n="tts.vvm.hint">Check VVM files to load. Restart required after saving.</p>
         <div id="vvm-checkboxes" style="max-height:200px;overflow-y:auto;margin:8px 0;"></div>
-        <button class="btn btn-primary" id="btn-save-vvm">保存 VVM 配置 (需重启)</button>
+        <button class="btn btn-primary" id="btn-save-vvm" data-i18n="tts.vvm.save">Save VVM Config (restart required)</button>
         <div class="status" id="vvm-save-status"></div>
     </div>
     </div>
@@ -353,57 +369,63 @@
     <!-- Prompt Tab -->
     <div id="tab-prompt" class="tab-content">
     <div class="card">
-        <h2>角色卡</h2>
+        <h2 data-i18n="prompt.card">Character Card</h2>
         <div style="display:flex; gap:8px; align-items:center; margin-bottom:8px;">
             <select id="character-select" style="flex:1;"></select>
-            <button class="btn btn-secondary" id="btn-new-character" title="新建">+</button>
-            <button class="btn btn-secondary" id="btn-rename-character" title="改名">✎</button>
-            <button class="btn btn-secondary" id="btn-delete-character" title="删除">✕</button>
+            <button class="btn btn-secondary" id="btn-new-character" title="New">+</button>
+            <button class="btn btn-secondary" id="btn-import-character" title="Import">↓</button>
+            <button class="btn btn-secondary" id="btn-rename-character" title="Rename">✎</button>
+            <button class="btn btn-secondary" id="btn-delete-character" title="Delete">✕</button>
         </div>
         <div id="character-name-input-row" style="display:none; gap:8px; align-items:center;">
-            <input type="text" id="character-name-input" placeholder="输入名称..." style="flex:1;">
-            <button class="btn btn-primary" id="btn-confirm-name">确定</button>
-            <button class="btn btn-secondary" id="btn-cancel-name">取消</button>
+            <input type="text" id="character-name-input" data-i18n-ph="prompt.newName.ph" style="flex:1;">
+            <button class="btn btn-primary" id="btn-confirm-name" data-i18n="prompt.confirm">OK</button>
+            <button class="btn btn-secondary" id="btn-cancel-name" data-i18n="prompt.cancel">Cancel</button>
         </div>
     </div>
     <div class="card">
-        <h2>角色名</h2>
-        <input type="text" id="prompt-name" placeholder="角色名称">
+        <h2 data-i18n="prompt.name">Character Name</h2>
+        <input type="text" id="prompt-name" data-i18n-ph="prompt.name.ph">
     </div>
     <div class="card">
-        <h2>角色身份</h2>
-        <label>角色与用户的关系 (e.g., 妹妹, 朋友, 助手)</label>
+        <h2 data-i18n="prompt.identity">Character Identity</h2>
+        <label data-i18n="prompt.identity.desc">Character's relationship to user (e.g., sister, friend, assistant)</label>
         <input type="text" id="prompt-user-identity" placeholder="妹妹">
     </div>
     <div class="card">
-        <h2>称呼方式</h2>
-        <label>角色如何称呼用户 (e.g., 你, 哥哥, 主人)</label>
+        <h2 data-i18n="prompt.term">Address Term</h2>
+        <label data-i18n="prompt.term.desc">How character addresses user (e.g., you, bro, master)</label>
         <input type="text" id="prompt-user-term" placeholder="你">
     </div>
     <div class="card">
-        <h2>描述</h2>
-        <textarea id="prompt-desc" rows="4" placeholder="角色描述..."></textarea>
+        <h2 data-i18n="prompt.desc">Description</h2>
+        <textarea id="prompt-desc" rows="4" data-i18n-ph="prompt.desc.ph"></textarea>
     </div>
     <div class="card">
-        <h2>性格</h2>
-        <textarea id="prompt-personality" rows="4" placeholder="性格设定..."></textarea>
+        <h2 data-i18n="prompt.personality">Personality</h2>
+        <textarea id="prompt-personality" rows="4" data-i18n-ph="prompt.personality.ph"></textarea>
     </div>
     <div class="card">
-        <h2>场景</h2>
-        <textarea id="prompt-scenario" rows="6" placeholder="场景和规则..."></textarea>
+        <h2 data-i18n="prompt.scenario">Scenario</h2>
+        <textarea id="prompt-scenario" rows="6" data-i18n-ph="prompt.scenario.ph"></textarea>
     </div>
     <div class="card">
-        <h2>硬性规则</h2>
-        <textarea id="prompt-rules" rows="4" placeholder="不可违反的规则..."></textarea>
+        <h2 data-i18n="prompt.rules">Hard Rules</h2>
+        <textarea id="prompt-rules" rows="4" data-i18n-ph="prompt.rules.ph"></textarea>
+    </div>
+    <div class="card">
+        <h2 data-i18n="prompt.language">Response Language</h2>
+        <input type="text" id="prompt-language" data-i18n-ph="prompt.language.ph">
     </div>
     <div class="card">
         <div class="btn-row">
-            <button class="btn btn-primary" id="btn-save-prompt">保存</button>
+            <button class="btn btn-primary" id="btn-save-prompt" data-i18n="prompt.save">Save</button>
         </div>
         <div class="status" id="prompt-status"></div>
     </div>
     </div>
 
+    <script src="src/i18n/locales.js"></script>
     <script src="src/core/ai-chat.js"></script>
     <script src="src/core/prompt-builder.js"></script>
     <script src="src/core/emotion-system.js"></script>

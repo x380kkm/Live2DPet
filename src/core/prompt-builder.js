@@ -11,13 +11,17 @@ class PetPromptBuilder {
         await this.loadCharacterPrompt();
     }
 
-    async loadCharacterPrompt(characterId) {
+    async loadCharacterPrompt(characterId, lang) {
         try {
             // Use IPC to load from main process (handles both dev and packaged paths)
             if (window.electronAPI?.loadPrompt) {
                 const result = await window.electronAPI.loadPrompt(characterId || null);
                 if (result.success) {
                     this.characterPrompt = result.data;
+                    // Resolve i18n for built-in cards
+                    if (result.i18n && lang && result.i18n[lang]) {
+                        Object.assign(this.characterPrompt, result.i18n[lang]);
+                    }
                     console.log(`[PetPromptBuilder] Character loaded: ${this.characterPrompt.name || 'unknown'}`);
                     return;
                 }
@@ -25,10 +29,14 @@ class PetPromptBuilder {
             // Fallback: fetch from assets (dev mode without IPC)
             const url = characterId
                 ? `assets/prompts/${characterId}.json`
-                : 'assets/prompts/sister.json';
+                : 'assets/prompts/2bcf3d8a-85e8-47dd-aa07-792fe91cca26.json';
             const response = await fetch(url);
             const data = await response.json();
             this.characterPrompt = data.data || data;
+            // Resolve i18n for built-in cards (fetch path)
+            if (data.i18n && lang && data.i18n[lang]) {
+                Object.assign(this.characterPrompt, data.i18n[lang]);
+            }
             console.log(`[PetPromptBuilder] Character loaded (fetch): ${this.characterPrompt.name || 'unknown'}`);
         } catch (error) {
             console.warn('[PetPromptBuilder] Failed to load prompt, using default');
@@ -78,6 +86,11 @@ class PetPromptBuilder {
             parts.push('---');
             parts.push(this.resolveTemplate(this.characterPrompt.rules));
             parts.push('【重要提醒】以上规则必须严格遵守，每次回复前请检查是否符合所有规则。');
+        }
+
+        // Language instruction (from separate field, backward compatible)
+        if (this.characterPrompt.language) {
+            parts.push(`使用${this.characterPrompt.language}。`);
         }
 
         return parts.join('\n\n');
