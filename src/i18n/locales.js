@@ -144,6 +144,7 @@ const I18N = {
     'sys.screenshotAttached': '(with screenshot)',
     'sys.windowLayout': '[Desktop Layout] ',
     'sys.userIdle': '[User Input Idle] No keyboard/mouse activity for {0}s',
+    'sys.petPosition': '[Your Position] You are displayed at screen position ({x},{y}), size {w}x{h}. The character at that location in the screenshot is you.',
     'sys.historyScreenshot': '(User is using {0}, viewed screenshot)',
     'sys.historyUsing': '(User is using {0})',
     // Main process strings
@@ -317,6 +318,7 @@ const I18N = {
     'sys.screenshotAttached': '（附上屏幕截图）',
     'sys.windowLayout': '【桌面布局】',
     'sys.userIdle': '【用户输入空闲】已有{0}秒无键盘/鼠标操作',
+    'sys.petPosition': '【你的位置】你显示在屏幕坐标({x},{y})，大小{w}x{h}。截图中该位置的角色就是你自己。',
     'sys.historyScreenshot': '（用户正在使用{0}，已查看截图）',
     'sys.historyUsing': '（用户正在使用{0}）',
     // Main process strings
@@ -490,6 +492,7 @@ const I18N = {
     'sys.screenshotAttached': '（スクリーンショット付き）',
     'sys.windowLayout': '【デスクトップレイアウト】',
     'sys.userIdle': '【ユーザー入力アイドル】{0}秒間キーボード/マウス操作なし',
+    'sys.petPosition': '【あなたの位置】画面座標({x},{y})、サイズ{w}x{h}に表示されています。スクリーンショットのその位置にいるキャラクターがあなたです。',
     'sys.historyScreenshot': '（ユーザーは{0}を使用中、スクリーンショットを確認済み）',
     'sys.historyUsing': '（ユーザーは{0}を使用中）',
     // Main process strings

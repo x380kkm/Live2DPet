@@ -443,8 +443,21 @@ class DesktopPetSystem {
                 } catch (e) {}
             }
 
+            // Pet window position (for self-identification in screenshots)
+            let petPosInfo = '';
+            if (window.electronAPI?.getWindowBounds) {
+                try {
+                    const pb = await window.electronAPI.getWindowBounds();
+                    if (pb) {
+                        petPosInfo = '\n' + this._t('sys.petPosition')
+                            .replace('{x}', pb.x).replace('{y}', pb.y)
+                            .replace('{w}', pb.width).replace('{h}', pb.height);
+                    }
+                } catch (e) {}
+            }
+
             // Build fresh system prompt with dynamic context
-            const dynamicContext = this.buildDynamicContext() + layoutSummary + idleInfo;
+            const dynamicContext = this.buildDynamicContext() + layoutSummary + idleInfo + petPosInfo;
             const currentSystemPrompt = this.promptBuilder.buildSystemPrompt(dynamicContext);
 
             const boundsInfo = bounds ? ` [${bounds.width}x${bounds.height}]` : '';
