@@ -1191,7 +1191,18 @@ async function loadVvmConfig() {
             btn.disabled = true;
             const result = await window.electronAPI.downloadVvm(vvm);
             if (result.success) {
+                // Auto-add downloaded VVM to config and restart TTS
+                const config = await window.electronAPI.loadConfig();
+                config.tts = config.tts || {};
+                const vvmFiles = config.tts.vvmFiles || ['0.vvm'];
+                if (!vvmFiles.includes(vvm)) {
+                    vvmFiles.push(vvm);
+                    config.tts.vvmFiles = vvmFiles;
+                    await window.electronAPI.saveConfig(config);
+                }
                 await loadVvmConfig();
+                await window.electronAPI.ttsRestart();
+                showStatus('vvm-save-status', t('tts.vvm.saved'), 'success');
             } else {
                 btn.textContent = t('status.failed');
                 showStatus('vvm-save-status', t('tts.vvm.dlFail') + result.error, 'error');
@@ -1211,7 +1222,8 @@ document.getElementById('btn-save-vvm')?.addEventListener('click', async () => {
     config.tts = config.tts || {};
     config.tts.vvmFiles = vvmFiles;
     await window.electronAPI.saveConfig(config);
-    showStatus('vvm-save-status', t('tts.vvm.savedRestart'), 'success');
+    // Relaunch app to apply VVM changes
+    await window.electronAPI.appRelaunch();
 });
 
 loadVvmConfig();

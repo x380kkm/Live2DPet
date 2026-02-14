@@ -66,9 +66,12 @@ class TTSService {
             const dictDir = path.join(voicevoxDir, 'open_jtalk_dic_utf_8-1.11');
             const modelsDir = path.join(voicevoxDir, 'models');
 
-            this._defineTypes();
-            this.lib = koffi.load(coreDll);
-            this._bindFunctions();
+            // Only define types and load lib once (koffi doesn't allow re-registration)
+            if (!this.lib) {
+                this._defineTypes();
+                this.lib = koffi.load(coreDll);
+                this._bindFunctions();
+            }
 
             // 1. Load ONNX Runtime
             const onnxOut = [null];

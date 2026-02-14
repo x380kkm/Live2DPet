@@ -498,7 +498,13 @@ ipcMain.handle('load-config', async () => {
 
 ipcMain.handle('save-config', async (event, data) => {
     if (data.uiLanguage) _cachedLang = data.uiLanguage;
-    return saveConfigFile(data);
+    const result = saveConfigFile(data);
+    // Notify pet window to hot-reload model config
+    if (data.model && petWindow && !petWindow.isDestroyed()) {
+        const config = loadConfigFile();
+        petWindow.webContents.send('model-config-update', config.model);
+    }
+    return result;
 });
 
 ipcMain.handle('get-cursor-position', async () => {
@@ -939,10 +945,21 @@ ipcMain.handle('tts-restart', async () => {
         const gpuMode = config.tts?.gpuMode || false;
         const ok = ttsService.init(voicevoxDir, vvmFiles, { gpuMode });
         if (ok && config.tts) ttsService.setConfig(config.tts);
-        return { success: ok };
+        return { success: ok, error: ok ? undefined : 'init failed' };
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+
+ipcMain.handle('app-relaunch', async () => {
+    if (app.isPackaged) {
+        // Portable exe: relaunch the outer exe, not the inner electron.exe
+        const exePath = process.env.PORTABLE_EXECUTABLE_FILE || process.execPath;
+        app.relaunch({ execPath: exePath, args: [] });
+    } else {
+        app.relaunch();
+    }
+    app.exit(0);
 });
 
 ipcMain.handle('tts-get-metas', async () => {
