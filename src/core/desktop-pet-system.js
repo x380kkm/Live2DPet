@@ -248,12 +248,13 @@ class DesktopPetSystem {
             parts.push(this._t('sys.emotionState') + `${emotionVal}/100${nextEmotion ? this._t('sys.emotionNext') + nextEmotion : ''}`);
         }
 
-        // Window focus tracking summary
+        // Window focus tracking summary (top 5)
         if (Object.keys(this.focusTracker).length > 0) {
             const secLabel = this._t('sys.seconds');
             const focusEntries = Object.entries(this.focusTracker)
                 .sort((a, b) => b[1] - a[1])
-                .map(([name, seconds]) => `${name}: ${seconds}${secLabel}`)
+                .slice(0, 5)
+                .map(([name, seconds]) => `${this._shortenTitle(name)}: ${seconds}${secLabel}`)
                 .join(', ');
             parts.push(this._t('sys.windowUsage') + focusEntries);
         }
@@ -360,6 +361,18 @@ class DesktopPetSystem {
         return skip.some(s => appName.toLowerCase().includes(s));
     }
 
+    /**
+     * Shorten a window title for prompt use.
+     * Strips common browser/app suffixes and truncates.
+     */
+    _shortenTitle(title, maxLen = 30) {
+        if (!title) return '';
+        // Strip trailing " - AppName" patterns (browser suffixes, IDE names, etc.)
+        let short = title.replace(/\s*[-–—]\s*(?:Google Chrome|Microsoft\s*Edge|Firefox|Brave|Opera|Safari|Cursor|Visual Studio Code|VSCode|Code)$/i, '');
+        if (short.length > maxLen) short = short.slice(0, maxLen) + '…';
+        return short;
+    }
+
     // ========== Message Double-Buffer ==========
 
     async _processQueue() {
@@ -400,12 +413,17 @@ class DesktopPetSystem {
                     const winResult = await window.electronAPI.getOpenWindows();
                     if (winResult?.success && winResult.data.length > 0) {
                         const lines = winResult.data
-                            .filter(w => w.owner?.name && !this.shouldSkipApp(w.owner.name))
-                            .slice(0, 10)
+                            .filter(w => {
+                                if (!w.owner?.name || this.shouldSkipApp(w.owner.name)) return false;
+                                // Skip minimized windows (taskbar button size)
+                                const b = w.bounds;
+                                return b && b.width > 200 && b.height > 200;
+                            })
+                            .slice(0, 5)
                             .map(w => {
                                 const b = w.bounds;
                                 const size = b ? `${b.width}x${b.height}` : '?';
-                                return `${w.title || w.owner.name} [${size}]`;
+                                return `${this._shortenTitle(w.title || w.owner.name)} [${size}]`;
                             });
                         if (lines.length > 0) {
                             layoutSummary = '\n' + this._t('sys.windowLayout') + lines.join(', ');
@@ -414,12 +432,23 @@ class DesktopPetSystem {
                 } catch (e) {}
             }
 
+            // System idle time (seconds since last keyboard/mouse input)
+            let idleInfo = '';
+            if (window.electronAPI?.getSystemIdleTime) {
+                try {
+                    const idleSec = await window.electronAPI.getSystemIdleTime();
+                    if (idleSec >= 10) {
+                        idleInfo = '\n' + this._t('sys.userIdle').replace('{0}', idleSec);
+                    }
+                } catch (e) {}
+            }
+
             // Build fresh system prompt with dynamic context
-            const dynamicContext = this.buildDynamicContext() + layoutSummary;
+            const dynamicContext = this.buildDynamicContext() + layoutSummary + idleInfo;
             const currentSystemPrompt = this.promptBuilder.buildSystemPrompt(dynamicContext);
 
             const boundsInfo = bounds ? ` [${bounds.width}x${bounds.height}]` : '';
-            const textPrompt = this.promptBuilder.getAppDetectionPrompt(appName + boundsInfo);
+            const textPrompt = this.promptBuilder.getAppDetectionPrompt(this._shortenTitle(appName, 50) + boundsInfo);
 
             // Only gather NEW (unsent) screenshots
             const windowScreenshots = (this.screenshotBuffers[appName] || []).filter(s => !s.sent);

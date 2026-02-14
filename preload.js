@@ -22,6 +22,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
     getScreenCapture: () => ipcRenderer.invoke('get-screen-capture'),
     getActiveWindow: () => ipcRenderer.invoke('get-active-window'),
     getOpenWindows: () => ipcRenderer.invoke('get-open-windows'),
+    getSystemIdleTime: () => ipcRenderer.invoke('get-system-idle-time'),
 
     // Utility
     getGenderTerm: () => ipcRenderer.invoke('get-gender-term'),

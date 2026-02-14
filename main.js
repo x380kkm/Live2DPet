@@ -1,4 +1,4 @@
-const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, Tray, dialog, shell } = require('electron');
+const { app, BrowserWindow, ipcMain, desktopCapturer, Menu, Tray, dialog, shell, powerMonitor } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
@@ -498,6 +498,10 @@ ipcMain.handle('get-open-windows', async () => {
     } catch (error) {
         return { success: false, error: error.message };
     }
+});
+
+ipcMain.handle('get-system-idle-time', () => {
+    return powerMonitor.getSystemIdleTime();
 });
 
 // ========== Utility ==========

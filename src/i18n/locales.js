@@ -143,6 +143,7 @@ const I18N = {
     'sys.seconds': 's',
     'sys.screenshotAttached': '(with screenshot)',
     'sys.windowLayout': '[Desktop Layout] ',
+    'sys.userIdle': '[User Input Idle] No keyboard/mouse activity for {0}s',
     'sys.historyScreenshot': '(User is using {0}, viewed screenshot)',
     'sys.historyUsing': '(User is using {0})',
     // Main process strings
@@ -315,6 +316,7 @@ const I18N = {
     'sys.seconds': '秒',
     'sys.screenshotAttached': '（附上屏幕截图）',
     'sys.windowLayout': '【桌面布局】',
+    'sys.userIdle': '【用户输入空闲】已有{0}秒无键盘/鼠标操作',
     'sys.historyScreenshot': '（用户正在使用{0}，已查看截图）',
     'sys.historyUsing': '（用户正在使用{0}）',
     // Main process strings
@@ -487,6 +489,7 @@ const I18N = {
     'sys.seconds': '秒',
     'sys.screenshotAttached': '（スクリーンショット付き）',
     'sys.windowLayout': '【デスクトップレイアウト】',
+    'sys.userIdle': '【ユーザー入力アイドル】{0}秒間キーボード/マウス操作なし',
     'sys.historyScreenshot': '（ユーザーは{0}を使用中、スクリーンショットを確認済み）',
     'sys.historyUsing': '（ユーザーは{0}を使用中）',
     // Main process strings
