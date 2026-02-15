@@ -151,6 +151,7 @@ class EnhancementOrchestrator {
 
     buildEnhancedContext(title) {
         const TOTAL_BUDGET = 2500;
+        const KNOWLEDGE_BUDGET = 2500;
         const sections = [];
 
         // Priority 1: VLM enriched title (Screen Content — most relevant)
@@ -196,18 +197,36 @@ class EnhancementOrchestrator {
             sections.push({ priority: 3, label: enhanceT('sys.usageHistory'), text: summary });
         }
 
-        // Priority 4: RAG knowledge + VLM keywords + acquired knowledge (merged, sorted by relevance)
-        const knowledgeHits = this.longPool.query(title, { layer: 'knowledge', maxResults: 3, minConfidence: 0.3 });
-        const vlmKeywordHits = this.longPool.query(title, { layer: 'vlm', maxResults: 2, minConfidence: 0.3 });
-        const acquiredHits = this.longPool.query(title, { layer: 'acquired', maxResults: 3, minConfidence: 0.2 })
-            .filter(h => !h.data.confidence || h.data.confidence > 0.3);  // Skip low-confidence acquired
+        // Priority 4: RAG knowledge + VLM keywords + acquired knowledge — separate budget
+        const knowledgeHits = this.longPool.query(title, { layer: 'knowledge', maxResults: 6, minConfidence: 0.25 });
+        const vlmKeywordHits = this.longPool.query(title, { layer: 'vlm', maxResults: 4, minConfidence: 0.25 });
+        const acquiredHits = this.longPool.query(title, { layer: 'acquired', maxResults: 6, minConfidence: 0.15 })
+            .filter(h => !h.data.confidence || h.data.confidence > 0.3);
         const mergedHits = [
-            ...knowledgeHits.map(h => ({ confidence: h.confidence, text: h.confidence > 0.7 ? h.data.summary : h.data.summary.slice(0, 200) })),
-            ...vlmKeywordHits.map(h => ({ confidence: h.confidence, text: h.data.summary.slice(0, 150) })),
-            ...acquiredHits.map(h => ({ confidence: h.confidence, text: h.data.summary.slice(0, 200) }))
+            ...knowledgeHits.map(h => ({ confidence: h.confidence, text: (h.confidence > 0.7 ? h.data.summary : h.data.summary.slice(0, 120)) })),
+            ...vlmKeywordHits.map(h => ({ confidence: h.confidence, text: h.data.summary.slice(0, 100) })),
+            ...acquiredHits.map(h => ({ confidence: h.confidence, text: h.data.summary.slice(0, 120) }))
         ].sort((a, b) => b.confidence - a.confidence);
         if (mergedHits.length > 0) {
-            sections.push({ priority: 4, label: enhanceT('sys.knowledge'), text: mergedHits.map(h => h.text).join(' | ') });
+            // Fit as many items as possible within dedicated knowledge budget
+            const kLabel = `[${enhanceT('sys.knowledge')}] `;
+            let kRemaining = KNOWLEDGE_BUDGET - kLabel.length;
+            const kParts = [];
+            for (const h of mergedHits) {
+                const piece = h.text;
+                if (piece.length + 3 <= kRemaining) {  // +3 for ' | ' separator
+                    kParts.push(piece);
+                    kRemaining -= piece.length + 3;
+                } else if (kRemaining > 20) {
+                    kParts.push(piece.slice(0, kRemaining));
+                    break;
+                } else {
+                    break;
+                }
+            }
+            if (kParts.length > 0) {
+                sections.push({ priority: 4, label: enhanceT('sys.knowledge'), text: kParts.join(' | '), _ownBudget: true });
+            }
         }
 
         // Priority 5: Search results — fresh from ShortTermPool, or cached from LongTermPool
@@ -228,12 +247,17 @@ class EnhancementOrchestrator {
         // Sort by priority (ascending = highest priority first)
         sections.sort((a, b) => a.priority - b.priority);
 
-        // Allocate budget: include sections in priority order, trim last if needed
+        // Allocate budget: knowledge uses its own budget, others share TOTAL_BUDGET
         const result = [];
         let remaining = TOTAL_BUDGET;
 
         for (const sec of sections) {
             const formatted = `[${sec.label}] ${sec.text}`;
+            if (sec._ownBudget) {
+                // Knowledge section — already budgeted independently
+                result.push(formatted);
+                continue;
+            }
             if (formatted.length <= remaining) {
                 result.push(formatted);
                 remaining -= formatted.length;
