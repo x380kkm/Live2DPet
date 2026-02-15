@@ -47,6 +47,24 @@ function tokenizeTitle(title) {
         .filter(w => w.length > 1 && !STOP_WORDS.has(w));
 }
 
+/**
+ * Compact a window title for display: strip platform suffixes, browser chrome, trailing noise.
+ * e.g. "回来再练练 - 乖离型李华 - 哔哩哔哩直播，二次元弹幕直播平台 和另外 5 个" → "回来再练练 - 乖离型李华"
+ */
+function compactTitle(title, maxLen = 25) {
+    if (!title) return '';
+    let t = title
+        .replace(/\s*[-–—]\s*(哔哩哔哩|bilibili|YouTube|Twitch|ニコニコ)[^-–—]*/gi, '')
+        .replace(/\s*[-–—]\s*(个人|personal|個人用)\s*[-–—]\s*microsoft\s*edge\s*/gi, '')
+        .replace(/\s*[-–—]\s*(Google\s*Chrome|Microsoft\s*Edge|Firefox|Safari|Opera)\s*/gi, '')
+        .replace(/\s*和另外\s*\d+\s*个.*$/g, '')
+        .replace(/\s*and\s+\d+\s+more.*$/gi, '')
+        .replace(/\s*他\s*\d+\s*件.*$/g, '')
+        .trim();
+    if (t.length > maxLen) t = t.slice(0, maxLen);
+    return t;
+}
+
 if (typeof window !== 'undefined') {
     window.enhanceT = enhanceT;
     window.enhanceLang = enhanceLang;
@@ -54,4 +72,5 @@ if (typeof window !== 'undefined') {
     window.sanitizeSecrets = sanitizeSecrets;
     window.isNoiseTitle = isNoiseTitle;
     window.tokenizeTitle = tokenizeTitle;
+    window.compactTitle = compactTitle;
 }

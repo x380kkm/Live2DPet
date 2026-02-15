@@ -171,16 +171,27 @@ class EnhancementOrchestrator {
             const top = Object.entries(today)
                 .sort((a, b) => b[1] - a[1])
                 .slice(0, 5)
-                .map(([t, s]) => `${t.slice(0, 40)}: ${s}s`)
+                .map(([t, s]) => `${compactTitle(t)}: ${s}s`)
                 .join(', ');
             sections.push({ priority: 2, label: enhanceT('sys.todayActivity'), text: top });
         }
 
-        // Priority 3: RAG usage history
-        const memoryHits = this.longPool.query(title, { layer: 'memory', maxResults: 3, minConfidence: 0.3 });
+        // Priority 3: RAG usage history (deduplicate similar titles)
+        const memoryHits = this.longPool.query(title, { layer: 'memory', maxResults: 5, minConfidence: 0.3 });
         if (memoryHits.length > 0) {
-            const summary = memoryHits
-                .map(h => `${h.title.slice(0, 35)}: ${h.data.totalSec}s, ${h.data.dayCount}d`)
+            const merged = [];
+            for (const h of memoryHits) {
+                const compact = compactTitle(h.title);
+                const existing = merged.find(m => m.compact === compact);
+                if (existing) {
+                    existing.totalSec += h.data.totalSec;
+                    existing.dayCount = Math.max(existing.dayCount, h.data.dayCount);
+                } else {
+                    merged.push({ compact, totalSec: h.data.totalSec, dayCount: h.data.dayCount });
+                }
+            }
+            const summary = merged.slice(0, 3)
+                .map(m => `${m.compact}: ${m.totalSec}s, ${m.dayCount}d`)
                 .join('; ');
             sections.push({ priority: 3, label: enhanceT('sys.usageHistory'), text: summary });
         }
