@@ -37,6 +37,9 @@ class DesktopPetSystem {
         this.pendingMessage = null;   // next message to play (overwritten by newer)
         this.isPlayingMessage = false; // lock: currently playing a session
         this.chatGapMs = 5000;        // minimum gap between two message sessions
+
+        // Enhancement orchestrator
+        this.enhancer = null;
     }
 
     async init() {
@@ -54,6 +57,12 @@ class DesktopPetSystem {
         // Audio state machine
         this.audioStateMachine = new AudioStateMachine();
         await this._initAudioState();
+
+        // Enhancement orchestrator
+        if (typeof EnhancementOrchestrator !== 'undefined') {
+            this.enhancer = new EnhancementOrchestrator(this.aiClient);
+            await this.enhancer.init();
+        }
 
         console.log('[DesktopPetSystem] Initialized');
     }
@@ -120,6 +129,7 @@ class DesktopPetSystem {
         this.stopFocusTimer();
         this.stopCurrentAudio();
         this.emotionSystem.stop();
+        if (this.enhancer) await this.enhancer.stop();
         try {
             await window.electronAPI.closePetWindow();
         } catch (e) {}
@@ -223,6 +233,7 @@ class DesktopPetSystem {
             const windowKey = result.data.title || result.data.owner.name;
             if (!this.focusTracker[windowKey]) this.focusTracker[windowKey] = 0;
             this.focusTracker[windowKey] += 1;
+            if (this.enhancer) this.enhancer.onFocusTick(windowKey);
         } catch (e) {}
     }
 
@@ -457,7 +468,13 @@ class DesktopPetSystem {
             }
 
             // Build fresh system prompt with dynamic context
-            const dynamicContext = this.buildDynamicContext() + layoutSummary + idleInfo + petPosInfo;
+            let enhancedContext = '';
+            if (this.enhancer) {
+                const latestScreenshot = (this.screenshotBuffers[appName] || []).slice(-1)[0];
+                enhancedContext = await this.enhancer.beforeRequest(appName, latestScreenshot?.base64 || null);
+                if (enhancedContext) console.log('[DesktopPetSystem] Enhanced context:', enhancedContext);
+            }
+            const dynamicContext = this.buildDynamicContext() + layoutSummary + idleInfo + petPosInfo + enhancedContext;
             const currentSystemPrompt = this.promptBuilder.buildSystemPrompt(dynamicContext);
 
             const boundsInfo = bounds ? ` [${bounds.width}x${bounds.height}]` : '';

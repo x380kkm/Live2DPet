@@ -95,5 +95,10 @@ contextBridge.exposeInMainWorld('electronAPI', {
     onModelConfigUpdate: (cb) => ipcRenderer.on('model-config-update', (e, config) => cb(config)),
 
     // External links
-    openExternal: (url) => ipcRenderer.invoke('open-external', url)
+    openExternal: (url) => ipcRenderer.invoke('open-external', url),
+
+    // Enhance system
+    saveEnhanceData: (data) => ipcRenderer.invoke('save-enhance-data', data),
+    loadEnhanceData: () => ipcRenderer.invoke('load-enhance-data'),
+    webSearch: (query, provider, options) => ipcRenderer.invoke('web-search', query, provider, options)
 });

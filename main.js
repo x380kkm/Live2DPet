@@ -4,6 +4,8 @@ const fs = require('fs');
 const { createPathUtils } = require('./src/utils/path-utils');
 const { TTSService } = require('./src/core/tts-service');
 const { TranslationService } = require('./src/core/translation-service');
+const https = require('https');
+const http = require('http');
 const I18N = require('./src/i18n/locales');
 
 let petWindow = null;
@@ -52,9 +54,17 @@ function getDefaultConfig() {
         chatGap: 5,
         emotionFrequency: 30,
         enabledEmotions: [],
+        maxTokensMultiplier: 1.0,
         model: getDefaultModelConfig(),
         bubble: { frameImagePath: null },
-        appIcon: null
+        appIcon: null,
+        enhance: {
+            memory: { enabled: true, retentionDays: 30 },
+            search: { enabled: false, provider: 'custom', customUrl: '', customApiKey: '', maxFrequencyMs: 30000, minFocusSeconds: 10 },
+            knowledge: { enabled: false, minIntervalMs: 60000, maxIntervalMs: 3600000 },
+            vlm: { enabled: false, baseIntervalMs: 15000, maxIntervalMs: 60000, minFocusSeconds: 10 },
+            knowledgeAcq: { enabled: false, minFocusSeconds: 60, termCooldownMs: 3600000, maxTermsPerTopic: 15, maxSearchesPerRequest: 2, retentionDays: 30 }
+        }
     };
 }
 
@@ -110,7 +120,14 @@ function loadConfigFile() {
             ...raw,
             model: { ...defaults.model, ...(raw.model || {}), paramMapping: { ...defaults.model.paramMapping, ...((raw.model || {}).paramMapping || {}) } },
             bubble: { ...defaults.bubble, ...(raw.bubble || {}) },
-            tts: { ...(defaults.tts || {}), ...(raw.tts || {}) }
+            tts: { ...(defaults.tts || {}), ...(raw.tts || {}) },
+            enhance: {
+                memory: { ...defaults.enhance.memory, ...((raw.enhance || {}).memory || {}) },
+                search: { ...defaults.enhance.search, ...((raw.enhance || {}).search || {}) },
+                knowledge: { ...defaults.enhance.knowledge, ...((raw.enhance || {}).knowledge || {}) },
+                vlm: { ...defaults.enhance.vlm, ...((raw.enhance || {}).vlm || {}) },
+                knowledgeAcq: { ...defaults.enhance.knowledgeAcq, ...((raw.enhance || {}).knowledgeAcq || {}) }
+            }
         };
         // Environment variable overrides
         if (process.env.LIVE2DPET_API_KEY) merged.apiKey = process.env.LIVE2DPET_API_KEY;
@@ -146,6 +163,14 @@ function saveConfigFile(data) {
                     modelName: tl.modelName || merged.modelName || 'x-ai/grok-4.1-fast'
                 });
             }
+        }
+        if (data.enhance) {
+            merged.enhance = { ...(existing.enhance || {}), ...data.enhance };
+            if (data.enhance.memory) merged.enhance.memory = { ...(existing.enhance?.memory || {}), ...data.enhance.memory };
+            if (data.enhance.search) merged.enhance.search = { ...(existing.enhance?.search || {}), ...data.enhance.search };
+            if (data.enhance.knowledge) merged.enhance.knowledge = { ...(existing.enhance?.knowledge || {}), ...data.enhance.knowledge };
+            if (data.enhance.vlm) merged.enhance.vlm = { ...(existing.enhance?.vlm || {}), ...data.enhance.vlm };
+            if (data.enhance.knowledgeAcq) merged.enhance.knowledgeAcq = { ...(existing.enhance?.knowledgeAcq || {}), ...data.enhance.knowledgeAcq };
         }
         fs.writeFileSync(userConfigPath, JSON.stringify(merged, null, 2), 'utf-8');
         return true;
@@ -465,7 +490,7 @@ ipcMain.handle('resize-chat-bubble', async (event, width, height) => {
 ipcMain.handle('get-screen-capture', async () => {
     try {
         const sources = await desktopCapturer.getSources({
-            types: ['screen'], thumbnailSize: { width: 640, height: 640 }
+            types: ['screen'], thumbnailSize: { width: 512, height: 512 }
         });
         if (sources.length > 0) {
             return sources[0].thumbnail.toJPEG(30).toString('base64');
@@ -1128,6 +1153,126 @@ ipcMain.handle('tts-set-config', async (event, config) => {
 });
 
 // ========== Default Audio ==========
+
+// ========== Enhance Data & Web Search ==========
+
+const enhanceDataPath = app.isPackaged
+    ? path.join(app.getPath('userData'), 'enhance-data.json')
+    : path.join(__dirname, 'enhance-data.json');
+
+ipcMain.handle('save-enhance-data', async (event, data) => {
+    try {
+        fs.writeFileSync(enhanceDataPath, JSON.stringify(data, null, 2), 'utf-8');
+        return { success: true };
+    } catch (e) {
+        return { success: false, error: e.message };
+    }
+});
+
+ipcMain.handle('load-enhance-data', async () => {
+    try {
+        if (fs.existsSync(enhanceDataPath)) {
+            return { success: true, data: JSON.parse(fs.readFileSync(enhanceDataPath, 'utf-8')) };
+        }
+        return { success: true, data: {} };
+    } catch (e) {
+        return { success: true, data: {} };
+    }
+});
+
+function httpGet(url, timeout = 10000, extraHeaders = {}) {
+    return new Promise((resolve, reject) => {
+        const mod = url.startsWith('https') ? https : http;
+        const req = mod.get(url, { timeout, headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36', ...extraHeaders } }, (res) => {
+            let data = '';
+            res.on('data', chunk => data += chunk);
+            res.on('end', () => resolve({ status: res.statusCode, data }));
+        });
+        req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+        req.on('error', reject);
+    });
+}
+
+function parseDDGResults(html) {
+    const results = [];
+    const regex = /class="result__snippet"[^>]*>([\s\S]*?)<\//gi;
+    let match;
+    while ((match = regex.exec(html)) !== null && results.length < 3) {
+        const text = match[1].replace(/<[^>]+>/g, '').trim();
+        if (text.length > 10) results.push(text);
+    }
+    if (results.length > 0) return results.join(' | ');
+    // Fallback
+    const pRegex = /<a[^>]*class="result__a"[^>]*>([\s\S]*?)<\/a>/gi;
+    while ((match = pRegex.exec(html)) !== null && results.length < 3) {
+        const text = match[1].replace(/<[^>]+>/g, '').trim();
+        if (text.length > 5) results.push(text);
+    }
+    return results.length > 0 ? results.join(' | ') : null;
+}
+
+ipcMain.handle('web-search', async (event, query, provider, options = {}) => {
+    try {
+        // Strip long alphanumeric sequences (potential keys/passwords) from query
+        query = query.replace(/[A-Za-z0-9_-]{20,}/g, '').trim();
+        if (!query) return { success: false, error: 'empty_query' };
+
+        // Custom API provider (also used for Bing API, SearXNG, etc.)
+        if (provider === 'custom' && options.customUrl) {
+            const url = new URL(options.customUrl);
+            url.searchParams.set('q', query);
+            const headers = { 'User-Agent': 'Live2DPet/1.8.0' };
+            if (options.customApiKey) headers['Authorization'] = `Bearer ${options.customApiKey}`;
+            if (options.customHeaders) Object.assign(headers, options.customHeaders);
+            const mod = url.protocol === 'https:' ? https : http;
+            const result = await new Promise((resolve, reject) => {
+                const req = mod.get(url.toString(), { timeout: 10000, headers }, (res) => {
+                    let data = '';
+                    res.on('data', chunk => data += chunk);
+                    res.on('end', () => resolve({ status: res.statusCode, data }));
+                });
+                req.on('timeout', () => { req.destroy(); reject(new Error('timeout')); });
+                req.on('error', reject);
+            });
+            if (result.status !== 200) return { success: false, error: `HTTP ${result.status}` };
+            try {
+                const json = JSON.parse(result.data);
+                // Support common API formats: Bing Web Search API, SearXNG, generic
+                const snippets = (json.webPages?.value || json.results || [])
+                    .slice(0, 3)
+                    .map(p => p.snippet || p.content || p.description || p.name || '')
+                    .filter(s => s.length > 10);
+                if (snippets.length > 0) return { success: true, results: snippets.join(' | ') };
+                const fallback = json.abstract || JSON.stringify(json).slice(0, 300);
+                return { success: true, results: fallback };
+            } catch {
+                return { success: true, results: result.data.slice(0, 300) };
+            }
+        }
+
+        // DuckDuckGo (HTML scraping)
+        if (provider === 'duckduckgo') {
+            const encodedQuery = encodeURIComponent(query);
+            const url = `https://html.duckduckgo.com/html/?q=${encodedQuery}`;
+            const result = await httpGet(url);
+            if (result.status !== 200) return { success: false, error: `HTTP ${result.status}` };
+            const parsed = parseDDGResults(result.data);
+            if (!parsed) {
+                console.log(`[Enhance:Search] Parse failed for duckduckgo, query: ${query}`);
+                return { success: false, error: 'parse_failed' };
+            }
+            console.log(`[Enhance:Search] duckduckgo success for: ${query}`);
+            return { success: true, results: parsed };
+        }
+
+        return { success: false, error: 'unknown_provider' };
+    } catch (e) {
+        console.error(`[Enhance:Search] Error:`, e.message);
+        return { success: false, error: e.message };
+    }
+});
+
+// ========== Default Audio (original) ==========
 
 ipcMain.handle('generate-default-audio', async (event, phrases, styleId) => {
     try {

@@ -12,6 +12,9 @@ class EmotionSystem {
     constructor(petSystem) {
         this.petSystem = petSystem;
 
+        // i18n helper — delegates to petSystem
+        this._t = (key) => this.petSystem?._t(key) || key;
+
         // Unified emotion items — [{name, label, type:'expression'|'motion', file?, group?, index?}]
         this.emotionItems = [];
         this.enabledEmotions = [];
@@ -202,7 +205,7 @@ class EmotionSystem {
             const messages = [
                 {
                     role: 'system',
-                    content: `You are an emotion classifier. Given the character's last spoken line, pick the single most fitting emotion from this list: [${emotionList}]. Reply with ONLY the emotion name from the list, nothing else.`
+                    content: this._t('sys.emotionPrompt').replace('{0}', emotionList)
                 },
                 {
                     role: 'user',

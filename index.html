@@ -129,6 +129,7 @@
         <button class="tab-btn" data-tab="emotion" data-i18n="tab.emotion">Emotion</button>
         <button class="tab-btn" data-tab="tts" data-i18n="tab.tts">TTS</button>
         <button class="tab-btn" data-tab="prompt" data-i18n="tab.prompt">Prompt</button>
+        <button class="tab-btn" data-tab="enhance" data-i18n="tab.enhance">Enhance</button>
     </div>
 
     <!-- Settings Tab -->
@@ -159,6 +160,17 @@
         <input type="text" id="tl-model-name" data-i18n-ph="tl.placeholder">
         <button class="btn btn-primary" id="btn-save-tl" data-i18n="btn.save">Save</button>
         <div class="status" id="tl-status"></div>
+    </div>
+    <div class="card">
+        <h2 data-i18n="enhance.tokens.title">Response Length</h2>
+        <label data-i18n="enhance.tokens.label">Max tokens multiplier</label>
+        <div style="display:flex;gap:6px;margin-bottom:8px;">
+            <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="0.5">×0.5</button>
+            <button class="btn btn-primary btn-sm token-mult-btn" data-mult="1">×1</button>
+            <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="1.5">×1.5</button>
+            <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="2">×2</button>
+        </div>
+        <p id="token-info" style="font-size:12px;color:#888;"></p>
     </div>
     <div class="card">
         <h2 data-i18n="detect.title">Detection Settings</h2>
@@ -428,12 +440,92 @@
     </div>
     </div>
 
+    <!-- Enhance Tab -->
+    <div id="tab-enhance" class="tab-content">
+    <div class="card">
+        <h2 data-i18n="enhance.memory.title">Activity Memory</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="enhance-memory-enabled" checked>
+            <span data-i18n="enhance.memory.desc">Record daily app usage patterns</span>
+        </label>
+        <div style="margin-top:8px;">
+            <label data-i18n="enhance.memory.retention">Retention days</label>
+            <input type="number" id="enhance-memory-retention" value="30" min="1" max="365" style="width:80px;">
+        </div>
+        <p style="font-size:11px;color:#e67e22;margin-top:4px;" data-i18n="enhance.memory.privacy">This records window titles for context</p>
+    </div>
+    <div class="card">
+        <h2 data-i18n="enhance.search.title">Context Search</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="enhance-search-enabled">
+            <span data-i18n="enhance.search.desc">Search related info for current context</span>
+        </label>
+        <div style="margin-top:8px;">
+            <label data-i18n="enhance.search.provider">Search Provider</label>
+            <select id="enhance-search-provider">
+                <option value="duckduckgo" data-i18n="enhance.search.duckduckgo">DuckDuckGo (blocked in China)</option>
+                <option value="custom" data-i18n="enhance.search.custom">Custom API</option>
+            </select>
+        </div>
+        <div id="custom-search-config" style="display:none;margin-top:8px;">
+            <label data-i18n="enhance.search.customUrl">API URL</label>
+            <input type="text" id="enhance-search-custom-url" placeholder="https://api.bing.microsoft.com/v7.0/search">
+            <label data-i18n="enhance.search.customKey">API Key (Authorization header)</label>
+            <input type="password" id="enhance-search-custom-key" placeholder="Bearer sk-... / Ocp-Apim-Subscription-Key ...">
+            <label data-i18n="enhance.search.customHeaders">Custom Headers (JSON, optional)</label>
+            <input type="text" id="enhance-search-custom-headers" placeholder='{"Ocp-Apim-Subscription-Key":"..."}'>
+        </div>
+        <div style="margin-top:8px;">
+            <label data-i18n="enhance.search.frequency">Min search interval (sec)</label>
+            <input type="number" id="enhance-search-frequency" value="30" min="10" max="300" style="width:80px;">
+        </div>
+    </div>
+    <div class="card">
+        <h2 data-i18n="enhance.knowledge.title">Knowledge Organization</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="enhance-knowledge-enabled">
+            <span data-i18n="enhance.knowledge.desc">LLM-organized knowledge (uses API tokens)</span>
+        </label>
+        <p style="font-size:11px;color:#e67e22;margin-top:4px;" data-i18n="enhance.knowledge.hint">Uses main API to organize search results. Frequency auto-adjusts.</p>
+        <p id="enhance-knowledge-dep-warn" style="font-size:11px;color:#e74c3c;margin-top:4px;display:none;" data-i18n="enhance.knowledge.depWarn"></p>
+    </div>
+    <div class="card">
+        <h2 data-i18n="enhance.vlm.title">Screen Analysis</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="enhance-vlm-enabled">
+            <span data-i18n="enhance.vlm.desc">Extract keywords from screenshots (uses API tokens)</span>
+        </label>
+        <p style="font-size:11px;color:#e67e22;margin-top:4px;" data-i18n="enhance.vlm.hint">Uses vision API to analyze screenshots and enrich context. Frequency auto-adjusts per window.</p>
+    </div>
+    <div class="card">
+        <h2 data-i18n="enhance.kbAcq.title">Knowledge Acquisition</h2>
+        <label style="display:inline-flex;align-items:center;gap:4px;">
+            <input type="checkbox" id="enhance-kbacq-enabled">
+            <span data-i18n="enhance.kbAcq.desc">Auto-search and accumulate topic knowledge (requires Search + Screen Analysis)</span>
+        </label>
+        <p style="font-size:11px;color:#e67e22;margin-top:4px;" data-i18n="enhance.kbAcq.hint">Generates search tasks from screen analysis topics. Uses search and API quota.</p>
+        <p id="enhance-kbacq-dep-warn" style="font-size:11px;color:#e74c3c;margin-top:4px;display:none;" data-i18n="enhance.kbAcq.depWarn"></p>
+    </div>
+    <div class="card">
+        <button class="btn btn-primary" id="btn-save-enhance" data-i18n="btn.save">Save</button>
+        <div class="status" id="enhance-status"></div>
+    </div>
+    </div>
+
     <script src="src/i18n/locales.js"></script>
     <script src="src/core/ai-chat.js"></script>
     <script src="src/core/prompt-builder.js"></script>
     <script src="src/core/emotion-system.js"></script>
     <script src="src/core/audio-state-machine.js"></script>
     <script src="src/core/message-session.js"></script>
+    <script src="src/core/enhance/context-pool.js"></script>
+    <script src="src/core/enhance/enhance-utils.js"></script>
+    <script src="src/core/enhance/memory-tracker.js"></script>
+    <script src="src/core/enhance/search-service.js"></script>
+    <script src="src/core/enhance/knowledge-store.js"></script>
+    <script src="src/core/enhance/vlm-extractor.js"></script>
+    <script src="src/core/enhance/knowledge-acquisition.js"></script>
+    <script src="src/core/enhance/enhancement-orchestrator.js"></script>
     <script src="src/core/desktop-pet-system.js"></script>
     <script src="src/renderer/settings-ui.js"></script>
 </body>

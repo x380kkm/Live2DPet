@@ -24,6 +24,8 @@ class PetPromptBuilder {
 
     async loadCharacterPrompt(characterId, lang) {
         if (lang) this.lang = lang;
+        // Global language for enhance modules (consumed by enhance-utils.js)
+        if (typeof window !== 'undefined') window._enhanceLang = this.lang;
         try {
             // Use IPC to load from main process (handles both dev and packaged paths)
             if (window.electronAPI?.loadPrompt) {
@@ -91,16 +93,21 @@ class PetPromptBuilder {
         if (this.characterPrompt.description) parts.push(this.resolveTemplate(this.characterPrompt.description));
         if (this.characterPrompt.personality) parts.push(this.resolveTemplate(this.characterPrompt.personality));
         if (this.characterPrompt.scenario) parts.push(this.resolveTemplate(this.characterPrompt.scenario));
-        if (dynamicContext) parts.push(dynamicContext);
 
-        // Rules LAST with emphasis
+        // Rules with emphasis, separated from character setup
         if (this.characterPrompt.rules) {
             parts.push('---');
             parts.push(this.resolveTemplate(this.characterPrompt.rules));
             parts.push(this._t('sys.importantReminder'));
         }
 
-        // Language instruction (from separate field, backward compatible)
+        // Dynamic context AFTER rules, clearly separated
+        if (dynamicContext) {
+            parts.push('---');
+            parts.push(dynamicContext);
+        }
+
+        // Language instruction last
         if (this.characterPrompt.language) {
             parts.push(this._t('sys.useLanguage').replace('{0}', this.characterPrompt.language));
         }

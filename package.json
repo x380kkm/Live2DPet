@@ -1,13 +1,13 @@
 {
   "name": "live2dpet",
-  "version": "1.7.1",
+  "version": "1.8.0",
   "description": "Standalone desktop pet companion with AI chat",
   "author": "x380kkm",
   "main": "main.js",
   "scripts": {
     "start": "node launch.js",
     "dev": "node launch.js --dev",
-    "test": "node --test tests/test-core.js",
+    "test": "node --test tests/test-core.js tests/test-enhance.js",
     "build": "electron-builder --win portable",
     "build:dir": "electron-builder --win dir"
   },

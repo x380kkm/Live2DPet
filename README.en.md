@@ -194,6 +194,8 @@ Please record the log output when the issue occurs and include it when submittin
 
 - Screenshot-related warnings can be safely ignored — they do not affect normal operation
 - VVM voice model read errors: go to `C:\Users\YourUsername\AppData\Roaming\live2dpet\voicevox_core`, find the model folder, delete the corrupted files, and re-download
+- Enhancement modules use `window._enhanceLang` global variable for language passing — implicit coupling (no impact under current single-window architecture)
+- `enhance-data.json` stores all enhance data in a single file; consider splitting by layer or migrating to SQLite in the future
 
 <details>
 <summary>Tech Stack</summary>
@@ -206,6 +208,34 @@ Please record the log output when the issue occurs and include it when submittin
 </details>
 
 ## Changelog
+
+### v1.8.0 — Enhancement System
+
+- New "Enhance" settings tab with modular context enhancement:
+  - Activity Memory: Records daily app usage patterns for richer conversation context
+  - Context Search: Auto-searches related info for current window (DuckDuckGo / Custom API)
+  - Knowledge Organization: LLM-organized knowledge summaries from search results
+  - Screen Analysis: Vision API extracts keywords from screenshots to enrich context
+  - Knowledge Acquisition: Auto-generates search tasks from screen analysis topics, continuously accumulates domain knowledge
+- Context Pool architecture: layered storage (short-term / long-term) with lightweight Jaccard-similarity RAG retrieval
+- Main process Web Search IPC: DuckDuckGo HTML scraping and custom API support (Bing / SearXNG, etc.)
+- Adjustable response length multiplier (×0.5 / ×1 / ×1.5 / ×2)
+- Auto-sanitization of context data to prevent API key and secret leakage
+- Improved system prompts: idle prompts now use context-aware cues instead of assuming screenshots
+- Emotion classifier prompt fully internationalized
+- Self-awareness prompt simplified, no longer includes specific appearance description
+- Dynamic context placed after character rules for better prompt structure
+- Screenshot resolution optimized (640→512) to reduce API costs
+
+<details>
+<summary>Earlier Versions</summary>
+
+### v1.7.1 — Self-Awareness & Idle Detection
+
+- Pet can now locate itself in screenshots via screen position info
+- Window title shortening for cleaner context
+- System idle time detection (keyboard/mouse inactivity)
+- Minimized window filtering
 
 ### v1.7.0 — Window Awareness & GPU TTS
 

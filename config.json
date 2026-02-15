@@ -62,5 +62,13 @@
       "あっ"
     ]
   },
+  "maxTokensMultiplier": 1.0,
+  "enhance": {
+    "memory": { "enabled": true, "retentionDays": 30 },
+    "search": { "enabled": false, "provider": "custom", "customUrl": "", "customApiKey": "", "maxFrequencyMs": 30000, "minFocusSeconds": 10 },
+    "knowledge": { "enabled": false, "minIntervalMs": 60000, "maxIntervalMs": 3600000 },
+    "vlm": { "enabled": false, "baseIntervalMs": 15000, "maxIntervalMs": 60000, "minFocusSeconds": 10 },
+    "knowledgeAcq": { "enabled": false, "minFocusSeconds": 60, "termCooldownMs": 3600000, "maxTermsPerTopic": 15, "maxSearchesPerRequest": 2 }
+  },
   "uiLanguage": "zh"
 }

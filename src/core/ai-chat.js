@@ -10,6 +10,7 @@ class AIChatClient {
         this.conversationHistory = [];
         this.maxHistoryPairs = 3;
         this.isLoading = false;
+        this.maxTokensMultiplier = 1.0;
     }
 
     async init() {
@@ -24,6 +25,7 @@ class AIChatClient {
                 if (config.apiKey) this.apiKey = config.apiKey;
                 if (config.baseURL) this.baseURL = config.baseURL;
                 if (config.modelName) this.modelName = config.modelName;
+                if (config.maxTokensMultiplier) this.maxTokensMultiplier = Math.min(4.0, Math.max(0.5, config.maxTokensMultiplier));
             }
         } catch (e) {
             console.warn('[AIChatClient] Failed to load config:', e);
@@ -34,17 +36,19 @@ class AIChatClient {
         if (config.apiKey !== undefined) this.apiKey = config.apiKey;
         if (config.baseURL !== undefined) this.baseURL = config.baseURL;
         if (config.modelName !== undefined) this.modelName = config.modelName;
+        if (config.maxTokensMultiplier !== undefined) this.maxTokensMultiplier = Math.min(4.0, Math.max(0.5, config.maxTokensMultiplier));
         if (window.electronAPI && window.electronAPI.saveConfig) {
             window.electronAPI.saveConfig({
                 apiKey: this.apiKey,
                 baseURL: this.baseURL,
-                modelName: this.modelName
+                modelName: this.modelName,
+                maxTokensMultiplier: this.maxTokensMultiplier
             });
         }
     }
 
     getConfig() {
-        return { apiKey: this.apiKey, baseURL: this.baseURL, modelName: this.modelName };
+        return { apiKey: this.apiKey, baseURL: this.baseURL, modelName: this.modelName, maxTokensMultiplier: this.maxTokensMultiplier };
     }
 
     isConfigured() {
@@ -63,7 +67,8 @@ class AIChatClient {
         const timeoutId = setTimeout(() => controller.abort(), 120000);
 
         try {
-            console.log('[AIChatClient] Requesting with max_tokens: 2048');
+            const maxTokens = Math.round(2048 * this.maxTokensMultiplier);
+            console.log(`[AIChatClient] Requesting with max_tokens: ${maxTokens}`);
             const response = await fetch(`${this.baseURL}/chat/completions`, {
                 method: 'POST',
                 headers: {
@@ -73,7 +78,7 @@ class AIChatClient {
                 body: JSON.stringify({
                     model: this.modelName,
                     messages: messages,
-                    max_tokens: 2048,
+                    max_tokens: maxTokens,
                     temperature: 0.86
                 }),
                 signal: controller.signal
