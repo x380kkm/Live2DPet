@@ -33,6 +33,7 @@ const EVENTS = {
   onCharacterUpdate: 'character-update',
   onPetWindowClosed: 'pet-window-closed',
   onChatBubbleMessage: 'chat-bubble-message',
+  onModFrontendMount: 'mod-frontend-mount',
   onShowChatMessage: 'show-chat-message',
   onSizeChanged: 'size-changed',
   onPlayExpression: 'play-expression',

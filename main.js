@@ -482,14 +482,16 @@ function makeWindowHandlers(runtime) {
     'create-pet-window': () => {
       ensurePetWindow(runtime);
       if (runtime.bubbleController) runtime.bubbleController.ensure();
+      if (runtime.modFrontendController) runtime.modFrontendController.ensure();
       if (windowFactory.isAlive(runtime.settingsWindow)) runtime.settingsWindow.hide();
       if (runtime.scheduler) runtime.scheduler.start();
       return { success: true };
     },
-    // 关闭宠物:停感知调度、关桌宠与气泡窗、把设置窗口重新显示出来供再配置与再启动
+    // 关闭宠物:停感知调度、关桌宠与气泡与 mod 前端窗、把设置窗口重新显示出来供再配置与再启动
     'close-pet-window': () => {
       if (runtime.scheduler) runtime.scheduler.stop();
       if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.close();
+      if (windowFactory.isAlive(runtime.modFrontendWindow)) runtime.modFrontendWindow.close();
       if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.close();
       if (windowFactory.isAlive(runtime.settingsWindow)) { runtime.settingsWindow.show(); runtime.settingsWindow.focus(); }
       return { success: true };
@@ -627,6 +629,82 @@ function makeBubbleController(runtime) {
 }
 //// /造气泡控制器 ////
 
+// mod 前端窗口与桌宠的竖直间距与初始尺寸:挂载内容时控制器据 mod 尺寸预算重设。
+const MOD_FRONTEND_GAP = 8;
+const MOD_FRONTEND_INIT_WIDTH = 280;
+const MOD_FRONTEND_INIT_HEIGHT = 200;
+
+//// 建独立 mod 前端窗口加载 mod-frontend.html:透明无边、置顶、可交互、初始隐藏 [@busybee 2026-06-14] ////
+// 与气泡窗口并列的第二个表达区占用者,承载 mod 前端;它须能获焦点(气泡不可),供用户点击交互。
+function ensureModFrontendWindow(runtime) {
+  if (windowFactory.isAlive(runtime.modFrontendWindow)) { return runtime.modFrontendWindow; }
+  runtime.modFrontendWindow = windowFactory.createWindow({
+    BrowserWindow: electron.BrowserWindow,
+    width: MOD_FRONTEND_INIT_WIDTH, height: MOD_FRONTEND_INIT_HEIGHT,
+    frame: false, transparent: true, alwaysOnTop: true, resizable: false,
+    show: false, skipTaskbar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') }
+  });
+  runtime.modFrontendWindow.setAlwaysOnTop(true, 'screen-saver');
+  runtime.modFrontendWindow.loadFile(path.join(__dirname, 'mod-frontend.html'));
+  runtime.modFrontendWindow.on('closed', () => { runtime.modFrontendWindow = null; });
+  return runtime.modFrontendWindow;
+}
+//// /建独立 mod 前端窗口 ////
+
+//// 造 mod 前端控制器:把 mod 前端窗口的建窗、挂载、改尺寸、隐藏收成几个动作,定位与就绪排队只此一处 [@busybee 2026-06-14] ////
+// mod 前端浮在桌宠正上方、水平居中(与气泡同位,同一时刻至多一个占主导由主进程仲裁保证,见里程碑八·3);
+// 渲染未就绪时把最新一次挂载存住,等 ready-to-show 再补发。挂载内容的真正渲染(纯数据档与 iframe 沙箱档)在里程碑八·4 接。
+function makeModFrontendController(runtime) {
+  let ready = false;
+  let pending = null;
+
+  function positionAbovePet(width, height) {
+    if (!windowFactory.isAlive(runtime.petWindow) || !windowFactory.isAlive(runtime.modFrontendWindow)) return;
+    const pet = runtime.petWindow.getBounds();
+    const x = Math.round(pet.x + (pet.width - width) / 2);
+    const y = Math.round(pet.y - height - MOD_FRONTEND_GAP);
+    runtime.modFrontendWindow.setBounds({ x, y, width, height });
+  }
+
+  function mountNow(payload) {
+    if (!windowFactory.isAlive(runtime.modFrontendWindow)) return;
+    const bounds = runtime.modFrontendWindow.getBounds();
+    positionAbovePet(bounds.width || MOD_FRONTEND_INIT_WIDTH, bounds.height || MOD_FRONTEND_INIT_HEIGHT);
+    runtime.modFrontendWindow.send('mod-frontend-mount', payload);
+    // 用 showInactive 显示而不抢焦点;窗口可获焦点,用户点击 mod 前端时再激活
+    if (!runtime.modFrontendWindow.isVisible()) runtime.modFrontendWindow.showInactive();
+  }
+
+  return {
+    ensure() {
+      if (windowFactory.isAlive(runtime.modFrontendWindow)) return;
+      ready = false;
+      pending = null;
+      ensureModFrontendWindow(runtime);
+      runtime.modFrontendWindow.on('ready-to-show', () => {
+        ready = true;
+        if (pending) { const p = pending; pending = null; mountNow(p); }
+      });
+    },
+    mount(payload) {
+      this.ensure();
+      const data = payload || {};
+      if (ready) mountNow(data);
+      else pending = data;
+    },
+    resize(width, height) {
+      if (!windowFactory.isAlive(runtime.modFrontendWindow)) return;
+      positionAbovePet(width, height);
+      if (!runtime.modFrontendWindow.isVisible()) runtime.modFrontendWindow.showInactive();
+    },
+    hide() {
+      if (windowFactory.isAlive(runtime.modFrontendWindow)) runtime.modFrontendWindow.hide();
+    }
+  };
+}
+//// /造 mod 前端控制器 ////
+
 //// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
 // 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
 function runCommand(cmd, args, options) {
@@ -652,6 +730,7 @@ function mt(key) {
 const runtime = {
   petWindow: null,
   chatBubbleWindow: null,
+  modFrontendWindow: null,
   settingsWindow: null,
   tray: null,
   isQuitting: false,
@@ -695,6 +774,8 @@ app.whenReady().then(async () => {
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
   runtime.bubbleController = makeBubbleController(runtime);
   subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime), runtime.bubbleController);
+  // mod 前端控制器:mod 前端作为独立窗口,挂载与定位经它驱动(里程碑八·2);仲裁与挂载内容在后续里程碑接
+  runtime.modFrontendController = makeModFrontendController(runtime);
 
   // 发言产物喂反重复源:每条刚说出的话记入近期回复缓存
   platform.eventBus.subscribe('UtteranceProduced', (event) => perceptionRuntime.recordReply(spokenTextOf(event)));
@@ -762,6 +843,7 @@ app.whenReady().then(async () => {
   if (process.env.LIVE2DPET_AUTOLAUNCH === '1') {
     ensurePetWindow(runtime);
     runtime.bubbleController.ensure();
+    runtime.modFrontendController.ensure();
     if (windowFactory.isAlive(runtime.settingsWindow)) runtime.settingsWindow.hide();
     runtime.scheduler.start();
   }

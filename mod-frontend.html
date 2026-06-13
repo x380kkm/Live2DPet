@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mod Frontend</title>
+    <style>
+        /* mod 前端宿主窗口:透明,玫瑰描边圆角卡承载 mod 前端;与气泡同一套配色。 */
+        /* 纯数据档把模板渲到 #mod-root,可执行档由里程碑八·4 在此挂 iframe 沙箱。 */
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
+        html, body {
+            width: 100%; height: 100%;
+            background: transparent; overflow: hidden;
+            font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
+        }
+        #mod-root {
+            width: 100%; height: 100%;
+            background: rgba(255, 255, 255, 0.97);
+            border: 1.5px solid #ef8fa6;
+            border-radius: 14px;
+            box-shadow: 0 3px 12px rgba(150, 110, 125, 0.22);
+            padding: 12px;
+            color: #4a4550;
+            font-size: 13.5px;
+            line-height: 1.55;
+            overflow: auto;
+        }
+    </style>
+</head>
+<body>
+    <div id="mod-root"></div>
+    <!-- 渲染日志转发到主进程,经 petBridge 窄接口 -->
+    <script>
+        if (window.petBridge?.rendererLog) {
+            for (const level of ['log', 'warn', 'error']) {
+                const orig = console[level];
+                console[level] = (...args) => { orig.apply(console, args); try { window.petBridge.rendererLog(level, args.map(String)); } catch {} };
+            }
+        }
+    </script>
+    <script src="src/renderer/mod-frontend.js"></script>
+</body>
+</html>
