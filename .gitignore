@@ -4,6 +4,7 @@ dist/
 .claude/
 voicevox_core/
 archive/
+ref/
 manyread/short/
 manyread/user/
 nul
