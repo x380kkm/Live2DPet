@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -59,6 +59,10 @@
         <canvas id="live2d-canvas"></canvas>
         <img id="static-image" alt="pet">
         <img id="placeholder" alt="placeholder">
+        <!-- 对话气泡并入舞台:同一覆盖窗口承载头部与气泡 -->
+        <div id="stage-bubble" style="display:none; position:absolute; bottom:20%; left:50%; transform:translateX(-50%); -webkit-app-region:no-drag; z-index:50;">
+            <div id="stage-bubble-text" style="background:rgba(255,255,255,0.92); color:#555; padding:10px 14px; border-radius:14px; font-size:14px; max-width:320px; word-break:break-word;"></div>
+        </div>
         <div class="controls">
             <button class="ctrl-btn" id="btn-smaller" title="Smaller">−</button>
             <button class="ctrl-btn" id="btn-bigger" title="Bigger">+</button>
@@ -71,296 +75,80 @@
     <script src="libs/pixi.min.js"></script>
     <script src="libs/cubism4.min.js"></script>
     <script>
-        // Forward renderer console to main process (visible without --enable-logging)
-        if (window.electronAPI?.rendererLog) {
-            const _log = console.log, _warn = console.warn, _error = console.error;
+        // 渲染日志转发到主进程:经 petBridge 的窄接口,免开 --enable-logging
+        if (window.petBridge?.rendererLog) {
             for (const level of ['log', 'warn', 'error']) {
                 const orig = console[level];
                 console[level] = (...args) => {
                     orig.apply(console, args);
-                    try { window.electronAPI.rendererLog(level, args.map(String)); } catch {}
+                    try { window.petBridge.rendererLog(level, args.map(String)); } catch {}
                 };
             }
         }
     </script>
-    <script src="src/renderer/model-adapter.js"></script>
-    <script>
-        const sizePresets = [200, 300, 400, 500];
-        let currentSizeIndex = 1;
-        let currentAdapter = null;
-        let trackX = 0, trackY = 0;
+    <!-- 舞台组合根:加载 stage-boot 模块,把 petBridge 适配成 stage 所需窄接口 -->
+    <script type="module">
+        import { bootStage } from './src/renderer/boot/stage-boot.js';
 
-        // ========== Adapter-based Init ==========
-        async function initModel() {
-            try {
-                const config = await window.electronAPI.loadConfig();
-                const modelConfig = config.model || { type: 'none' };
-
-                // Resolve model directory for Live2D
-                if (modelConfig.type === 'live2d') {
-                    const validation = await window.electronAPI.validateModelPaths();
-                    if (!validation.valid) {
-                        console.warn('[DesktopPet] Model validation failed:', validation.error);
-                        modelConfig.type = 'none';
-                    } else if (validation.modelDir) {
-                        modelConfig._resolvedModelDir = validation.modelDir;
-                    }
-                }
-
-                currentAdapter = createModelAdapter(modelConfig);
-                const container = document.getElementById('pet-container');
-                await currentAdapter.load(container);
-
-                if (currentAdapter.getType() === 'live2d') {
-                    startMouseTracking();
-                }
-
-                console.log('[DesktopPet] Model loaded, type:', currentAdapter.getType());
-            } catch (error) {
-                console.warn('[DesktopPet] Model load failed, falling back to placeholder:', error);
-                currentAdapter = new NullAdapter({});
-                await currentAdapter.load(document.getElementById('pet-container'));
-            }
+        //// 把分域的 petBridge 拍平成 stage-boot 期待的窄接口 [@busybee 2026-06-13] ////
+        // stage-boot 调用 loadConfig、validateModelPaths、getCursorPosition 等扁平方法;
+        // 此处从分域桥按域取出对应能力,组成 stage-boot 的 narrowApi,渲染侧不直接抓全局。
+        function makeNarrowApi(bridge) {
+            const ui = bridge.ui || {};
+            const config = bridge.config || {};
+            const file = bridge.file || {};
+            const events = bridge.events || {};
+            return {
+                loadConfig: config.loadConfig,
+                validateModelPaths: file.validateModelPaths,
+                getCursorPosition: ui.getCursorPosition,
+                getWindowBounds: ui.getWindowBounds,
+                setWindowSize: ui.setWindowSize,
+                setWindowPosition: ui.setWindowPosition,
+                showSettings: (bridge.system || {}).showSettings,
+                closePetWindow: ui.closePetWindow,
+                onPlayExpression: events.onPlayExpression,
+                onRevertExpression: events.onRevertExpression,
+                onPlayMotion: events.onPlayMotion,
+                onTalkingStateChanged: events.onTalkingStateChanged,
+                onModelConfigUpdate: events.onModelConfigUpdate,
+                onSizeChanged: events.onSizeChanged
+            };
         }
 
-        // ========== Mouse Tracking ==========
-        let _mouseTrackingId = null;
-        function startMouseTracking() {
-            if (_mouseTrackingId) clearInterval(_mouseTrackingId);
-            _mouseTrackingId = setInterval(async () => {
-                if (!window.electronAPI) return;
-                try {
-                    const cursor = await window.electronAPI.getCursorPosition();
-                    const bounds = await window.electronAPI.getWindowBounds();
-                    const cx = bounds.x + bounds.width / 2;
-                    const cy = bounds.y + bounds.height / 2;
-                    trackX = Math.max(-1, Math.min(1, (cursor.x - cx) / 300));
-                    trackY = Math.max(-1, Math.min(1, (cursor.y - cy) / 300));
-                    if (currentAdapter) {
-                        currentAdapter.updateParams(trackX, trackY);
-                    }
-                } catch (e) {}
-            }, 50);
+        //// 临时渲染适配:在渲染端 PIXI 与 Cubism 接好前,先用空适配占位 [@busybee 2026-06-13] ////
+        // 真正的 Live2DAdapter 需在浏览器侧创建 PIXI 与 Cubism 后注入,见报告所列接口缺口。
+        async function createRenderAdapter() {
+            return {
+                playAction() {}, revertAction() {}, setTalking() {}, setTrack() {}, dispose() {}
+            };
         }
 
-        // ========== Resize ==========
-        window.addEventListener('resize', () => {
-            if (currentAdapter) {
-                currentAdapter.resize(window.innerWidth, window.innerHeight);
-            }
-        });
+        const narrowApi = makeNarrowApi(window.petBridge || {});
+        const session = await bootStage(narrowApi, { createRenderAdapter });
 
-        // ========== Controls ==========
-        function updateSizeBtns() {
-            document.getElementById('btn-smaller').disabled = (currentSizeIndex <= 0);
-            document.getElementById('btn-bigger').disabled = (currentSizeIndex >= sizePresets.length - 1);
+        // 把气泡推送并入舞台:订阅聊天消息,写进舞台内气泡而非独立窗口
+        const bubble = document.getElementById('stage-bubble');
+        const bubbleText = document.getElementById('stage-bubble-text');
+        const showBubble = (msg, autoCloseTime) => {
+            bubbleText.textContent = msg;
+            bubble.style.display = 'block';
+            setTimeout(() => { bubble.style.display = 'none'; }, autoCloseTime || 8000);
+        };
+        if (window.petBridge?.events?.onChatBubbleMessage) {
+            window.petBridge.events.onChatBubbleMessage((data) => showBubble(data.message, data.autoCloseTime));
         }
-        updateSizeBtns();
-
-        document.getElementById('btn-smaller').addEventListener('click', () => {
-            if (currentSizeIndex <= 0) return;
-            currentSizeIndex--;
-            const size = sizePresets[currentSizeIndex];
-            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
-            updateSizeBtns();
-            reportInteraction('resize', 'body', 0, { size });
-        });
-
-        document.getElementById('btn-bigger').addEventListener('click', () => {
-            if (currentSizeIndex >= sizePresets.length - 1) return;
-            currentSizeIndex++;
-            const size = sizePresets[currentSizeIndex];
-            if (window.electronAPI) window.electronAPI.setWindowSize(size, size);
-            updateSizeBtns();
-            reportInteraction('resize', 'body', 0, { size });
-        });
-
-        document.getElementById('btn-settings').addEventListener('click', () => {
-            if (window.electronAPI) window.electronAPI.showSettings();
-        });
-
-        document.getElementById('btn-close').addEventListener('click', () => {
-            if (window.electronAPI) window.electronAPI.closePetWindow();
-        });
-
-        // Right-click context menu
-        document.addEventListener('contextmenu', (e) => {
-            e.preventDefault();
-            if (window.electronAPI) window.electronAPI.showPetContextMenu();
-        });
-
-        // Listen for size changes from context menu
-        if (window.electronAPI && window.electronAPI.onSizeChanged) {
-            window.electronAPI.onSizeChanged((size) => {
-                currentSizeIndex = sizePresets.indexOf(size);
-                if (currentSizeIndex < 0) currentSizeIndex = 1;
-                updateSizeBtns();
-            });
+        if (window.petBridge?.events?.onShowChatMessage) {
+            window.petBridge.events.onShowChatMessage((data) => showBubble(data.message, data.autoCloseTime));
         }
 
-        // ========== Expression System (via Adapter) ==========
-        if (window.electronAPI && window.electronAPI.onPlayExpression) {
-            window.electronAPI.onPlayExpression((expressionName) => {
-                if (currentAdapter) {
-                    console.log('[DesktopPet] Playing expression:', expressionName);
-                    currentAdapter.setExpression(expressionName);
-                }
-            });
-        }
+        // 控件:加减尺寸、设置、关闭经 stage-boot 暴露的控件下达
+        document.getElementById('btn-smaller').addEventListener('click', () => session.controls.shrink());
+        document.getElementById('btn-bigger').addEventListener('click', () => session.controls.grow());
+        document.getElementById('btn-settings').addEventListener('click', () => session.controls.openSettings());
+        document.getElementById('btn-close').addEventListener('click', () => session.controls.close());
 
-        if (window.electronAPI && window.electronAPI.onRevertExpression) {
-            window.electronAPI.onRevertExpression(() => {
-                if (currentAdapter) {
-                    console.log('[DesktopPet] Reverting expression');
-                    currentAdapter.revertExpression();
-                }
-            });
-        }
-
-        // ========== Motion System (via Adapter) ==========
-        if (window.electronAPI && window.electronAPI.onPlayMotion) {
-            window.electronAPI.onPlayMotion((group, index) => {
-                if (currentAdapter) {
-                    console.log(`[DesktopPet] Playing motion: ${group}[${index}]`);
-                    currentAdapter.playMotion(group, index);
-                }
-            });
-        }
-
-        // ========== Character Update ==========
-        if (window.electronAPI && window.electronAPI.onCharacterUpdate) {
-            window.electronAPI.onCharacterUpdate((data) => {
-                console.log('[DesktopPet] Character update:', data);
-            });
-        }
-
-        // ========== Talking State (for Image Adapter) ==========
-        if (window.electronAPI && window.electronAPI.onTalkingStateChanged) {
-            window.electronAPI.onTalkingStateChanged((isTalking) => {
-                // ImageAdapter handles this internally via its own listener
-                // This is a fallback in case the adapter registered after the event
-            });
-        }
-
-        // ========== Model Config Hot-Reload ==========
-        if (window.electronAPI && window.electronAPI.onModelConfigUpdate) {
-            window.electronAPI.onModelConfigUpdate(async (newConfig) => {
-                console.log('[DesktopPet] Model config update, reloading...');
-                if (currentAdapter) {
-                    currentAdapter.destroy();
-                }
-                await initModel();
-            });
-        }
-
-        // ========== Hover Detection ==========
-        document.getElementById('pet-container').addEventListener('mouseenter', () => {
-            if (window.electronAPI && window.electronAPI.reportHoverState) {
-                window.electronAPI.reportHoverState(true);
-            }
-        });
-        document.getElementById('pet-container').addEventListener('mouseleave', () => {
-            if (window.electronAPI && window.electronAPI.reportHoverState) {
-                window.electronAPI.reportHoverState(false);
-            }
-        });
-
-        // ========== Interaction Reporting (shared) ==========
-        function reportInteraction(type, area, durationMs, extra) {
-            console.log(`[DesktopPet] ${type}: area=${area} duration=${durationMs}ms`);
-            if (window.electronAPI?.reportHit) {
-                window.electronAPI.reportHit({ type, area, durationMs, timestamp: Date.now(), ...extra });
-            }
-        }
-
-        // ========== Hit Detection + Custom Drag ==========
-        // Canvas/image are no-drag; we handle click vs drag manually.
-        // Uses screenX/screenY (absolute) to avoid jitter from window movement.
-        // On every drag frame, setBounds locks both position AND size to prevent OS resize.
-        (function() {
-            let downX = 0, downY = 0, downTime = 0, isDragging = false;
-            let winX = 0, winY = 0, winW = 0, winH = 0, boundsReady = false;
-            const CLICK_THRESHOLD_MS = 300;
-            const CLICK_THRESHOLD_PX = 8;
-
-            const SWIPE_COOLDOWN_MS = 3000;
-            let lastSwipeTime = 0;
-
-            const targets = ['live2d-canvas', 'static-image'];
-            for (const id of targets) {
-                const el = document.getElementById(id);
-                if (!el) continue;
-
-                el.addEventListener('pointerenter', () => {
-                    if (downTime !== 0) return;
-                    const now = Date.now();
-                    if (now - lastSwipeTime < SWIPE_COOLDOWN_MS) return;
-                    lastSwipeTime = now;
-                    reportInteraction('swipe', 'body', 0);
-                });
-
-                el.addEventListener('pointerdown', (e) => {
-                    downX = e.screenX;
-                    downY = e.screenY;
-                    downTime = Date.now();
-                    isDragging = false;
-                    boundsReady = false;
-                    el.setPointerCapture(e.pointerId);
-                    if (window.electronAPI?.getWindowBounds) {
-                        window.electronAPI.getWindowBounds().then(b => {
-                            winX = b.x; winY = b.y; winW = b.width; winH = b.height;
-                            boundsReady = true;
-                        }).catch(() => {});
-                    }
-                });
-
-                el.addEventListener('pointermove', (e) => {
-                    if (downTime === 0) return;
-                    const dx = e.screenX - downX;
-                    const dy = e.screenY - downY;
-                    if (!isDragging && (Math.abs(dx) > CLICK_THRESHOLD_PX || Math.abs(dy) > CLICK_THRESHOLD_PX)) {
-                        isDragging = true;
-                    }
-                    if (isDragging && boundsReady && window.electronAPI?.setWindowPosition) {
-                        window.electronAPI.setWindowPosition(
-                            Math.round(winX + dx), Math.round(winY + dy), winW, winH
-                        );
-                    }
-                });
-
-                el.addEventListener('pointerup', (e) => {
-                    const elapsed = Date.now() - downTime;
-                    const dx = Math.abs(e.screenX - downX);
-                    const dy = Math.abs(e.screenY - downY);
-                    downTime = 0;
-
-                    if (isDragging) {
-                        reportInteraction('drag', 'body', elapsed);
-                    } else if (elapsed < CLICK_THRESHOLD_MS && dx < CLICK_THRESHOLD_PX && dy < CLICK_THRESHOLD_PX) {
-                        const area = getHitArea(e.clientX, e.clientY);
-                        reportInteraction('click', area, elapsed);
-                    } else if (elapsed >= CLICK_THRESHOLD_MS) {
-                        const area = getHitArea(e.clientX, e.clientY);
-                        reportInteraction('touch', area, elapsed);
-                    }
-                    isDragging = false;
-                });
-            }
-
-            function getHitArea(x, y) {
-                if (currentAdapter && currentAdapter.getType() === 'live2d' && currentAdapter.model) {
-                    try {
-                        const areas = currentAdapter.model.hitTest(x, y);
-                        if (areas && areas.length > 0) return areas[0];
-                    } catch(e) { console.warn('[DesktopPet] hitTest error:', e); }
-                }
-                return 'body';
-            }
-        })();
-
-        // ========== Init ==========
-        initModel();
-        console.log('[DesktopPet] Window loaded');
+        console.log('[DesktopPet] stage 已装配');
     </script>
 </body>
 </html>

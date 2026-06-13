@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Live2DPet Settings</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 16px; }
+        .tab-btn { padding: 6px 12px; border: none; background: #eee; cursor: pointer; }
+        .tab-btn.active { background: #ddd; font-weight: bold; }
+        .tab-content { display: none; padding: 12px 0; }
+        .tab-content.active { display: block; }
+        .status { font-size: 12px; color: #888; }
+        .status.success { color: #2a8; }
+        .status.error { color: #c33; }
+    </style>
+</head>
+<body>
+    <!-- 设置面板宿主:子面板布局占位,真相来源是 settings-app 的配置数据模型 -->
+    <div id="settings-root">
+        <select id="lang-select"><option value="en">English</option><option value="zh">中文</option></select>
+        <div id="tabs"></div>
+        <div id="tab-api" class="tab-content active"></div>
+        <div id="tab-model" class="tab-content"></div>
+        <div id="tab-emotion" class="tab-content"></div>
+        <div id="tab-tts" class="tab-content"></div>
+        <div id="tab-prompt" class="tab-content"></div>
+    </div>
+
+    <!-- 渲染日志转发到主进程,经 petBridge 窄接口 -->
+    <script>
+        if (window.petBridge?.rendererLog) {
+            for (const level of ['log', 'warn', 'error']) {
+                const orig = console[level];
+                console[level] = (...args) => { orig.apply(console, args); try { window.petBridge.rendererLog(level, args.map(String)); } catch {} };
+            }
+        }
+    </script>
+    <!-- 设置面板组合根:加载 settings-app,把 petBridge 收窄成扁平 electronApi 供其网关收口 -->
+    <script type="module">
+        import { SettingsApp } from './src/renderer/settings/settings-app.js';
+
+        //// 把分域的 petBridge 拍平成 settings-gateway 期待的扁平 electronApi [@busybee 2026-06-13] ////
+        // settings-gateway 按扁平方法名(loadConfig、listCharacters 等)收窄,这里按域合并回扁平面。
+        function flattenBridge(bridge) {
+            const flat = {};
+            for (const domain of Object.values(bridge)) {
+                if (domain && typeof domain === 'object') Object.assign(flat, domain);
+            }
+            if (bridge.events) Object.assign(flat, bridge.events);
+            return flat;
+        }
+
+        const app = new SettingsApp({
+            doc: document,
+            electronApi: flattenBridge(window.petBridge || {}),
+            i18n: {}
+        });
+        await app.mount();
+        console.log('[Settings] settings-app 已装配');
+    </script>
+</body>
+</html>

@@ -1,110 +1,74 @@
+// audience: internal
+// # preload
+// 渲染侧入口:把 capability-gateway 与 channel-registry 声明的通道转成 window 上的窄接口。
+// 不变量:按能力域分组暴露而非扁平等权全集;通道名只来自 channel-registry,本文件不写库外裸字符串。
+
 const { contextBridge, ipcRenderer } = require('electron');
+const channelRegistry = require('./src/platform/ipc/channel-registry');
 
-contextBridge.exposeInMainWorld('electronAPI', {
-    // Pet window
-    createPetWindow: (data) => ipcRenderer.invoke('create-pet-window', data),
-    closePetWindow: () => ipcRenderer.invoke('close-pet-window'),
-    updatePetCharacter: (data) => ipcRenderer.invoke('update-pet-character', data),
-    getCharacterData: () => ipcRenderer.invoke('get-character-data'),
+const D = channelRegistry.CapabilityDomain;
 
-    // Window control
-    setWindowSize: (w, h) => ipcRenderer.invoke('set-window-size', w, h),
-    setWindowPosition: (x, y, w, h) => ipcRenderer.invoke('set-window-position', x, y, w, h),
-    getWindowBounds: () => ipcRenderer.invoke('get-window-bounds'),
-    getWindowPosition: () => ipcRenderer.invoke('get-window-position'),
+//// 把契约目录里某能力域的通道收成「方法名到 invoke 调用」的窄句柄 [@busybee 2026-06-13] ////
+// 通道名经 channel-registry 校验过域归属,方法名由 toMethodName 从通道名派生,渲染侧只见这层。
+function groupOf(domain) {
+  const group = {};
+  for (const channel of channelRegistry.channels()) {
+    if (channelRegistry.capabilityDomainOf(channel) !== domain) continue;
+    group[toMethodName(channel)] = (...args) => ipcRenderer.invoke(channel, ...args);
+  }
+  return group;
+}
+//// /把契约目录里某能力域的通道收成窄句柄 ////
 
-    // Chat bubble
-    showPetChat: (msg, time) => ipcRenderer.invoke('show-pet-chat', msg, time),
-    closeChatBubble: () => ipcRenderer.invoke('close-chat-bubble'),
-    resizeChatBubble: (w, h) => ipcRenderer.invoke('resize-chat-bubble', w, h),
+//// 把 kebab 通道名转成 camelCase 方法名,渲染侧按域取方法 [@busybee 2026-06-13] ////
+function toMethodName(channel) {
+  return channel.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
+}
+//// /把 kebab 通道名转成 camelCase 方法名 ////
 
-    // Screen & window detection
-    getScreenCapture: () => ipcRenderer.invoke('get-screen-capture'),
-    getScreenCaptureHQ: (targetTitle) => ipcRenderer.invoke('get-screen-capture-hq', targetTitle),
-    getActiveWindow: () => ipcRenderer.invoke('get-active-window'),
-    getOpenWindows: () => ipcRenderer.invoke('get-open-windows'),
-    getSystemIdleTime: () => ipcRenderer.invoke('get-system-idle-time'),
+//// 主进程向渲染侧推送的事件:按事件名订阅,只暴露声明过的几路 [@busybee 2026-06-13] ////
+// 这些是单向推送通道(主到渲染),不在 invoke 契约里,故单列;回调只拿到 payload。
+const EVENTS = {
+  onCharacterUpdate: 'character-update',
+  onPetWindowClosed: 'pet-window-closed',
+  onChatBubbleMessage: 'chat-bubble-message',
+  onShowChatMessage: 'show-chat-message',
+  onSizeChanged: 'size-changed',
+  onPlayExpression: 'play-expression',
+  onRevertExpression: 'revert-expression',
+  onPlayMotion: 'play-motion',
+  onTalkingStateChanged: 'talking-state-changed',
+  onPetHoverState: 'pet-hover-state',
+  onPetHit: 'pet-hit',
+  onModelConfigUpdate: 'model-config-update',
+  onVoicevoxSetupProgress: 'voicevox-setup-progress'
+};
 
-    // Utility
-    getGenderTerm: () => ipcRenderer.invoke('get-gender-term'),
-    openDevTools: () => ipcRenderer.invoke('open-dev-tools'),
-    getAppPath: () => ipcRenderer.invoke('get-app-path'),
-    showSettings: () => ipcRenderer.invoke('show-settings'),
-    loadConfig: () => ipcRenderer.invoke('load-config'),
-    saveConfig: (data) => ipcRenderer.invoke('save-config', data),
-    getCursorPosition: () => ipcRenderer.invoke('get-cursor-position'),
-    showPetContextMenu: () => ipcRenderer.invoke('show-pet-context-menu'),
+//// 把单向推送通道收成「订阅函数名到注册器」的窄句柄 [@busybee 2026-06-13] ////
+function makeEventSubscribers() {
+  const subscribers = {};
+  for (const [name, channel] of Object.entries(EVENTS)) {
+    subscribers[name] = (callback) => ipcRenderer.on(channel, (_event, ...args) => callback(...args));
+  }
+  return subscribers;
+}
+//// /把单向推送通道收成订阅句柄 ////
 
-    // Character card management
-    listCharacters: () => ipcRenderer.invoke('list-characters'),
-    loadPrompt: (id) => ipcRenderer.invoke('load-prompt', id),
-    savePrompt: (id, data) => ipcRenderer.invoke('save-prompt', id, data),
-    resetPrompt: (id) => ipcRenderer.invoke('reset-prompt', id),
-    createCharacter: (name) => ipcRenderer.invoke('create-character', name),
-    deleteCharacter: (id) => ipcRenderer.invoke('delete-character', id),
-    renameCharacter: (id, name) => ipcRenderer.invoke('rename-character', id, name),
-    setActiveCharacter: (id) => ipcRenderer.invoke('set-active-character', id),
-    importCharacter: () => ipcRenderer.invoke('import-character'),
-    resetBuiltinCards: () => ipcRenderer.invoke('reset-builtin-cards'),
-
-    // Emotion system
-    triggerExpression: (name) => ipcRenderer.invoke('trigger-expression', name),
-    revertExpression: () => ipcRenderer.invoke('revert-expression'),
-    triggerMotion: (group, index) => ipcRenderer.invoke('trigger-motion', group, index),
-    reportHoverState: (hovering) => ipcRenderer.invoke('report-hover-state', hovering),
-    reportHit: (data) => ipcRenderer.invoke('report-hit', data),
-
-    // Model import & scanning (Phase 1)
-    selectModelFolder: () => ipcRenderer.invoke('select-model-folder'),
-    scanModelInfo: (folder, file) => ipcRenderer.invoke('scan-model-info', folder, file),
-    selectStaticImage: () => ipcRenderer.invoke('select-static-image'),
-    selectImageFolder: () => ipcRenderer.invoke('select-image-folder'),
-    scanImageFolder: (folderPath) => ipcRenderer.invoke('scan-image-folder', folderPath),
-    setTalkingState: (isTalking) => ipcRenderer.invoke('set-talking-state', isTalking),
-    selectBubbleImage: () => ipcRenderer.invoke('select-bubble-image'),
-    selectAppIcon: () => ipcRenderer.invoke('select-app-icon'),
-    copyModelToUserdata: (folder, modelName) => ipcRenderer.invoke('copy-model-to-userdata', folder, modelName),
-    validateModelPaths: () => ipcRenderer.invoke('validate-model-paths'),
-    deleteProfile: (id) => ipcRenderer.invoke('delete-profile', id),
-
-    // TTS (Phase 2)
-    ttsSynthesize: (text) => ipcRenderer.invoke('tts-synthesize', text),
-    ttsGetStatus: () => ipcRenderer.invoke('tts-get-status'),
-    ttsRestart: () => ipcRenderer.invoke('tts-restart'),
-    appRelaunch: () => ipcRenderer.invoke('app-relaunch'),
-    ttsSetConfig: (config) => ipcRenderer.invoke('tts-set-config', config),
-    ttsGetMetas: () => ipcRenderer.invoke('tts-get-metas'),
-    ttsGetAvailableVvms: () => ipcRenderer.invoke('tts-get-available-vvms'),
-    downloadVvm: (filename) => ipcRenderer.invoke('download-vvm', filename),
-    setupVoicevox: () => ipcRenderer.invoke('setup-voicevox'),
-    onVoicevoxSetupProgress: (cb) => ipcRenderer.on('voicevox-setup-progress', (e, msg) => cb(msg)),
-
-    // Default audio (Phase 2)
-    generateDefaultAudio: (phrases, styleId) => ipcRenderer.invoke('generate-default-audio', phrases, styleId),
-    loadDefaultAudio: () => ipcRenderer.invoke('load-default-audio'),
-
-    // Event listeners
-    onCharacterUpdate: (cb) => ipcRenderer.on('character-update', (e, data) => cb(data)),
-    onPetWindowClosed: (cb) => ipcRenderer.on('pet-window-closed', () => cb()),
-    onChatBubbleMessage: (cb) => ipcRenderer.on('chat-bubble-message', (e, data) => cb(data)),
-    onShowChatMessage: (cb) => ipcRenderer.on('show-chat-message', (e, data) => cb(data)),
-    onSizeChanged: (cb) => ipcRenderer.on('size-changed', (e, size) => cb(size)),
-    onPlayExpression: (cb) => ipcRenderer.on('play-expression', (e, name) => cb(name)),
-    onRevertExpression: (cb) => ipcRenderer.on('revert-expression', () => cb()),
-    onPlayMotion: (cb) => ipcRenderer.on('play-motion', (e, group, index) => cb(group, index)),
-    onTalkingStateChanged: (cb) => ipcRenderer.on('talking-state-changed', (e, isTalking) => cb(isTalking)),
-    onPetHoverState: (cb) => ipcRenderer.on('pet-hover-state', (e, hovering) => cb(hovering)),
-    onPetHit: (cb) => ipcRenderer.on('pet-hit', (e, data) => cb(data)),
-    onModelConfigUpdate: (cb) => ipcRenderer.on('model-config-update', (e, config) => cb(config)),
-
-    // External links
-    openExternal: (url) => ipcRenderer.invoke('open-external', url),
-
-    // Enhance system
-    saveEnhanceData: (data) => ipcRenderer.invoke('save-enhance-data', data),
-    loadEnhanceData: () => ipcRenderer.invoke('load-enhance-data'),
-    webSearch: (query, provider, options) => ipcRenderer.invoke('web-search', query, provider, options),
-
-    // Renderer log forwarding (avoids needing --enable-logging)
-    rendererLog: (level, args) => ipcRenderer.send('renderer-log', level, args)
+//// 按能力域分级暴露:无害控制与读写直放,屏幕、外发、文件三域为重能力单列 [@busybee 2026-06-13] ////
+// 重能力域与无害控制域分桶暴露,而非过去那张约 70 通道扁平等权表;渲染侧按域取能力。
+contextBridge.exposeInMainWorld('petBridge', {
+  ui: groupOf(D.ui),
+  config: groupOf(D.config),
+  character: groupOf(D.character),
+  emotion: groupOf(D.emotion),
+  tts: groupOf(D.tts),
+  system: groupOf(D.system),
+  // 重能力:截屏、外发、文件分域单列,提示调用方它们经主进程能力网关门控
+  screen: groupOf(D.screen),
+  outbound: groupOf(D.outbound),
+  file: groupOf(D.file),
+  events: makeEventSubscribers(),
+  // 渲染日志转发:单向发送,不进 invoke 契约
+  rendererLog: (level, args) => ipcRenderer.send('renderer-log', level, args)
 });
+//// /按能力域分级暴露 ////
