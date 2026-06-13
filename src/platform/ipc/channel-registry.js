@@ -33,6 +33,7 @@ const CHANNEL_DOMAINS = {
   'resize-chat-bubble': CapabilityDomain.ui,
   'get-cursor-position': CapabilityDomain.ui,
   'show-pet-context-menu': CapabilityDomain.ui,
+  'report-mod-interaction': CapabilityDomain.ui,
 
   // 屏幕感知:截屏与列窗口为隐私重能力
   'get-screen-capture': CapabilityDomain.screen,

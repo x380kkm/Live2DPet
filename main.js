@@ -70,6 +70,8 @@ const { FewShotResolver } = require('./src/domain/fewshot/fewshot-resolver');
 const { PromptComposer } = require('./src/domain/pet/prompt-composer');
 const { RequestPipeline } = require('./src/domain/pet/request-pipeline');
 const { PetOrchestrator } = require('./src/domain/pet/pet');
+const { InteractionRouter } = require('./src/domain/pet/interaction-router');
+const { InteractionEvent } = require('./src/domain/mod/interaction-event');
 const { EmotionReaction } = require('./src/domain/pet/emotion-reaction');
 const { PerceptionCollector } = require('./src/domain/pet/perception-collector');
 const { PetScheduler } = require('./src/domain/pet/scheduler');
@@ -169,7 +171,9 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
     source: modSource,
     globalEnabled: Array.isArray(global.enabledMods) ? global.enabledMods : []
   });
-  modRegistry.discover();
+  const discoveredMods = modRegistry.discover();
+  // mod 声明的意图随发现注入意图注册表,可追溯到 mod id;无 mod 时为空操作
+  intentRegistry.discoverFromMods(discoveredMods);
 
   // AI 步骤:出厂步骤在加载期被发现注入,供设置界面枚举与模型路由校验,可追溯
   const stepRegistry = new StepRegistry();
@@ -206,8 +210,11 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层
   const pet = new PetOrchestrator({ pipeline, llmClient, eventBus });
 
+  // 交互路由:mod 交互事件经总线进来,据事件名触发声明消费它的意图,不经截图循环
+  const interactionRouter = new InteractionRouter({ eventBus, registry: intentRegistry, pet });
+
   return {
-    intentRegistry, modRegistry, stepRegistry,
+    intentRegistry, modRegistry, stepRegistry, interactionRouter,
     keyframeBuffer, vlmExtractor, memoryStore, perceptionCollector,
     emotionState, emotionSelector, emotionReaction,
     ttsOrchestrator, utteranceSession,
@@ -508,6 +515,15 @@ function makeWindowHandlers(runtime) {
     'get-window-bounds': () => windowFactory.isAlive(runtime.petWindow) ? runtime.petWindow.getBounds() : { x: 0, y: 0, width: 200, height: 200 },
     'get-window-position': () => windowFactory.isAlive(runtime.petWindow) ? runtime.petWindow.getPosition() : { x: 0, y: 0 },
     'get-cursor-position': () => electron.screen.getCursorScreenPoint(),
+    // mod 前端或身体交互上报:把交互折成交互事件发上总线,交互路由据事件名触发意图
+    'report-mod-interaction': (args) => {
+      const name = Array.isArray(args) ? args[0] : args;
+      const payload = Array.isArray(args) ? args[1] : null;
+      if (name && runtime.platform && runtime.platform.eventBus) {
+        runtime.platform.eventBus.publish(new InteractionEvent(name, payload));
+      }
+      return { success: true };
+    },
     'show-settings': () => { if (windowFactory.isAlive(runtime.settingsWindow)) { runtime.settingsWindow.show(); runtime.settingsWindow.focus(); } return { success: true }; }
   };
 }
@@ -778,6 +794,8 @@ app.whenReady().then(async () => {
 
   // 情绪连接件订阅发言产物;领域事件经 IPC 转发到宠物窗口
   runtime.domain.emotionReaction.start();
+  // 交互路由订阅交互事件:mod 交互经总线触发声明消费它的意图,不经截图循环
+  runtime.domain.interactionRouter.start();
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
   // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处(里程碑八·3)
   runtime.expressionArbiter = createExpressionArbiter({
