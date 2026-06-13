@@ -46,6 +46,10 @@ export function makeSettingsGateway(electronApi) {
     system: {
       relaunch: () => api.appRelaunch(),
       openExternal: (url) => api.openExternal(url)
+    },
+    pet: {
+      launch: () => api.createPetWindow(),
+      close: () => api.closePetWindow()
     }
   };
 }

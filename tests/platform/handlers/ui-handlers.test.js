@@ -47,6 +47,13 @@ function setup(opts = {}) {
   const settings = opts.noSettings ? null : createWindow({ BrowserWindow: FakeBrowserWindow });
   const menu = makeMenuPopup();
   const created = [];
+  // 假气泡控制器:记录显示、改尺寸、隐藏三类调用,代替真实独立气泡窗口
+  const bubble = {
+    calls: [],
+    show(message, autoCloseTime) { this.calls.push(['show', message, autoCloseTime]); },
+    resize(width, height) { this.calls.push(['resize', width, height]); },
+    hide() { this.calls.push(['hide']); }
+  };
   registerUiHandlers({
     router,
     getPetWindow: () => pet,
@@ -55,9 +62,10 @@ function setup(opts = {}) {
     menuPopup: menu.popup,
     isAlive,
     mt: (key) => `t:${key}`,
+    bubble,
     initialCharacterData: opts.initialCharacterData
   });
-  return { pet, settings, menu, created, instances };
+  return { pet, settings, menu, created, instances, bubble };
 }
 
 // 取一个窗口句柄底层假实例,断言其推送与调用 [@busybee 2026-06-13]
@@ -65,44 +73,31 @@ function rawOf(handle) {
   return handle._raw;
 }
 
-test('show-pet-chat 把文本推进宠物窗口舞台气泡', async () => {
-  const { pet } = setup();
+test('show-pet-chat 经气泡控制器显示发言', async () => {
+  const { bubble } = setup();
   const result = await router.dispatch('show-pet-chat', ['hi', 3000]);
   assert.deepStrictEqual(result, { success: true });
-  assert.deepStrictEqual(rawOf(pet).sent, [{ channel: RENDER_CHANNEL.bubbleMessage, payload: { message: 'hi', autoCloseTime: 3000 } }]);
+  assert.deepStrictEqual(bubble.calls, [['show', 'hi', 3000]]);
 });
 
 test('show-pet-chat 缺自动关闭时间时回退到默认 8000', async () => {
-  const { pet } = setup();
+  const { bubble } = setup();
   await router.dispatch('show-pet-chat', ['hello']);
-  assert.strictEqual(rawOf(pet).sent[0].payload.autoCloseTime, 8000);
+  assert.deepStrictEqual(bubble.calls[0], ['show', 'hello', 8000]);
 });
 
-test('show-pet-chat 无宠物窗口时报失败', async () => {
-  setup({ noPet: true });
-  const result = await router.dispatch('show-pet-chat', ['hi']);
-  assert.strictEqual(result.success, false);
-  assert.match(result.error, /no pet window/);
-});
-
-test('close-chat-bubble 通知宠物窗口收起气泡', async () => {
-  const { pet } = setup();
+test('close-chat-bubble 经气泡控制器隐藏气泡', async () => {
+  const { bubble } = setup();
   const result = await router.dispatch('close-chat-bubble', undefined);
   assert.deepStrictEqual(result, { success: true });
-  assert.deepStrictEqual(rawOf(pet).sent, [{ channel: RENDER_CHANNEL.bubbleClose, payload: null }]);
+  assert.deepStrictEqual(bubble.calls, [['hide']]);
 });
 
-test('close-chat-bubble 无宠物窗口时仍回成功且不推送', async () => {
-  setup({ noPet: true });
-  const result = await router.dispatch('close-chat-bubble', undefined);
-  assert.deepStrictEqual(result, { success: true });
-});
-
-test('resize-chat-bubble 把目标宽高推给宠物窗口', async () => {
-  const { pet } = setup();
+test('resize-chat-bubble 经气泡控制器改尺寸并重定位', async () => {
+  const { bubble } = setup();
   const result = await router.dispatch('resize-chat-bubble', [250, 90]);
   assert.deepStrictEqual(result, { success: true });
-  assert.deepStrictEqual(rawOf(pet).sent, [{ channel: RENDER_CHANNEL.bubbleResize, payload: { width: 250, height: 90 } }]);
+  assert.deepStrictEqual(bubble.calls, [['resize', 250, 90]]);
 });
 
 test('show-pet-context-menu 经菜单工厂弹在宠物窗口上,且模板含全部尺寸项', async () => {

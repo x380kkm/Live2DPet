@@ -1,0 +1,199 @@
+/* audience: internal */
+/* # settings.css */
+/* 设置界面的设计系统:配色、圆角、阴影、间距与各组件样式集中一处。 */
+/* 不变量:只定义 settings.html 与各 panel 用到的类与元素的外观,不引入新结构契约;面板靠 id 取元素,样式不改 id。 */
+/* 风格取向:贴合 Live2D 桌宠的柔和、干净、友好——玫瑰粉点缀(呼应气泡边框)、留白充足、圆角与轻阴影。 */
+
+:root {
+  --bg: #faf7f8;
+  --surface: #ffffff;
+  --surface-alt: #fbf6f8;
+  --text: #4a4550;
+  --text-muted: #9a929e;
+  --accent: #ef8fa6;
+  --accent-hover: #e87593;
+  --accent-soft: #fce8ee;
+  --border: #efe7eb;
+  --border-strong: #e2d7dd;
+  --danger: #e57373;
+  --danger-hover: #d96363;
+  --success: #57b894;
+  --radius: 12px;
+  --radius-sm: 9px;
+  --shadow: 0 2px 12px rgba(150, 110, 125, 0.09);
+  --shadow-soft: 0 1px 4px rgba(150, 110, 125, 0.06);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+body {
+  font-family: 'Microsoft YaHei', 'PingFang SC', system-ui, Arial, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+  font-size: 13px;
+  line-height: 1.6;
+  padding: 14px 16px 24px;
+  -webkit-font-smoothing: antialiased;
+}
+
+/* 顶部:应用名与语言切换 */
+.app-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  margin-bottom: 12px;
+}
+.app-title {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--accent-hover);
+  letter-spacing: 0.3px;
+}
+.app-title::before {
+  content: '🐾';
+  margin-right: 6px;
+}
+
+/* 启动器:醒目的一条,主操作放最前 */
+#pet-launch-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  margin-bottom: 14px;
+  background: var(--accent-soft);
+  border-radius: var(--radius);
+}
+
+/* 标签导航:胶囊式,选中填强调色 */
+#tabs {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-bottom: 14px;
+}
+.tab-btn {
+  padding: 6px 14px;
+  border: none;
+  border-radius: 999px;
+  background: var(--surface);
+  color: var(--text-muted);
+  cursor: pointer;
+  font-size: 13px;
+  box-shadow: var(--shadow-soft);
+  transition: background 0.15s, color 0.15s;
+}
+.tab-btn:hover { color: var(--text); }
+.tab-btn.active {
+  background: var(--accent);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: var(--shadow);
+}
+
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+/* 卡片:柔和圆角与轻阴影,取代生硬边框 */
+.card {
+  background: var(--surface);
+  border-radius: var(--radius);
+  box-shadow: var(--shadow);
+  padding: 14px 16px;
+  margin: 0 0 12px;
+}
+
+h3 {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 10px;
+}
+
+label {
+  display: block;
+  margin: 10px 0 4px;
+  color: var(--text-muted);
+  font-size: 12.5px;
+}
+label:first-child { margin-top: 0; }
+
+/* 表单控件:圆角、柔边、聚焦时玫瑰色描边 */
+input[type=text], input[type=password], input[type=number], textarea, select {
+  width: 100%;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  font-family: inherit;
+  transition: border-color 0.15s, box-shadow 0.15s;
+}
+input:focus, textarea:focus, select:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-soft);
+}
+textarea { resize: vertical; min-height: 64px; line-height: 1.55; }
+
+/* 行内布局 */
+.row { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.param-row, .expr-item, .image-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 6px 0;
+  padding: 6px 8px;
+  background: var(--surface-alt);
+  border-radius: var(--radius-sm);
+}
+.image-thumb { width: 38px; height: 38px; object-fit: cover; border-radius: 8px; }
+
+/* 按钮:圆角,主按钮玫瑰色,次按钮柔灰,危险按钮暖红 */
+.btn {
+  padding: 8px 16px;
+  border: none;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+  font-family: inherit;
+  transition: background 0.15s, transform 0.05s, box-shadow 0.15s;
+  margin: 4px 6px 4px 0;
+}
+.btn:active { transform: translateY(1px); }
+.btn-primary { background: var(--accent); color: #fff; box-shadow: var(--shadow-soft); }
+.btn-primary:hover { background: var(--accent-hover); }
+.btn-secondary { background: var(--surface-alt); color: var(--text); border: 1px solid var(--border-strong); }
+.btn-secondary:hover { background: #f3ecef; }
+.btn-secondary.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+.btn-danger { background: var(--danger); color: #fff; }
+.btn-danger:hover { background: var(--danger-hover); }
+.btn-sm { padding: 5px 11px; font-size: 12px; }
+
+/* 状态文字 */
+.status { font-size: 12px; color: var(--text-muted); min-height: 16px; margin-top: 6px; }
+.status.success { color: var(--success); }
+.status.error { color: var(--danger); }
+.status.info { color: var(--accent-hover); }
+
+/* 区段标题段落说明 */
+p { color: var(--text-muted); font-size: 12px; line-height: 1.6; }
+
+/* 复选框与单选与滑块统一用强调色 */
+input[type=checkbox], input[type=radio] { accent-color: var(--accent); width: 15px; height: 15px; }
+input[type=range] { accent-color: var(--accent); flex: 1; min-width: 80px; }
+
+/* 语言下拉收窄,放在头部右侧 */
+#lang-select { width: auto; min-width: 110px; }
+
+/* 细滚动条 */
+::-webkit-scrollbar { width: 9px; height: 9px; }
+::-webkit-scrollbar-thumb { background: var(--border-strong); border-radius: 999px; }
+::-webkit-scrollbar-thumb:hover { background: #d3c5cc; }
+::-webkit-scrollbar-track { background: transparent; }
+
+/* 模型路由面板:大类卡与步骤行 */
+#model-config-root .card { background: var(--surface-alt); }

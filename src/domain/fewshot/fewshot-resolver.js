@@ -3,9 +3,11 @@
 // few-shot 解析器:解析意图的 few-shot 引用,经模板变量插槽受控注入语气。
 // 不变量:语气只在插槽处注入,结构样例与成品句子不混写,守住与角色文风的隔离。
 //
-// 引用是纯数据:{ structure, tone?, slots? }。意图只引结构名,语气名缺省即取与结构同名的语气样例。
-// 解析流程:先取全局结构骨架,再取本角色语气样例,然后经 bank.compose 在插槽处注入语气,产出样例轮次。
-// 语气在跨角色之间互不可见,某角色缺该语气样例时只留空骨架,绝不借用别的角色的文风。
+// 引用是纯数据,按形状分两类:
+//   结构引用 { structure, tone?, slots? }(或字符串即结构名):先取全局结构骨架,再取本角色语气样例,
+//     经 bank.compose 在插槽处注入语气,产出样例轮次;语气跨角色不可见,缺该语气时只留空骨架。
+//   场景台词引用 { sceneSet, options? }:取本角色的场景台词样例,经 bank.composeSceneTurns 渲染成示例轮次,
+//     其轮次携带成品台词(决策 34/37 的语气示范主体),供模型模仿文风但不照抄(指令在 prompt-composer)。
 
 class FewShotResolver {
   //// 构造注入 few-shot 银行,解析器自身不持有样例 [@busybee 2026-06-13] ////
@@ -28,8 +30,13 @@ class FewShotResolver {
   }
   //// /解析一组引用,按角色注入语气,产出展平的样例轮次 ////
 
-  //// 解析单条引用:取结构骨架与本角色语气,经插槽注入合成 [@busybee 2026-06-13] ////
+  //// 解析单条引用:场景台词引用渲染成示例轮次,否则按结构加语气合成 [@busybee 2026-06-13] ////
   _resolveOne(ref, characterId) {
+    // 场景台词引用:取本角色的场景台词样例,渲染成携带成品台词的示例轮次。
+    if (ref && ref.sceneSet) {
+      const sceneSet = this._bank.resolveSceneSet(ref.sceneSet, characterId);
+      return this._bank.composeSceneTurns(sceneSet, ref.options || {});
+    }
     const structureName = typeof ref === 'string' ? ref : ref && ref.structure;
     if (!structureName) {
       return [];

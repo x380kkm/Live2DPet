@@ -4,7 +4,13 @@
 // 不变量:配置只经 storage 仓储落盘,本文件不直接碰文件系统。
 
 // 加密字段路径只声明一处:全部用点分路径定位到一层配置内的字符串值。
-const ENCRYPTED_FIELDS = ['apiKey', 'translation.apiKey', 'enhance.search.customApiKey'];
+// 含旧式单接入的 apiKey 与翻译接入,以及两层模型配置里三个大类各自的接入密钥。
+const ENCRYPTED_FIELDS = [
+  'apiKey', 'translation.apiKey', 'enhance.search.customApiKey',
+  'modelConfig.categories.vlm.apiKey',
+  'modelConfig.categories.llm.apiKey',
+  'modelConfig.categories.translate.apiKey'
+];
 
 const LAYERS = ['global', 'character', 'intent'];
 

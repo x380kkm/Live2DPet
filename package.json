@@ -7,7 +7,7 @@
   "scripts": {
     "start": "node launch.js",
     "dev": "node launch.js --dev",
-    "test": "node --test tests/test-core.js tests/test-enhance.js tests/test-config-manager.js tests/test-crypto-utils.js tests/test-validators.js",
+    "test": "node --test \"tests/**/*.test.js\"",
     "build": "electron-builder --win portable",
     "build:dir": "electron-builder --win dir"
   },
@@ -36,7 +36,6 @@
       "main.js",
       "preload.js",
       "launch.js",
-      "index.html",
       "desktop-pet.html",
       "pet-chat-bubble.html",
       "settings.html",

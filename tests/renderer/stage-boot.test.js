@@ -87,6 +87,22 @@ test('trackVector 把超出半径的偏移钳到 -1 或 1', async () => {
 });
 //// /trackVector ////
 
+//// dragTargetPosition:光标位移一比一叠加到起点窗口位置(screenX 与窗口坐标同为 DIP,实测确证) [@busybee 2026-06-14] ////
+test('dragTargetPosition 把光标位移一比一叠加到起点窗口位置', async () => {
+  const { dragTargetPosition } = await loadBoot();
+  // 起点窗口 (1143,455);光标从 (1290,622) 移到 (897,289),左移 393、上移 333,窗口同量平移
+  const t = dragTargetPosition({ x: 1143, y: 455 }, { x: 1290, y: 622 }, { x: 897, y: 289 });
+  assert.strictEqual(t.x, 1143 + (897 - 1290));
+  assert.strictEqual(t.y, 455 + (289 - 622));
+});
+
+test('dragTargetPosition 光标不动时窗口位置不变', async () => {
+  const { dragTargetPosition } = await loadBoot();
+  const t = dragTargetPosition({ x: 100, y: 200 }, { x: 50, y: 60 }, { x: 50, y: 60 });
+  assert.strictEqual(t.x, 100);
+  assert.strictEqual(t.y, 200);
+});
+
 //// classifyGesture:把一次指针抬起判定成点击、长按或拖拽 [@busybee 2026-06-13] ////
 test('classifyGesture 位移超阈判为拖拽', async () => {
   const { classifyGesture } = await loadBoot();
@@ -108,6 +124,38 @@ test('classifyGesture 原地短停判为点击、原地久停判为长按', asyn
   assert.strictEqual(touch.kind, 'touch');
 });
 //// /classifyGesture ////
+
+//// movementExceeds:指针位移是否过拖动阈值,决定轻点与拖动的分界 [@busybee 2026-06-14] ////
+test('movementExceeds 任一轴位移超过阈值即为真,微小抖动为假', async () => {
+  const { movementExceeds } = await loadBoot();
+  assert.strictEqual(movementExceeds({ x: 0, y: 0 }, { x: 6, y: 0 }, 5), true);
+  assert.strictEqual(movementExceeds({ x: 0, y: 0 }, { x: 0, y: 6 }, 5), true);
+  assert.strictEqual(movementExceeds({ x: 0, y: 0 }, { x: 3, y: 3 }, 5), false);
+  assert.strictEqual(movementExceeds({ x: 10, y: 10 }, { x: 10, y: 10 }, 5), false);
+});
+//// /movementExceeds ////
+
+//// applyPokeEffect:加 poked 类触发回弹动画,到时移除以便再次触发 [@busybee 2026-06-14] ////
+test('applyPokeEffect 加 poked 类并在到时回调里移除', async () => {
+  const { applyPokeEffect } = await loadBoot();
+  // 假元素记录类的增删;假 view 把 setTimeout 回调存起来供手动触发
+  const classes = new Set();
+  const element = { classList: { add: (c) => classes.add(c), remove: (c) => classes.delete(c) } };
+  let pendingTimer = null;
+  const view = { setTimeout: (fn) => { pendingTimer = fn; return 1; } };
+  applyPokeEffect(element, view, 400);
+  assert.strictEqual(classes.has('poked'), true);
+  // 触发到时回调,类被移除
+  pendingTimer();
+  assert.strictEqual(classes.has('poked'), false);
+});
+
+test('applyPokeEffect 对缺失元素静默跳过,不抛错', async () => {
+  const { applyPokeEffect } = await loadBoot();
+  assert.doesNotThrow(() => applyPokeEffect(null, null));
+  assert.doesNotThrow(() => applyPokeEffect({}, null));
+});
+//// /applyPokeEffect ////
 
 //// actionNameForMotion:旧式 (group, index) 反查语义动作名 [@busybee 2026-06-13] ////
 test('actionNameForMotion 命中配置项时返回语义名、未命中返回空', async () => {

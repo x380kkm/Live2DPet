@@ -15,12 +15,10 @@ const TRANSLATE_SYSTEM_PROMPT =
 const TRANSLATE_EXAMPLE_INPUT = '哇，今天YouTube上有好多有趣的视频！';
 const TRANSLATE_EXAMPLE_OUTPUT = 'わあ、今日ユーチューブに面白い動画がいっぱいあった！';
 
+const { StepId } = require('../../shared/step-catalog');
+
 // 默认译文缓存条数上限
 const DEFAULT_CACHE_MAX_SIZE = 50;
-// 翻译生成的采样温度:低温稳定输出
-const TRANSLATE_TEMPERATURE = 0.3;
-// 翻译生成的最大 token 数
-const TRANSLATE_MAX_TOKENS = 1024;
 
 //// 经注入的 llm 客户端把文本译为日语、带 LRU 缓存与可禁用开关的翻译服务 [@busybee 2026-06-13] ////
 class TranslationService {
@@ -63,14 +61,14 @@ class TranslationService {
   //// 经 llm 客户端发起一次翻译补全,清理译文中的标记字符与多余空白 [@busybee 2026-06-13] ////
   async _requestTranslation(text) {
     const response = await this.llmClient.complete({
+      // 翻译步:交模型路由按 translate 步配置(默认温度 0.3),温度与 token 由配置而非此处硬编码
+      step: StepId.Translate,
       messages: [
         { role: 'system', content: TRANSLATE_SYSTEM_PROMPT },
         { role: 'user', content: TRANSLATE_EXAMPLE_INPUT },
         { role: 'assistant', content: TRANSLATE_EXAMPLE_OUTPUT },
         { role: 'user', content: text }
-      ],
-      maxTokens: TRANSLATE_MAX_TOKENS,
-      temperature: TRANSLATE_TEMPERATURE
+      ]
     });
 
     const raw = response && response.text;

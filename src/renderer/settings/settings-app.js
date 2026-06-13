@@ -7,6 +7,7 @@ import { makeSettingsGateway } from './settings-gateway.js';
 import { SettingsModel } from './settings-model.js';
 import { mountApiPanel } from './api-panel.js';
 import { mountModelPanel } from './model-panel.js';
+import { mountModelConfigPanel } from './model-config-panel.js';
 import { mountEmotionPanel, renderExpressionList, renderMotionList } from './emotion-panel.js';
 import { mountCharacterPanel, loadCharacterList } from './character-panel.js';
 import { mountTtsPanel } from './tts-panel.js';
@@ -37,8 +38,10 @@ export class SettingsApp {
     const ctx = this._panelContext();
     this._bindTabs();
     this._bindLanguageSwitch();
+    this._bindPetLaunch();
     mountApiPanel(ctx);
     mountModelPanel(ctx);
+    mountModelConfigPanel(ctx);
     mountEmotionPanel(ctx);
     mountTtsPanel(ctx);
     mountCharacterPanel(ctx);
@@ -138,6 +141,16 @@ export class SettingsApp {
       });
     });
   }
+
+  //// 绑定启动器:点启动宠物经网关建窗,点关闭宠物经网关停宠物 [@busybee 2026-06-14] ////
+  // 启动后设置窗口由主进程收起;关闭后主进程把设置窗口重新显示。
+  _bindPetLaunch() {
+    const launch = this.doc.getElementById('btn-launch-pet');
+    const close = this.doc.getElementById('btn-close-pet');
+    if (launch) launch.addEventListener('click', async () => { await this.gateway.pet.launch(); });
+    if (close) close.addEventListener('click', async () => { await this.gateway.pet.close(); });
+  }
+  //// /绑定启动器 ////
 
   //// 绑定语言下拉:切换语言、套 i18n、落盘并经回调重载角色卡与宠物 prompt [@busybee 2026-06-13] ////
   _bindLanguageSwitch() {

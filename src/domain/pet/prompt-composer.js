@@ -22,13 +22,15 @@ function estimateTextTokensByChars(text) {
 }
 
 class PromptComposer {
-  //// 构造注入 few-shot 解析器、人格数据、token 估算与样例预算 [@busybee 2026-06-13] ////
+  //// 构造注入 few-shot 解析器、人格数据、token 估算、样例预算与用户额外 system 注入 [@busybee 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     this.fewShotResolver = deps.fewShotResolver;
     this.persona = deps.persona || {};
     this.estimateTokens = deps.estimateTokens || estimateTextTokensByChars;
     // 样例轮次的 token 预算上限;缺省不限,超预算时按原序丢末尾轮次。
     this.fewShotBudget = config.fewShotBudget;
+    // 用户额外 system 注入:与出厂人格规则合并;不审查、用户自负(决策 31)。
+    this.systemInjection = config.systemInjection || '';
   }
   //// /构造注入 few-shot 解析器、人格数据、token 估算与样例预算 ////
 
@@ -46,7 +48,7 @@ class PromptComposer {
       messages.push(turn);
     }
 
-    messages.push({ role: 'user', content: this._buildIntentInstruction(intent, scope) });
+    messages.push({ role: 'user', content: this._buildIntentInstruction(intent, fewShotTurns.length > 0) });
     return { messages };
   }
   //// /把已组装上下文与意图拼成结构化 LLM 请求 ////
@@ -69,7 +71,13 @@ class PromptComposer {
       if (persona.importantReminder) parts.push(persona.importantReminder);
     }
 
-    // 动态上下文排在规则之后并以分隔线隔开,使模型先记住人格与规则再看当下态势。
+    // 用户额外 system 注入排在规则之后、动态上下文之前:与出厂提示词合并,且属稳定前缀以吃满缓存。
+    if (this.systemInjection) {
+      parts.push('---');
+      parts.push(this.systemInjection);
+    }
+
+    // 动态上下文排在规则与注入之后并以分隔线隔开,使模型先记住人格与规则再看当下态势。
     if (contextText) {
       parts.push('---');
       parts.push(contextText);
@@ -116,17 +124,17 @@ class PromptComposer {
   }
   //// /按 token 预算从前往后累加样例轮次 ////
 
-  //// 把意图与当前态势压成一行收尾指令,只搭结构不写成品措辞 [@busybee 2026-06-13] ////
-  // 态势摘要随作用域而来;意图只给 id,让模型据上文与样例产出本意图下的一句发言。
-  _buildIntentInstruction(intent, scope) {
+  //// 把意图压成一行收尾指令,只搭结构不写成品措辞 [@busybee 2026-06-13] ////
+  // 意图只给 id,让模型据上文与样例产出本意图下的一句发言;当前态势经 situationDigest 上下文源进入上文,不在此重复。
+  // 有 few-shot 样例时,指令要求模仿示例文风但不照抄、不重复最近发言(决策 34),压住低创作度下的复读。
+  _buildIntentInstruction(intent, hasFewShot) {
     const intentId = (intent && intent.id) || '';
-    const situation = (scope && scope.situationDigest) || '';
-    const parts = [];
-    if (situation) parts.push(situation);
-    parts.push(`按意图 ${intentId} 与以上上下文产出一句角色发言。`);
-    return parts.join('\n');
+    if (hasFewShot) {
+      return `按意图 ${intentId} 与以上上下文,模仿示例台词的文风产出一句全新的角色发言;不要照抄示例里的句子,也不要重复你最近说过的话。只输出这一句。`;
+    }
+    return `按意图 ${intentId} 与以上上下文产出一句角色发言。`;
   }
-  //// /把意图与当前态势压成一行收尾指令 ////
+  //// /把意图压成一行收尾指令 ////
 }
 
 module.exports = { PromptComposer, estimateTextTokensByChars };

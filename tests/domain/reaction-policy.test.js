@@ -47,7 +47,8 @@ test('reactTo makes one bounded LLM call with the scope messages', async () => {
   const policy = new ReactionPolicy({ llmClient: client, eventBus: fakeBus() });
   await policy.reactTo(event, scope);
   assert.strictEqual(client.calls.length, 1);
-  assert.deepStrictEqual(client.calls[0], { messages: scope.messages });
+  // 透传 scope 的消息,并带上事件反应步标记交模型路由
+  assert.deepStrictEqual(client.calls[0], { messages: scope.messages, step: 'reaction' });
 });
 
 //// 成功调用向总线发布带状态与文本的产物事件 [@busybee 2026-06-13] ////

@@ -84,9 +84,23 @@ test('未知层名抛清晰错误', async () => {
   await assert.rejects(() => cs.write('unknown', null, {}), /未知配置层/);
 });
 
-test('加密字段声明只此一处且覆盖三项', () => {
+test('加密字段声明只此一处,覆盖旧式接入、翻译、增强搜索与三大类模型接入', () => {
   assert.deepStrictEqual(
     ENCRYPTED_FIELDS,
-    ['apiKey', 'translation.apiKey', 'enhance.search.customApiKey']
+    [
+      'apiKey', 'translation.apiKey', 'enhance.search.customApiKey',
+      'modelConfig.categories.vlm.apiKey',
+      'modelConfig.categories.llm.apiKey',
+      'modelConfig.categories.translate.apiKey'
+    ]
   );
+});
+
+test('write 加密两层模型配置里各大类的接入密钥', async () => {
+  const repo = mockRepository();
+  const cs = new ConfigStore(repo, fakeCrypto);
+  await cs.write('global', null, { modelConfig: { categories: { vlm: { apiKey: 'vk' }, llm: { apiKey: 'lk' } } } });
+  const onDisk = repo.store['config/global'];
+  assert.strictEqual(onDisk.modelConfig.categories.vlm.apiKey, 'ENC(vk)');
+  assert.strictEqual(onDisk.modelConfig.categories.llm.apiKey, 'ENC(lk)');
 });

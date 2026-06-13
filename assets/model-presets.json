@@ -1,0 +1,32 @@
+{
+  "openai-chat": {
+    "label": "OpenAI 兼容(chat completions)",
+    "baseURL": "https://api.openai.com/v1",
+    "note": "适配 OpenAI、DeepSeek、多模型 API 站等一切 chat completions 兼容端点。密钥与端点由用户填写。",
+    "categories": {
+      "vlm": { "model": "" },
+      "llm": { "model": "" },
+      "translate": { "model": "" }
+    }
+  },
+  "claude": {
+    "label": "Anthropic Claude(messages)",
+    "baseURL": "https://api.anthropic.com",
+    "note": "Anthropic 原生 messages 接口,鉴权用 x-api-key。",
+    "categories": {
+      "vlm": { "model": "" },
+      "llm": { "model": "" },
+      "translate": { "model": "" }
+    }
+  },
+  "openai-responses": {
+    "label": "OpenAI responses",
+    "baseURL": "https://api.openai.com/v1",
+    "note": "OpenAI responses 接口,用 input 与 instructions,推理强度走 reasoning.effort。",
+    "categories": {
+      "vlm": { "model": "" },
+      "llm": { "model": "" },
+      "translate": { "model": "" }
+    }
+  }
+}

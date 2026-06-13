@@ -4,42 +4,28 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Live2DPet Settings</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 16px; font-size: 13px; color: #333; }
-        h3 { margin: 12px 0 6px; font-size: 14px; }
-        label { display: block; margin: 6px 0 2px; }
-        input[type=text], input[type=password], input[type=number], textarea, select {
-            width: 100%; padding: 5px 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
-        }
-        textarea { resize: vertical; min-height: 60px; }
-        .row { display: flex; align-items: center; gap: 8px; }
-        .card { border: 1px solid #e2e2e2; border-radius: 6px; padding: 10px; margin: 8px 0; }
-        .btn { padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
-        .btn-primary { background: #4a90d9; color: #fff; }
-        .btn-secondary { background: #e0e0e0; color: #333; }
-        .btn-danger { background: #d9534f; color: #fff; }
-        .btn-sm { padding: 3px 8px; font-size: 12px; }
-        .tab-btn { padding: 6px 12px; border: none; background: #eee; cursor: pointer; }
-        .tab-btn.active { background: #ddd; font-weight: bold; }
-        .tab-content { display: none; padding: 12px 0; }
-        .tab-content.active { display: block; }
-        .status { font-size: 12px; color: #888; min-height: 16px; }
-        .status.success { color: #2a8; }
-        .status.error { color: #c33; }
-        .param-row, .expr-item, .image-item { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
-        .image-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
-    </style>
+    <link rel="stylesheet" href="./src/renderer/settings/settings.css">
 </head>
 <body>
     <!-- 设置面板宿主:子面板布局占位,真相来源是 settings-app 的配置数据模型 -->
     <div id="settings-root">
-        <select id="lang-select"><option value="en">English</option><option value="zh">中文</option></select>
+        <header class="app-header">
+            <div class="app-title">Live2DPet</div>
+            <select id="lang-select"><option value="en">English</option><option value="zh">中文</option></select>
+        </header>
+
+        <!-- 启动器:设置窗口先出现,点「启动宠物」才建桌宠窗口并隐藏设置;点「关闭宠物」停感知并显示设置 -->
+        <div id="pet-launch-bar">
+            <button class="btn btn-primary" id="btn-launch-pet">启动宠物</button>
+            <button class="btn btn-secondary" id="btn-close-pet">关闭宠物</button>
+            <span class="status" id="pet-launch-status"></span>
+        </div>
 
         <!-- 标签页按钮:data-tab 与下方 tab-content 的后缀对齐,settings-app 据此切换 -->
         <div id="tabs">
             <button class="tab-btn active" data-tab="api">API</button>
             <button class="tab-btn" data-tab="model">Model</button>
+            <button class="tab-btn" data-tab="modelconfig">Routing</button>
             <button class="tab-btn" data-tab="emotion">Emotion</button>
             <button class="tab-btn" data-tab="tts">TTS</button>
             <button class="tab-btn" data-tab="prompt">Character</button>
@@ -251,6 +237,29 @@
             </div>
             <button class="btn btn-primary" id="btn-save-prompt">Save</button>
             <div class="status" id="prompt-status"></div>
+        </div>
+
+        <!-- 模型路由页:按大类与步骤两层自由装配模型;友好填空与 JSON 高级两种模式 -->
+        <div id="tab-modelconfig" class="tab-content">
+            <div class="card">
+                <h3>模型自由装配</h3>
+                <p>按大类(截图 / 文本 / 翻译)分别选模型;每个步骤默认跟随所属大类,关掉「跟随大类」即可单独换模型。模型与人设由你掌控,我们不审查、不背书,正确性你自负。</p>
+                <div class="row" style="margin-top:6px;">
+                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-form">友好模式</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-json">JSON 高级</button>
+                </div>
+            </div>
+            <div id="model-config-root"></div>
+            <div class="card" id="model-config-json-card" style="display:none;">
+                <label>模型配置 JSON(高级;直接编辑,格式错误则不保存)</label>
+                <textarea id="model-config-json" rows="16"></textarea>
+            </div>
+            <div class="card">
+                <label>额外系统提示词(与出厂提示词合并;不审查,用户自负)</label>
+                <textarea id="model-system-injection" rows="3"></textarea>
+            </div>
+            <button class="btn btn-primary" id="btn-save-modelconfig">保存模型配置</button>
+            <div class="status" id="modelconfig-status"></div>
         </div>
     </div>
 

@@ -125,8 +125,8 @@ test('without a budget all few-shot turns are kept', () => {
   assert.strictEqual(messages.length, 4);
 });
 
-//// 收尾指令带上态势摘要与意图 id [@busybee 2026-06-13] ////
-test('intent instruction carries situation digest and intent id', () => {
+//// 收尾指令带意图 id,态势改由 situationDigest 上下文源进上文、不在指令里重复 [@busybee 2026-06-13] ////
+test('intent instruction carries intent id but not the situation digest', () => {
   const composer = new PromptComposer({ persona: {}, fewShotResolver: fakeResolver({}) });
   const { messages } = composer.compose(
     { id: 'idle-chat', fewShotRefs: [] },
@@ -135,8 +135,8 @@ test('intent instruction carries situation digest and intent id', () => {
   );
   const instruction = messages[messages.length - 1];
   assert.strictEqual(instruction.role, 'user');
-  assert.ok(instruction.content.includes('在看文档'));
   assert.ok(instruction.content.includes('idle-chat'));
+  assert.ok(!instruction.content.includes('在看文档'));
 });
 
 //// 无解析器时不产出样例轮次也不报错 [@busybee 2026-06-13] ////

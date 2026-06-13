@@ -9,6 +9,7 @@
 // 产物里出现人格描述或成品措辞即拒绝,绝不让生成期写进角色文风。
 
 const { Mod } = require('./mod');
+const { StepId } = require('../../shared/step-catalog');
 
 // few-shot 只示范产物结构,字段值全为占位,不含任何成品句子或人格描述。
 const STRUCTURE_FEWSHOT = Object.freeze({
@@ -50,6 +51,8 @@ class ModGenerator {
     const structureExample = JSON.stringify(STRUCTURE_FEWSHOT);
     const user = `结构样例(仅示范字段与形状,值为占位):${structureExample}\n生成意图:${JSON.stringify(spec)}`;
     return {
+      // mod 生成步:生成期一次性调用,交模型路由按 modGenerate 步配置(可单独换更强模型)
+      step: StepId.ModGenerate,
       messages: [
         { role: 'system', content: system },
         { role: 'user', content: user }

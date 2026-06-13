@@ -38,6 +38,27 @@ export const VVM_CHARACTERS = {
   'n0.vvm': 'VOICEVOX Nemo (女声1-6, 男声1-3)'
 };
 
+// AI 步骤目录在渲染侧的镜像:与 src/shared/step-catalog.js 对应,供模型配置面板枚举步骤。
+// 渲染侧无打包器、无法直引 CommonJS 的 shared 模块,故按 VVM_CHARACTERS 同样的方式在此镜像;
+// tests/renderer/model-config-panel 用交叉校验防止与 shared 目录漂移。
+export const AI_CATEGORIES = ['vlm', 'llm', 'translate'];
+export const MODEL_PRESETS = ['openai-chat', 'claude', 'openai-responses'];
+export const AI_STEP_CATALOG = [
+  { id: 'keyframeSelect', category: 'vlm', label: '关键帧选择' },
+  { id: 'situationExtract', category: 'vlm', label: '态势抽取' },
+  { id: 'dialogue', category: 'llm', label: '台词生成' },
+  { id: 'intentRoute', category: 'llm', label: '意图与场景路由' },
+  { id: 'emotionSelect', category: 'llm', label: '情绪选择' },
+  { id: 'reaction', category: 'llm', label: '事件反应' },
+  { id: 'modGenerate', category: 'llm', label: 'mod 生成' },
+  { id: 'translate', category: 'translate', label: '翻译' }
+];
+
+//// 造一份空的两层模型配置骨架:三大类与步骤表加全局 system 注入 [@busybee 2026-06-13] ////
+export function defaultModelConfig() {
+  return { categories: {}, steps: {}, systemInjection: '' };
+}
+
 //// 把候选参数 id 排序成建议项在前、其余按字母序 [@busybee 2026-06-13] ////
 export function sortParamCandidates(scannedIds, suggested) {
   return [...scannedIds].sort((a, b) => {
@@ -227,6 +248,39 @@ export class SettingsModel {
     model.motionDurations = motionDurations;
     model.defaultMotionDuration = secondsToMsWithFallback(edits.defaultMotionSeconds, 3000);
     return enabledEmotions;
+  }
+
+  //// 取两层模型配置的引用,缺失就地补建空骨架 [@busybee 2026-06-13] ////
+  modelConfig() {
+    if (!this.config.modelConfig) this.config.modelConfig = defaultModelConfig();
+    const mc = this.config.modelConfig;
+    if (!mc.categories) mc.categories = {};
+    if (!mc.steps) mc.steps = {};
+    if (mc.systemInjection === undefined) mc.systemInjection = '';
+    return mc;
+  }
+
+  //// 设置某大类的模型身份字段,逐键合并不抹去未给字段 [@busybee 2026-06-13] ////
+  setCategoryModel(category, fields) {
+    const mc = this.modelConfig();
+    mc.categories[category] = { ...(mc.categories[category] || {}), ...fields };
+  }
+
+  //// 设置某步骤是否跟随大类:跟随则用大类模型,关掉用步骤自己的 [@busybee 2026-06-13] ////
+  setStepFollowCategory(stepId, follow) {
+    const mc = this.modelConfig();
+    mc.steps[stepId] = { ...(mc.steps[stepId] || {}), followCategory: !!follow };
+  }
+
+  //// 设置某步骤的覆盖字段,逐键合并 [@busybee 2026-06-13] ////
+  setStepOverride(stepId, fields) {
+    const mc = this.modelConfig();
+    mc.steps[stepId] = { ...(mc.steps[stepId] || {}), ...fields };
+  }
+
+  //// 设置全局额外 system 注入,与出厂提示词合并;不审查、用户自负 [@busybee 2026-06-13] ////
+  setSystemInjection(text) {
+    this.modelConfig().systemInjection = text || '';
   }
 
   //// 把模型重置为一份全新的缺省模型配置 [@busybee 2026-06-13] ////

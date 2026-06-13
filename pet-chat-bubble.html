@@ -5,17 +5,16 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Chat Bubble</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-            user-select: none;
-        }
+        /* 气泡窗口默认走 CSS 原生气泡(玫瑰描边圆角卡加朝下小尾巴),与设置和桌宠同一套玫瑰粉; */
+        /* 用户在配置里给了自定义边框图时切到 framed 模式,改用整图作框、去掉卡片样式。 */
+        :root { --accent: #ef8fa6; }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; user-select: none; }
 
         body {
             background: transparent;
             overflow: hidden;
-            font-family: 'Microsoft YaHei', Arial, sans-serif;
+            font-family: 'Microsoft YaHei', 'PingFang SC', Arial, sans-serif;
             width: 100%;
             height: 100%;
         }
@@ -30,27 +29,59 @@
             animation: fadeIn 0.3s ease-out;
         }
 
+        /* 自定义边框图默认隐藏,只有 framed 模式才铺开 */
         .frame-bg {
             position: absolute;
             top: 0; left: 0;
             width: 100%; height: 100%;
             object-fit: fill;
             pointer-events: none;
+            display: none;
         }
 
+        /* CSS 原生气泡卡:玫瑰描边、柔和阴影、底部留白给尾巴 */
         .message-text {
             position: relative;
             z-index: 1;
+            max-width: 250px;
+            background: rgba(255, 255, 255, 0.97);
+            border: 1.5px solid var(--accent);
+            border-radius: 14px;
+            box-shadow: 0 3px 12px rgba(150, 110, 125, 0.22);
+            color: #4a4550;
             font-weight: 500;
-            color: #555;
-            font-size: 14px;
-            line-height: 1.6;
+            font-size: 13.5px;
+            line-height: 1.55;
             text-align: center;
-            padding: 30px 25px;
+            padding: 11px 16px;
+            margin: 6px 9px 14px;
             word-wrap: break-word;
             word-break: break-word;
             opacity: 0;
         }
+        /* 朝下小尾巴:旋转 45 度的方块取相邻两边描边,贴在气泡底部中线,指向下方的桌宠 */
+        .message-text::after {
+            content: '';
+            position: absolute;
+            left: 50%; bottom: -7px;
+            width: 12px; height: 12px;
+            background: rgba(255, 255, 255, 0.97);
+            border-right: 1.5px solid var(--accent);
+            border-bottom: 1.5px solid var(--accent);
+            transform: translateX(-50%) rotate(45deg);
+        }
+
+        /* framed 模式:整图作框,气泡卡退成纯文本容器,尾巴隐去 */
+        .chat-frame.framed .frame-bg { display: block; }
+        .chat-frame.framed .message-text {
+            background: transparent;
+            border: none;
+            box-shadow: none;
+            max-width: 100%;
+            padding: 30px 25px;
+            margin: 0;
+        }
+        .chat-frame.framed .message-text::after { display: none; }
 
         .message-text.text-in {
             animation: textFadeIn 0.4s ease-out 0.15s forwards;
@@ -78,7 +109,7 @@
 </head>
 <body>
     <div class="chat-frame">
-        <img class="frame-bg" src="assets/dialog-frame.png" alt="">
+        <img class="frame-bg" alt="">
         <div class="message-text" id="message-text"></div>
     </div>
 

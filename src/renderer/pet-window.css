@@ -1,0 +1,113 @@
+/* audience: internal */
+/* # pet-window.css */
+/* 桌宠透明覆盖窗口的外观:整窗透明、模型铺满居中、悬停浮现的控件、轻点回弹动画与表达区浮层样式集中一处。 */
+/* 不变量:整窗背景透明、不裁剪;控件与表达区靠 id/class 取元素,样式不改结构契约;轻点回弹只作用于模型画面,不波及控件。 */
+/* 风格取向:与设置界面同一套玫瑰粉点缀(--accent),控件柔和、克制,贴合常驻桌面的桌宠不打扰的定位。 */
+
+:root {
+  --accent: #ef8fa6;
+  --accent-hover: #e87593;
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+
+html, body {
+  width: 100%; height: 100%;
+  background: transparent;
+  overflow: hidden;
+  user-select: none;
+  /* 拖动由 stage-boot 的 JS 接管(高分屏坐标换算加节流);此处不用系统级 app-region 拖动,避免两套拖动叠加放大飘移。 */
+}
+
+#pet-container {
+  width: 100%; height: 100%;
+  display: flex; align-items: center; justify-content: center;
+  position: relative;
+}
+
+#live2d-canvas {
+  position: absolute; top: 0; left: 0;
+  -webkit-app-region: no-drag;
+  transform-origin: 50% 70%;
+}
+
+#static-image {
+  position: absolute;
+  top: 0; left: 0;
+  width: 100%;
+  height: auto;
+  transform-origin: 50% 70%;
+  display: none;
+  -webkit-app-region: no-drag;
+}
+
+#placeholder {
+  max-width: 80%; max-height: 80%;
+  object-fit: contain;
+  display: none;
+}
+
+/* 轻点回弹:挤压后回正再微弹,模拟被轻戳的非语义反馈;只作用于模型画面,不波及控件 */
+@keyframes pet-poke {
+  0% { transform: scale(1, 1); }
+  35% { transform: scale(1.05, 0.9); }
+  65% { transform: scale(0.97, 1.04); }
+  100% { transform: scale(1, 1); }
+}
+#pet-container.poked #live2d-canvas,
+#pet-container.poked #static-image {
+  animation: pet-poke 0.4s ease-out;
+}
+
+/* 控件:悬停浮现的一排圆钮,默认半透明白底,悬停染玫瑰色 */
+.controls {
+  position: absolute; bottom: 6px; right: 6px;
+  display: flex; gap: 5px;
+  -webkit-app-region: no-drag;
+  opacity: 0; transition: opacity 0.25s;
+  z-index: 100;
+}
+#pet-container:hover .controls { opacity: 1; }
+.ctrl-btn {
+  width: 26px; height: 26px;
+  border: none; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.82);
+  color: #8a7e85;
+  cursor: pointer; font-size: 13px; line-height: 1;
+  display: flex; align-items: center; justify-content: center;
+  box-shadow: 0 1px 5px rgba(150, 110, 125, 0.28);
+  transition: background 0.15s, color 0.15s, transform 0.08s;
+}
+.ctrl-btn:hover { background: var(--accent); color: #fff; }
+.ctrl-btn:active { transform: translateY(1px); }
+.ctrl-btn:disabled { opacity: 0.3; cursor: default; }
+
+/* mod 前端槽:同一覆盖窗口承载的可执行 mod 前端,初始空、隐藏 */
+#mod-frontend-slot {
+  display: none;
+  position: absolute; bottom: 20%; left: 50%;
+  transform: translateX(-50%);
+  -webkit-app-region: no-drag;
+  z-index: 50;
+}
+
+/* 表达区内的备用就地气泡:正式气泡走独立窗口,这块作 CharacterStage 仲裁的就地占用者,默认隐藏 */
+#stage-bubble {
+  display: none;
+  position: absolute; top: 2px; left: 50%;
+  transform: translateX(-50%);
+  width: 96%; text-align: center;
+  -webkit-app-region: no-drag;
+  z-index: 60;
+}
+#stage-bubble-text {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.95);
+  color: #4a4550;
+  padding: 8px 13px;
+  border-radius: 14px;
+  font-size: 13px;
+  max-width: 96%;
+  word-break: break-word;
+  box-shadow: 0 2px 10px rgba(150, 110, 125, 0.22);
+}

@@ -8,6 +8,8 @@
 // 取消语义借自 message-session:每次 reactTo 自增调用号,后发的调用作废先前在途的,只有最新一次发布产物。
 // 产出向总线发布 { type: 'ReactionProduced', state, text };作废或空文本不发布。
 
+const { StepId } = require('../../shared/step-catalog');
+
 class ReactionPolicy {
   //// 从注入的 LLM 客户端与总线建立有界反应策略 [@busybee 2026-06-13] ////
   constructor(deps) {
@@ -23,7 +25,8 @@ class ReactionPolicy {
 
     let result;
     try {
-      result = await this._llmClient.complete({ messages: scope.messages });
+      // 事件反应步:交模型路由按 reaction 步配置(默认温度 1.3)
+      result = await this._llmClient.complete({ messages: scope.messages, step: StepId.Reaction });
     } catch (error) {
       // 调用失败不发布产物,只让上层经返回的失败标记感知。
       return { produced: false, reason: 'failed', error };

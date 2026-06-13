@@ -4,6 +4,7 @@
 // 不变量:上下文源、过滤器、意图路由各为可重排可开关的阶段,管线自身不抓全局配置。
 
 const { ContextAssembler } = require('./context-source');
+const { StepId } = require('../../shared/step-catalog');
 
 class RequestPipeline {
   //// 构造注入可重排的阶段与平台接口 [@busybee 2026-06-13] ////
@@ -29,6 +30,8 @@ class RequestPipeline {
     const sources = this._collectSources(intent);
     const context = this.assembler.assemble(sources, scope, this.budget);
     const request = this.promptComposer.compose(intent, context, scope);
+    // 台词生成步:交模型路由按 dialogue 步配置选模型与温度
+    request.step = StepId.Dialogue;
 
     const result = await this.llmClient.complete(request);
     const text = this._applyFilters(result.text, scope);

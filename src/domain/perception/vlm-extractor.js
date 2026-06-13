@@ -7,6 +7,8 @@
 // prompts 给定选帧与抽态势的系统提示词(由调用方按语言解析,本模块不内联成品措辞);
 // now 注入时钟便于测试退避。选帧与抽态势各有独立的退避区间,失败后退避翻倍到上限。
 
+const { StepId } = require('../../shared/step-catalog');
+
 //// 把大模型返回的文本解析为帧索引数组:先整体解析,再退而抓首个方括号片段 [@busybee 2026-06-13] ////
 function parseFrameIndices(text, frameCount) {
   if (!text) return [];
@@ -62,6 +64,8 @@ class VlmExtractor {
     try {
       const userContent = this._buildSelectionContent(candidates);
       const result = await this.llmClient.complete({
+        // 关键帧选择步:交模型路由按 keyframeSelect 步配置(vlm 大类)
+        step: StepId.KeyframeSelect,
         messages: [
           { role: 'system', content: this.prompts.select || '' },
           { role: 'user', content: userContent }
@@ -105,6 +109,8 @@ class VlmExtractor {
       let userText = `Window: ${frame.title || ''}`;
       if (background) userText += `\nBackground:\n${background}`;
       const result = await this.llmClient.complete({
+        // 态势抽取步:交模型路由按 situationExtract 步配置(vlm 大类)
+        step: StepId.SituationExtract,
         messages: [
           { role: 'system', content: this.prompts.situation || '' },
           {

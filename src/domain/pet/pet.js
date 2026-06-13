@@ -4,6 +4,8 @@
 // 不变量:不持有窗口句柄、不直接调用 send;第三方能力一律经构造注入的接口访问。
 // 不变量:generateTempMod 产物只含行为与前端,禁止写入人格或成品措辞。
 
+const { StepId } = require('../../shared/step-catalog');
+
 class PetOrchestrator {
   //// 构造注入意图来源、请求管线、模型客户端、事件总线 [@busybee 2026-06-13] ////
   // deps 形如:
@@ -73,6 +75,8 @@ function buildSelectionRequest(candidates, scope) {
   const lines = candidates.map((intent) => `${intent.id}: ${describeTrigger(intent.trigger)}`);
   const situation = (scope && scope.situationDigest) || '';
   return {
+    // 意图与场景路由步:交模型路由按 intentRoute 步配置(默认温度 0,确定可复现)
+    step: StepId.IntentRoute,
     messages: [
       { role: 'system', content: '从候选意图里选最合适的一个,只回意图 id。' },
       { role: 'user', content: `当前态势:${situation}\n候选意图:\n${lines.join('\n')}` }

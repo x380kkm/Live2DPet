@@ -75,6 +75,29 @@ node launch.js
 翻译 API（用于 TTS 日语翻译）推荐：
 - OpenRouter `x-ai/grok-4-fast`
 
+#### 模型路由（进阶）
+
+在「Routing」标签页可以为不同任务分别配置模型，分两层：
+
+- **大类**：截图（视觉语言模型）、文本（台词与场景路由等）、翻译，各选一个模型。
+- **步骤**：每个步骤（台词生成、意图与场景路由、情绪选择、事件反应、mod 生成、翻译、关键帧选择、态势抽取）默认跟随所属大类；关掉该步骤的「跟随大类」开关，即可为它单独换模型或调温度。
+
+支持 `openai-chat`、`claude`、`openai-responses` 三套接口兼容预设；可切到「JSON 高级」模式直接编辑整份配置。还能填写一段「额外系统提示词」，它会与出厂提示词合并——此项不做审查，由你自负。
+
+> 不配置 Routing 时，沿用上面「API 设置」里的单一模型，所有任务共用它。
+
+#### 用环境变量配置（可选，不想在界面里填密钥时用）
+
+设了下列环境变量，应用启动时会优先采用它们，密钥不入界面、也不必落盘。环境变量优先于界面与文件配置。
+
+- 按大类分模型:`LIVE2DPET_VLM_KEY/BASEURL/MODEL`(截图视觉模型)、`LIVE2DPET_LLM_KEY/BASEURL/MODEL`(文本:台词与路由)、`LIVE2DPET_TRANSLATE_KEY/BASEURL/MODEL`(翻译,缺省沿用文本大类)。每个大类另可加 `_PRESET`(`openai-chat`/`claude`/`openai-responses`)与 `_THINKING`(设 `off` 关闭思考)。
+- 单模型回退:只给 `LIVE2DPET_API_KEY`、`LIVE2DPET_BASE_URL`、`LIVE2DPET_MODEL` 时,三个大类共用同一接入。
+- Live2D 模型:`LIVE2DPET_MODEL_TYPE=live2d`、`LIVE2DPET_MODEL_PATH=<模型文件夹>`、`LIVE2DPET_MODEL_FILE=<xxx.model3.json>`。
+- 额外系统提示词:`LIVE2DPET_SYSTEM_INJECTION`,与出厂提示词合并(不审查,自负)。
+- 开机即显示桌宠:`LIVE2DPET_AUTOLAUNCH=1`(默认不设时,先出现设置窗口,点「启动宠物」才显示桌宠)。
+
+可以把这些写进一个启动脚本,运行它来带配置启动。仓库根的 `start-pet.ps1` 就是这样一个示例启动器(含密钥,已加入 `.gitignore` 不会提交);按里面的注释填好 API 与模型后,在 PowerShell 里运行 `./start-pet.ps1` 即可。
+
 ### 2. 导入 Live2D 模型
 
 在「模型」标签页点击「选择模型文件夹」，选择包含 `.model.json` 或 `.model3.json` 的目录。系统会自动：
@@ -180,43 +203,39 @@ AI 说话时自动切换到「说话」图片，触发情绪时切换到对应�
 <details>
 <summary>项目架构</summary>
 
+三层架构:`platform`(地基与第三方适配)、`domain`(角色核心纯逻辑)、`renderer`(三个窗口的表现层),由 `main.js` 作为组合根按依赖序装配,经构造注入串起。第三方类型(electron、koffi、PIXI)只在 `platform` 出现,`domain` 不碰任何第三方。
+
 ```
-Electron Main Process
-├── main.js                 应用生命周期编排，模块注册
-├── src/main/               主进程模块（拆分自 main.js）
-│   ├── app-context.js      共享可变状态
-│   ├── config-manager.js   配置持久化 / 迁移 / 加密
-│   ├── crypto-utils.js     AES-256-GCM API 密钥加密
-│   ├── validators.js       输入验证（UUID / URL / 路径遍历）
-│   ├── window-manager.js   窗口创建 / 控制 / 气泡
-│   ├── character-manager.js 角色卡 CRUD / 导入导出
-│   ├── tts-ipc.js          TTS 合成 / VOICEVOX 安装
-│   ├── model-import.js     模型扫描 / 参数映射
-│   └── ...                 emotion / enhance / screen / tray / i18n
-├── src/core/
-│   ├── tts-service.js      VOICEVOX Core FFI (koffi)
-│   ├── translation-service.js  中→日 LLM 翻译 + LRU 缓存
-│   └── enhance/            增强子系统
-│       ├── enhancement-orchestrator.js  调度: 关键帧视觉记忆
-│       ├── vlm-extractor.js    截图采集 / Mipmap / 关键帧挑选
-│       ├── context-pool.js     短期池 + 长期池 (Jaccard RAG) [弃置]
-│       ├── knowledge-store.js  LLM 知识整理 [弃置]
-│       ├── knowledge-acquisition.js  自动知识获取 [弃置]
-│       ├── search-service.js   Web 搜索 IPC [弃置]
-│       └── memory-tracker.js   活动记忆追踪 [弃置]
+主进程
+├── main.js                  组合根:装配 platform 与 domain,挂生命周期、窗口与 IPC
+├── preload.js               按能力域暴露 petBridge 窄接口(ui/config/character/emotion/tts/screen/outbound/file)
+├── src/main/                crypto-utils(AES-256-GCM 密钥加解密)、validators(UUID/URL/路径校验)
+├── src/shared/              跨层常量:step-catalog(AI 步骤目录)、ids、i18n
+├── src/platform/            地基与适配
+│   ├── llm/                 llm-client、vendor-profiles(claude/openai-chat/openai-responses)、model-router、step-model-config、translation-service
+│   ├── config/              config-store(分字段加密)、layered-config(三层就近覆盖)、machine-settings、preset-loader、language-state
+│   ├── ipc/                 channel-registry、ipc-router、capability-gateway、handlers/*
+│   ├── electron/            window-factory、tray-factory、screen-source、active-window-source、search-source
+│   ├── render/              live2d-renderer、image-renderer、model-renderer
+│   ├── speech/              voicevox-backend(koffi FFI)、circuit-breaker、voicevox-installer
+│   ├── storage/             file-repository、path-utils
+│   └── bus/                 event-bus
+└── src/domain/              角色核心(纯逻辑)
+    ├── pet/                 pet 编排、request-pipeline、prompt-composer、perception-collector、scheduler、上下文源 sources/*
+    ├── intent/              intent、intent-registry、builtin-intents
+    ├── model/               step-registry(AI 步骤反射注入式注册)
+    ├── fewshot/             fewshot-bank、fewshot-resolver
+    ├── perception/          keyframe-buffer、vlm-extractor、memory-store
+    ├── emotion/             emotion-state、emotion-selector
+    ├── statemachine/        state-machine、reaction-policy
+    ├── mod/                 mod、mod-registry、mod-generator
+    ├── speech/              utterance、utterance-session
+    └── tts/                 tts-orchestrator
 
-Renderer (3 windows)
-├── Settings Window         index.html + settings-ui.js
-├── Pet Window              desktop-pet.html + model-adapter.js
-└── Chat Bubble             pet-chat-bubble.html
-
-Core Modules (renderer)
-├── desktop-pet-system.js   调度: 截屏 / AI 请求 / 音频准备
-├── message-session.js      协调: 文字 + 表情 + 音频同步播放
-├── emotion-system.js       情绪累积 + AI 表情选择 + 动作触发
-├── audio-state-machine.js  三模式降级状态机
-├── ai-chat.js              OpenAI 兼容 API 客户端
-└── prompt-builder.js       System Prompt 构建 (模板变量替换)
+渲染层(三个窗口)
+├── 设置窗口    settings.html + src/renderer/settings/*(settings-app、各 panel、settings-model、gateway)
+├── 桌宠窗口    desktop-pet.html + src/renderer/boot/stage-boot + src/renderer/stage/*
+└── 对话气泡    pet-chat-bubble.html + src/renderer/pet-chat-bubble.js(浮在桌宠上方的独立窗口)
 ```
 
 </details>
@@ -283,7 +302,7 @@ MIT — 详见 [LICENSE](LICENSE)。
 
 - **Live2D 模型**: 由于版权原因本库不提供默认模型，欢迎提供可供分发的 Live2D 模型
 - **应用图标**: 当前图标为开发者头像占位，欢迎设计投稿
-- **内置角色卡**: 欢迎提交有趣的角色卡！内置角色卡需提供中/英/日三语版本。提交时需修改 `assets/prompts/<uuid>.json`（含 `i18n` 字段）和 `src/main/character-manager.js` 中的 `ensureDefaultCharacters()`。格式参考现有内置卡
+- **内置角色卡**: 欢迎提交有趣的角色卡！内置角色卡需提供中/英/日三语版本。提交时需新增 `assets/prompts/<uuid>.json`（含 `i18n` 字段），并把它登记进 `main.js` 的内置卡迁移流程（`makeBundledCards` 与 `migrateBundledCards`）。格式参考现有内置卡
 
 <details>
 <summary>内置角色卡列表</summary>

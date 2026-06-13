@@ -6,8 +6,9 @@
 // 迁移自 src/main/window-manager.js(show-pet-chat、close-chat-bubble、resize-chat-bubble、
 // update-pet-character、get-character-data)与 src/main/utility-ipc.js(show-pet-context-menu、open-dev-tools)。
 // 去掉对全局 ctx 的依赖,窗口经构造注入的取值函数取得;原先各处 ctx.window.webContents.send,
-// 现在经窗口工厂句柄的 send 转发,裸 webContents 不出本层。气泡在新架构里并入宠物窗口舞台,
-// 不再是独立窗口:三路气泡通道都转成对宠物窗口的推送,关闭与改尺寸由渲染侧据通道处理。
+// 现在经窗口工厂句柄的 send 转发,裸 webContents 不出本层。对话气泡是浮在桌宠上方的独立窗口,
+// 由构造注入的 bubble 控制器(deps.bubble:show/resize/hide)驱动;show-pet-chat、close-chat-bubble、
+// resize-chat-bubble 三路通道都转交该控制器,本层不直接持有气泡窗口。
 //
 // 构造注入的协作者都只是窄接口,第三方类型(electron 的 Menu、webContents)留在 platform 工厂:
 //   getPetWindow      返回宠物窗口句柄或 null,句柄由窗口工厂产出,带 send/setSize/openDevTools
@@ -23,20 +24,19 @@
 //// 宠物窗口可选的方形尺寸,上下文菜单据此列出尺寸子菜单 [@busybee 2026-06-13] ////
 const PET_SIZES = [200, 300, 400, 500];
 
-//// 推送到渲染侧的通道名:气泡文本、关闭、改尺寸、角色更新、尺寸已变 [@busybee 2026-06-13] ////
+//// 推送到宠物窗口的通道名:角色更新、尺寸已变(气泡改由独立窗口承载,不再走宠物窗口) [@busybee 2026-06-14] ////
 const RENDER_CHANNEL = {
-  bubbleMessage: 'chat-bubble-message',
-  bubbleClose: 'chat-bubble-close',
-  bubbleResize: 'chat-bubble-resize',
   characterUpdate: 'character-update',
   sizeChanged: 'size-changed'
 };
-//// /推送到渲染侧的通道名 ////
+//// /推送到宠物窗口的通道名 ////
 
 //// 装配展示与交互处理器:取注入的窄接口,返回按通道名索引的处理器表 [@busybee 2026-06-13] ////
 function createUiHandlers(deps) {
   const { getPetWindow, getSettingsWindow, createSettingsWindow, menuPopup, isAlive, mt } = deps;
   const translate = mt || ((key) => key);
+  // 气泡控制器:显示发言、改尺寸、隐藏都驱动独立气泡窗口;缺省给无害空实现便于测试单独验其他通道。
+  const bubble = deps.bubble || { show() {}, resize() {}, hide() {} };
 
   // 角色数据为本层持有的可变快照,更新通道合并补丁,读取通道返回快照。
   let characterData = { ...(deps.initialCharacterData || {}) };
@@ -53,25 +53,21 @@ function createUiHandlers(deps) {
     return isAlive(window) ? window : null;
   }
 
-  //// 把发言文本推进宠物窗口的舞台气泡,缺宠物窗口则报失败 [@busybee 2026-06-13] ////
+  //// 把发言文本经气泡控制器显示到独立气泡窗口 [@busybee 2026-06-14] ////
   function showPetChat(message, autoCloseTime) {
-    const window = alivePetWindow();
-    if (!window) return { success: false, error: 'no pet window' };
-    window.send(RENDER_CHANNEL.bubbleMessage, { message, autoCloseTime: autoCloseTime || 8000 });
+    bubble.show(message, autoCloseTime || 8000);
     return { success: true };
   }
 
-  //// 通知宠物窗口收起气泡;无宠物窗口时视作已收起 [@busybee 2026-06-13] ////
+  //// 经气泡控制器隐藏气泡窗口 [@busybee 2026-06-14] ////
   function closeChatBubble() {
-    const window = alivePetWindow();
-    if (window) window.send(RENDER_CHANNEL.bubbleClose, null);
+    bubble.hide();
     return { success: true };
   }
 
-  //// 把气泡的目标宽高推给宠物窗口,渲染侧据此调舞台气泡尺寸 [@busybee 2026-06-13] ////
+  //// 经气泡控制器把气泡窗口改到目标宽高并重定位到桌宠上方 [@busybee 2026-06-14] ////
   function resizeChatBubble(width, height) {
-    const window = alivePetWindow();
-    if (window) window.send(RENDER_CHANNEL.bubbleResize, { width, height });
+    bubble.resize(width, height);
     return { success: true };
   }
 

@@ -34,9 +34,9 @@ class SituationDigestSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取抽取器最新关键帧的态势,折成带标签的一行;无态势返回 null [@busybee 2026-06-13] ////
-  render() {
-    const situation = this._latestSituation();
+  //// 取当拍态势,折成带标签的一行;无态势返回 null [@busybee 2026-06-13] ////
+  render(scope) {
+    const situation = this._latestSituation(scope);
     if (!situation) {
       return null;
     }
@@ -46,10 +46,13 @@ class SituationDigestSource extends ContextSource {
     }
     return this.label ? this.label + trimmed : trimmed;
   }
-  //// /取抽取器最新关键帧的态势 ////
+  //// /取当拍态势 ////
 
-  //// 取抽取器选出的最新关键帧的态势摘要,缺数据时取空 [@busybee 2026-06-13] ////
-  _latestSituation() {
+  //// 当拍态势优先取作用域里的 situationDigest,缺则回退抽取器最新关键帧 [@busybee 2026-06-13] ////
+  _latestSituation(scope) {
+    if (scope && scope.situationDigest) {
+      return scope.situationDigest;
+    }
     if (!this.extractor || typeof this.extractor.keyframes !== 'function') {
       return null;
     }

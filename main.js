@@ -23,6 +23,9 @@ const { EventBus } = require('./src/platform/bus/event-bus');
 // platform 地基:LLM、语音、翻译、语言
 const { LlmClient } = require('./src/platform/llm/llm-client');
 const { cleanResponse } = require('./src/platform/llm/response-cleaner');
+const { ModelRouter } = require('./src/platform/llm/model-router');
+const { StepModelConfig } = require('./src/platform/llm/step-model-config');
+const { buildStepModelConfig } = require('./src/platform/config/preset-loader');
 const { TranslationService } = require('./src/platform/llm/translation-service');
 const { VoicevoxBackend } = require('./src/platform/speech/voicevox-backend');
 const { CircuitBreaker } = require('./src/platform/speech/circuit-breaker');
@@ -50,6 +53,8 @@ const I18N = require('./src/i18n/locales');
 const { IntentRegistry } = require('./src/domain/intent/intent-registry');
 const { builtinIntents } = require('./src/domain/intent/builtin-intents');
 const { ModRegistry } = require('./src/domain/mod/mod-registry');
+const { StepRegistry } = require('./src/domain/model/step-registry');
+const { builtinSteps, StepId } = require('./src/shared/step-catalog');
 const { KeyframeBuffer } = require('./src/domain/perception/keyframe-buffer');
 const { VlmExtractor } = require('./src/domain/perception/vlm-extractor');
 const { MemoryStore } = require('./src/domain/perception/memory-store');
@@ -104,18 +109,39 @@ function assemblePlatform() {
 }
 //// /按依赖序装配 platform 地基 ////
 
-//// 用全局层配置造统一 LLM 客户端,供应商细节止于 llm-client [@busybee 2026-06-13] ////
-// global 为已解密的全局层配置快照;fetch 与文本清理经 deps 注入,业务侧不见供应商 SDK。
-function assembleLlmClient(global) {
-  const config = {
-    apiKey: global.apiKey,
-    baseURL: global.baseURL || 'https://openrouter.ai/api/v1',
-    model: global.modelName || 'x-ai/grok-4.1-fast',
-    maxRetries: 1
-  };
-  return new LlmClient(config, { fetch: (...args) => fetch(...args), cleanResponse });
+//// 用全局层配置造步骤模型路由,按大类与步骤两层选模型,供应商细节止于 llm-client [@busybee 2026-06-13] ////
+// 路由与 LlmClient 同接口,直接顶替原来的单客户端注入点;makeClient 按解析出的配置造对应预设的客户端。
+// 有 modelConfig 用两层配置,否则退回旧式单模型;fetch 与文本清理经 deps 注入,业务侧不见供应商 SDK。
+function assembleModelRouter(global) {
+  const stepModelConfig = new StepModelConfig(buildStepModelConfig(global));
+  const makeClient = (cfg) => new LlmClient(
+    {
+      apiKey: cfg.apiKey, baseURL: cfg.baseURL, model: cfg.model, preset: cfg.preset,
+      temperature: cfg.temperature, maxTokens: cfg.maxTokens,
+      effort: cfg.effort, thinking: cfg.thinking, extraBody: cfg.extraBody,
+      maxRetries: 1
+    },
+    { fetch: (...args) => fetch(...args), cleanResponse }
+  );
+  return new ModelRouter(stepModelConfig, { makeClient });
 }
-//// /用全局层配置造统一 LLM 客户端 ////
+//// /用全局层配置造步骤模型路由 ////
+
+//// 从环境变量直配 Live2D 模型:设了 LIVE2DPET_MODEL_* 就产出一份 model 配置,否则返回 null [@busybee 2026-06-14] ////
+// 给「不想在界面里填」的用户一条直配通道:模型类型与路径经环境变量给定,渲染侧 load-config 取到后加载。
+function envModelOverride(env) {
+  const e = env || {};
+  const folderPath = e.LIVE2DPET_MODEL_PATH;
+  const type = e.LIVE2DPET_MODEL_TYPE;
+  if (!folderPath && !type) return null;
+  return {
+    type: type || 'live2d',
+    folderPath: folderPath || null,
+    modelJsonFile: e.LIVE2DPET_MODEL_FILE || null,
+    paramMapping: {}
+  };
+}
+//// /从环境变量直配 Live2D 模型 ////
 
 //// 按依赖序装配 domain 角色层,经构造注入串起感知到发言的编排 [@busybee 2026-06-13] ////
 // platform 为已装配的地基;llmClient 为统一模型客户端;global 为全局层配置快照(取人格)。
@@ -131,6 +157,10 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   // mod:仓储缺省给空列表,发现后两级启用合并
   const modRegistry = new ModRegistry({ source: { list: () => [] }, globalEnabled: [] });
   modRegistry.discover();
+
+  // AI 步骤:出厂步骤在加载期被发现注入,供设置界面枚举与模型路由校验,可追溯
+  const stepRegistry = new StepRegistry();
+  stepRegistry.discoverBuiltins(builtinSteps());
 
   // 感知:关键帧缓冲、态势抽取、记忆三件单一职责
   const keyframeBuffer = new KeyframeBuffer();
@@ -153,8 +183,8 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   // 命名上下文源:各以意图引用名为 id,注册进管线据 ref 解析
   const contextSources = assembleContextSources({ vlmExtractor, memoryStore, providers, languageState });
 
-  // 提示词组装器:接 few-shot 解析器与角色人格,按预算裁样例组装请求
-  const promptComposer = assemblePromptComposer(global);
+  // 提示词组装器:接 few-shot 解析器与角色人格,按预算裁样例组装请求,并合并用户额外 system 注入
+  const promptComposer = assemblePromptComposer(global, llmClient);
 
   // 请求管线:上下文源注册表与提示词组装器经组合根注入,管线自身不抓全局
   const sourceRegistry = makeSourceRegistry(contextSources);
@@ -164,7 +194,7 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   const pet = new PetOrchestrator({ pipeline, llmClient, eventBus });
 
   return {
-    intentRegistry, modRegistry,
+    intentRegistry, modRegistry, stepRegistry,
     keyframeBuffer, vlmExtractor, memoryStore, perceptionCollector,
     emotionState, emotionSelector, emotionReaction,
     ttsOrchestrator, utteranceSession,
@@ -227,13 +257,17 @@ function antiRepetitionLabels(mt) {
 }
 //// /把反重复源的外壳与各模式名按当前语言取出 ////
 
-//// 装配提示词组装器:few-shot 银行与解析器加角色人格 [@busybee 2026-06-13] ////
+//// 装配提示词组装器:few-shot 银行与解析器加角色人格,合并用户额外 system 注入 [@busybee 2026-06-13] ////
 // 银行暂无样例入库(磁盘 fewshot 目录为空),解析器对空引用返回空轮次;人格取自激活角色卡的 data。
-function assemblePromptComposer(global) {
+// system 注入取台词步解析出的(全局加 llm 大类),与人格规则合并;无路由时为空串。
+function assemblePromptComposer(global, llmClient) {
   const bank = new FewShotBank();
   const fewShotResolver = new FewShotResolver(bank);
   const persona = (global.activeCard && global.activeCard.data) || {};
-  return new PromptComposer({ fewShotResolver, persona });
+  const systemInjection = llmClient && llmClient.resolveStep
+    ? llmClient.resolveStep(StepId.Dialogue).systemInjection
+    : '';
+  return new PromptComposer({ fewShotResolver, persona }, { systemInjection });
 }
 //// /装配提示词组装器 ////
 
@@ -342,6 +376,8 @@ function makePerceptionRuntime(deps) {
 
 // 调度间隔:每拍采一次感知,焦点统计按此粒度累加秒数。
 const SCHEDULER_INTERVAL_MS = 15000;
+// 桌宠窗口边长:建窗与默认定位共用一处,避免两处数字漂移。
+const PET_WINDOW_SIZE = 300;
 // 反重复源保留的最近发言条数上限。
 const RECENT_REPLIES_KEEP = 8;
 
@@ -370,14 +406,14 @@ function shortenTitle(title) {
 
 //// 把领域事件经 IPC 转发到渲染窗口:发言进气泡与说话态、选定情绪进表情 [@busybee 2026-06-13] ////
 // 情绪连接件订阅发言产物已在 domain 装配;此处补两条把领域事件桥到宠物窗口的转发,死窗口由总线过滤。
-function subscribeRenderForwarders(eventBus, getPetWindow) {
-  // 发言产物:文本进舞台气泡,并把说话态切到开,供图片帧与表情联动
+function subscribeRenderForwarders(eventBus, getPetWindow, bubble) {
+  // 发言产物:文本进独立气泡窗口,并把说话态切到开,供图片帧与表情联动
   eventBus.subscribe('UtteranceProduced', (event) => {
-    const win = getPetWindow();
     const text = spokenTextOf(event);
-    if (!win || !text) return;
-    win.webContents.send('show-chat-message', { message: text, autoCloseTime: event.bubbleDurationMs || 8000 });
-    win.webContents.send('talking-state-changed', true);
+    if (!text) return;
+    bubble.show(text, event.bubbleDurationMs || 8000);
+    const win = getPetWindow();
+    if (win) win.webContents.send('talking-state-changed', true);
   }, () => ipcRouter.isAlive(getPetWindow()));
 
   // 发言结束:把说话态切回关
@@ -430,8 +466,22 @@ function registerRemainingIpc(handlers) {
 // runtime 持有窗口句柄等可变状态;返回按通道名索引的无害 UI 控制处理器。
 function makeWindowHandlers(runtime) {
   return {
-    'create-pet-window': () => { ensurePetWindow(runtime); return { success: true }; },
-    'close-pet-window': () => { if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.close(); return { success: true }; },
+    // 启动宠物:建窗、把设置窗口收起、开启感知调度循环(旧版同样在启动时隐藏设置)
+    'create-pet-window': () => {
+      ensurePetWindow(runtime);
+      if (runtime.bubbleController) runtime.bubbleController.ensure();
+      if (windowFactory.isAlive(runtime.settingsWindow)) runtime.settingsWindow.hide();
+      if (runtime.scheduler) runtime.scheduler.start();
+      return { success: true };
+    },
+    // 关闭宠物:停感知调度、关桌宠与气泡窗、把设置窗口重新显示出来供再配置与再启动
+    'close-pet-window': () => {
+      if (runtime.scheduler) runtime.scheduler.stop();
+      if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.close();
+      if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.close();
+      if (windowFactory.isAlive(runtime.settingsWindow)) { runtime.settingsWindow.show(); runtime.settingsWindow.focus(); }
+      return { success: true };
+    },
     'set-window-size': (args) => { if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.setSize(args[0], args[1]); return { success: true }; },
     'set-window-position': (args) => {
       if (windowFactory.isAlive(runtime.petWindow)) {
@@ -460,6 +510,8 @@ function makeUiHandlerDeps(runtime, global) {
     menuPopup: trayFactory.createMenuPopup({ Menu: electron.Menu }),
     isAlive: (window) => windowFactory.isAlive(window),
     mt,
+    // 气泡控制器:气泡相关 IPC 经它驱动独立气泡窗口
+    bubble: runtime.bubbleController,
     initialCharacterData: (global.activeCard && global.activeCard.data) || {}
   };
 }
@@ -471,16 +523,97 @@ function ensurePetWindow(runtime) {
   if (windowFactory.isAlive(runtime.petWindow)) { runtime.petWindow.focus(); return runtime.petWindow; }
   runtime.petWindow = windowFactory.createWindow({
     BrowserWindow: electron.BrowserWindow,
-    width: 300, height: 300, frame: false, transparent: true, alwaysOnTop: true,
+    width: PET_WINDOW_SIZE, height: PET_WINDOW_SIZE, frame: false, transparent: true, alwaysOnTop: true, resizable: false,
     resizable: true, skipTaskbar: true,
     webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') }
   });
   runtime.petWindow.setAlwaysOnTop(true, 'screen-saver');
   runtime.petWindow.loadFile(path.join(__dirname, 'desktop-pet.html'));
+  // 默认落到屏幕右下角:用工作区尺寸(已扣任务栏、DIP 口径,与 setPosition 一致),按窗口边长加 20 像素外边距贴右下不溢出。
+  const { width, height } = electron.screen.getPrimaryDisplay().workAreaSize;
+  runtime.petWindow.setPosition(width - PET_WINDOW_SIZE - 20, height - PET_WINDOW_SIZE - 20);
   runtime.petWindow.on('closed', () => { runtime.petWindow = null; });
   return runtime.petWindow;
 }
 //// /建桌宠主窗口加载 desktop-pet.html ////
+
+// 对话气泡窗口与桌宠的竖直间距(像素)。
+const BUBBLE_GAP = 8;
+// 对话气泡窗口的初始尺寸:渲染侧量好文本后会经 resize-chat-bubble 重设。
+const BUBBLE_INIT_WIDTH = 260;
+const BUBBLE_INIT_HEIGHT = 90;
+
+//// 建独立对话气泡窗口加载 pet-chat-bubble.html:透明无边、置顶、不抢焦点、初始隐藏 [@busybee 2026-06-14] ////
+// 气泡改回独立窗口浮在桌宠上方(旧版同款),而非舞台内浮层;随桌宠启动而建、随关闭而销毁。
+function ensureChatBubbleWindow(runtime) {
+  if (windowFactory.isAlive(runtime.chatBubbleWindow)) { return runtime.chatBubbleWindow; }
+  runtime.chatBubbleWindow = windowFactory.createWindow({
+    BrowserWindow: electron.BrowserWindow,
+    width: BUBBLE_INIT_WIDTH, height: BUBBLE_INIT_HEIGHT,
+    frame: false, transparent: true, alwaysOnTop: true, resizable: false,
+    show: false, skipTaskbar: true, focusable: false,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') }
+  });
+  runtime.chatBubbleWindow.setAlwaysOnTop(true, 'screen-saver');
+  runtime.chatBubbleWindow.loadFile(path.join(__dirname, 'pet-chat-bubble.html'));
+  runtime.chatBubbleWindow.on('closed', () => { runtime.chatBubbleWindow = null; });
+  return runtime.chatBubbleWindow;
+}
+//// /建独立对话气泡窗口 ////
+
+//// 造气泡控制器:把气泡窗口的「建窗、显示发言、改尺寸、隐藏」收成几个动作,定位与就绪排队逻辑只此一处 [@busybee 2026-06-14] ////
+// 气泡始终浮在桌宠正上方、水平居中;显示发言时先按当前尺寸定位再推文本,渲染侧量好文本后经 resize 重定尺寸与位置。
+// 渲染未就绪(窗口刚建、还没订阅消息通道)时,先把最新一条发言存住,等 ready-to-show 再补发,避免发言早于订阅而丢失。
+function makeBubbleController(runtime) {
+  let ready = false;
+  let pending = null;
+
+  function positionAbovePet(width, height) {
+    if (!windowFactory.isAlive(runtime.petWindow) || !windowFactory.isAlive(runtime.chatBubbleWindow)) return;
+    const pet = runtime.petWindow.getBounds();
+    const x = Math.round(pet.x + (pet.width - width) / 2);
+    const y = Math.round(pet.y - height - BUBBLE_GAP);
+    runtime.chatBubbleWindow.setBounds({ x, y, width, height });
+  }
+
+  function sendNow(message, autoCloseTime) {
+    if (!windowFactory.isAlive(runtime.chatBubbleWindow)) return;
+    const bounds = runtime.chatBubbleWindow.getBounds();
+    positionAbovePet(bounds.width || BUBBLE_INIT_WIDTH, bounds.height || BUBBLE_INIT_HEIGHT);
+    runtime.chatBubbleWindow.send('chat-bubble-message', { message, autoCloseTime });
+    if (!runtime.chatBubbleWindow.isVisible()) runtime.chatBubbleWindow.showInactive();
+  }
+
+  return {
+    // 建气泡窗口并挂就绪监听;窗口已在则不重复建,监听只随新建注册一次。
+    ensure() {
+      if (windowFactory.isAlive(runtime.chatBubbleWindow)) return;
+      ready = false;
+      pending = null;
+      ensureChatBubbleWindow(runtime);
+      runtime.chatBubbleWindow.on('ready-to-show', () => {
+        ready = true;
+        if (pending) { const p = pending; pending = null; sendNow(p.message, p.autoCloseTime); }
+      });
+    },
+    show(message, autoCloseTime) {
+      if (!message) return;
+      this.ensure();
+      const at = autoCloseTime || 8000;
+      if (ready) sendNow(message, at);
+      else pending = { message, autoCloseTime: at };
+    },
+    resize(width, height) {
+      if (!windowFactory.isAlive(runtime.chatBubbleWindow)) return;
+      positionAbovePet(width, height);
+      if (!runtime.chatBubbleWindow.isVisible()) runtime.chatBubbleWindow.showInactive();
+    },
+    hide() {
+      if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.hide();
+    }
+  };
+}
+//// /造气泡控制器 ////
 
 //// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
 // 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
@@ -506,6 +639,7 @@ function mt(key) {
 // 主进程可变运行态:窗口句柄、托盘、退出标志,生命周期钩子据此协调
 const runtime = {
   petWindow: null,
+  chatBubbleWindow: null,
   settingsWindow: null,
   tray: null,
   isQuitting: false,
@@ -521,9 +655,12 @@ app.whenReady().then(async () => {
 
   // 读全局层配置,把激活角色卡的人格并进快照;界面语言据配置设定,据此造 LLM 客户端
   const global = (await platform.configStore.read('global')) || {};
+  // 环境变量直配 Live2D 模型:设了就覆盖并写回,使渲染侧 load-config 取到该模型(在挂 activeCard 之前写,避免把人格快照落进配置)
+  const envModel = envModelOverride(process.env);
+  if (envModel) { global.model = envModel; await platform.configStore.write('global', null, global); }
   global.activeCard = await loadActiveCard(platform, global);
   languageState.set(global.language || global.lang);
-  const llmClient = assembleLlmClient(global);
+  const llmClient = assembleModelRouter(global);
 
   // 翻译服务:复用统一 LLM 客户端中译日,供 TTS 合成前注入;无 koffi/客户端时原样返回
   runtime.translationService = new TranslationService({ llmClient });
@@ -543,7 +680,9 @@ app.whenReady().then(async () => {
 
   // 情绪连接件订阅发言产物;领域事件经 IPC 转发到宠物窗口
   runtime.domain.emotionReaction.start();
-  subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime));
+  // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
+  runtime.bubbleController = makeBubbleController(runtime);
+  subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime), runtime.bubbleController);
 
   // 发言产物喂反重复源:每条刚说出的话记入近期回复缓存
   platform.eventBus.subscribe('UtteranceProduced', (event) => perceptionRuntime.recordReply(spokenTextOf(event)));
@@ -589,10 +728,11 @@ app.whenReady().then(async () => {
     { label: 'Quit', click: () => { runtime.isQuitting = true; app.quit(); } }
   ]);
 
-  // 建桌宠主窗口加载 desktop-pet.html
-  ensurePetWindow(runtime);
+  // 桌宠窗口不在启动时显示:设置窗口先出现作为启动器,用户点「启动宠物」才经 create-pet-window 建窗。
+  // 沿用旧版前端行为(src/main/window-manager.js 的 create-pet-window 按需建窗、启动时隐藏设置)。
 
-  // 主循环调度器:按间隔反复采感知、取候选、选意图、跑意图,并按需喂情绪;经感知运行态与领域层注入
+  // 主循环调度器:按间隔反复采感知、取候选、选意图、跑意图,并按需喂情绪;经感知运行态与领域层注入。
+  // 只装配不启动:截图感知循环随宠物启动而开、随宠物关闭而停,不在无宠物时空跑。
   const domain = runtime.domain;
   runtime.scheduler = new PetScheduler(
     {
@@ -604,7 +744,15 @@ app.whenReady().then(async () => {
     },
     { intervalMs: SCHEDULER_INTERVAL_MS, chatGapMs: SCHEDULER_INTERVAL_MS }
   );
-  runtime.scheduler.start();
+
+  // 自动启动桌宠:默认关闭(沿用「点启动宠物才显示」);设 LIVE2DPET_AUTOLAUNCH=1 时启动即建桌宠与气泡窗并开调度,
+  // 供想要开机即显示的用户,以及无头截图验证用。
+  if (process.env.LIVE2DPET_AUTOLAUNCH === '1') {
+    ensurePetWindow(runtime);
+    runtime.bubbleController.ensure();
+    if (windowFactory.isAlive(runtime.settingsWindow)) runtime.settingsWindow.hide();
+    runtime.scheduler.start();
+  }
 
   // 内置卡迁移与语音后端初始化:不阻塞就绪
   setImmediate(() => { assembled.migrateBundledCards().catch((e) => console.error('[main] 内置卡迁移失败:', e && e.message)); });

@@ -1,12 +1,16 @@
 // audience: internal
 // # fewshot-bank
-// few-shot 银行:按名字组织的可替换样例库,结构样例全局共享、语气样例按角色,经模板变量插槽受控合并。
-// 不变量:结构与语气各自存储互不可见;样例不得含成品句子,校验点设在入库时。
+// few-shot 银行:按名字组织的可替换样例库,分结构、语气、场景台词三类。
+// 不变量:结构样例不得含成品句子(只搭骨架),校验设在入库时;场景台词样例是明确豁免、必须携带成品台词。
 //
-// 结构样例是纯数据:{ name, slots:[槽名...], turns:[{ role, template }] }。
-// template 只含骨架与 {{槽名}} 占位,字面文本不得带成品措辞。
-// 语气样例是纯数据:{ name, characterId, fillers:{ 槽名: 文本 } },只供给槽位填充,不带轮次结构。
-// compose 把结构骨架的槽位用语气填充与调用方槽位填满,产出可读样例轮次。
+// 三类样例与各自用途:
+// 结构样例(全局共享):{ name, slots:[槽名...], turns:[{ role, template }] }。template 只含骨架与 {{槽名}} 占位,
+//   字面文本不得带成品措辞;对应决策 4 的「结构样例不含成品措辞」层,供 mod 与意图的结构示范。
+// 语气样例(按角色):{ name, characterId, fillers:{ 槽名: 文本 } },只供给槽位填充,不带轮次结构。
+// 场景台词样例(按角色):{ name, characterId, scenes:[{ scene, lines:[成品台词...] }] }。这是台词生成的语气示范,
+//   按决策 34 与 37,成品台词是 few-shot 的内容主体、必须保留,故此类样例豁免「不含成品措辞」这条;
+//   成品台词属用户掌控的人设数据,本库只定格式与渲染,不产出内容。模型据此模仿文风但不照抄(指令在 prompt-composer)。
+// compose 把结构骨架的槽位用语气填充与调用方槽位填满;composeSceneTurns 把场景台词渲染成示例轮次。
 
 // 槽位占位形如 {{slotName}},与 prompt-builder.resolveTemplate 的插槽机制一致。
 const SLOT_PATTERN = /\{\{\s*([a-zA-Z][\w]*)\s*\}\}/g;
@@ -81,12 +85,40 @@ function assertToneSample(sample) {
   }
 }
 
+//// 校验一条场景台词样例:绑定角色、每个场景含描述与至少一条成品台词 [@busybee 2026-06-13] ////
+// 与结构样例相反,本类样例必须携带成品台词(决策 34/37 的明确豁免),故不查成品措辞。
+function assertSceneSample(sample) {
+  if (!sample || typeof sample.name !== 'string' || sample.name.length === 0) {
+    throw new Error('场景台词样例缺少 name');
+  }
+  if (typeof sample.characterId !== 'string' || sample.characterId.length === 0) {
+    throw new Error(`场景台词样例 ${sample.name} 缺少 characterId`);
+  }
+  if (!Array.isArray(sample.scenes) || sample.scenes.length === 0) {
+    throw new Error(`场景台词样例 ${sample.name} 缺少 scenes`);
+  }
+  for (const scene of sample.scenes) {
+    if (!scene || typeof scene.scene !== 'string' || scene.scene.length === 0) {
+      throw new Error(`场景台词样例 ${sample.name} 有场景缺少 scene 描述`);
+    }
+    if (!Array.isArray(scene.lines) || scene.lines.length === 0) {
+      throw new Error(`场景台词样例 ${sample.name} 的场景「${scene.scene}」缺少成品台词 lines`);
+    }
+    for (const line of scene.lines) {
+      if (typeof line !== 'string' || line.length === 0) {
+        throw new Error(`场景台词样例 ${sample.name} 的台词须为非空字符串`);
+      }
+    }
+  }
+}
+
 class FewShotBank {
-  //// 建立结构与语气两套互不可见的存储 [@busybee 2026-06-13] ////
-  // 结构按名全局共享;语气按 characterId 分桶,各角色彼此隔离。
+  //// 建立结构、语气、场景台词三套存储 [@busybee 2026-06-13] ////
+  // 结构按名全局共享;语气与场景台词按 characterId 分桶,各角色彼此隔离。
   constructor() {
     this._structures = new Map();
     this._tonesByCharacter = new Map();
+    this._sceneSetsByCharacter = new Map();
   }
 
   //// 入库一条结构样例,入库期校验骨架不含成品措辞 [@busybee 2026-06-13] ////
@@ -140,6 +172,46 @@ class FewShotBank {
         return '';
       });
       turns.push({ role: turn.role, content: filled });
+    }
+    return turns;
+  }
+
+  //// 入库一条场景台词样例,按角色分桶;此类必须携带成品台词 [@busybee 2026-06-13] ////
+  registerSceneSet(sample) {
+    assertSceneSample(sample);
+    let bucket = this._sceneSetsByCharacter.get(sample.characterId);
+    if (!bucket) {
+      bucket = new Map();
+      this._sceneSetsByCharacter.set(sample.characterId, bucket);
+    }
+    bucket.set(sample.name, sample);
+  }
+
+  //// 按名解析某角色的场景台词样例,跨角色不可见,未命中返回 null [@busybee 2026-06-13] ////
+  resolveSceneSet(name, characterId) {
+    const bucket = this._sceneSetsByCharacter.get(characterId);
+    if (!bucket) {
+      return null;
+    }
+    return bucket.get(name) || null;
+  }
+
+  //// 把场景台词样例渲染成示例轮次:每条成品台词配一个「场景:X」用户轮与角色台词回应轮 [@busybee 2026-06-13] ////
+  // options.maxScenes 限场景数、maxLinesPerScene 限每场景台词数,缺省不限;成品台词原样带出,不改写。
+  composeSceneTurns(sceneSet, options = {}) {
+    if (!sceneSet || !Array.isArray(sceneSet.scenes)) {
+      return [];
+    }
+    const maxScenes = options.maxScenes;
+    const maxLines = options.maxLinesPerScene;
+    const turns = [];
+    const scenes = maxScenes === undefined ? sceneSet.scenes : sceneSet.scenes.slice(0, maxScenes);
+    for (const scene of scenes) {
+      const lines = maxLines === undefined ? scene.lines : scene.lines.slice(0, maxLines);
+      for (const line of lines) {
+        turns.push({ role: 'user', content: `场景:${scene.scene}` });
+        turns.push({ role: 'assistant', content: line });
+      }
     }
     return turns;
   }

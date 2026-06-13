@@ -3,9 +3,12 @@
 // 统一 LLM 客户端:收口供应商细节与流式传输,业务侧只见这一个接口。
 // 不变量:超时与重试在此一处配置;调用方拿到的是供应商无关的请求与响应,不见任何供应商 SDK 类型。
 //
-// 依赖经构造注入:config 给定端点与默认参数,deps 给定可替换的 fetch 与文本清理与退避等待。
-// request 形如 { messages, tools?, temperature?, maxTokens? };complete 返回 { text, toolCalls, raw },
-// stream 异步逐块产出 { text, toolCalls, done }。HTTP 与 SSE 协议细节只在本文件出现。
+// 依赖经构造注入:config 给定端点、模型与默认参数,deps 给定可替换的 fetch 与文本清理与退避等待。
+// config.preset(或 config.profile)选供应商兼容预设,默认 openai-chat;协议差异止于 vendor-profiles。
+// request 形如 { messages, tools?, temperature?, maxTokens?, model?, effort?, thinking? };complete 返回 { text, toolCalls, raw },
+// stream 异步逐块产出 { text, toolCalls, done }。HTTP 与 SSE 协议细节只在本文件与所选预设里出现。
+
+const { profileFor } = require('./vendor-profiles');
 
 class LlmClient {
   constructor(config, deps) {
@@ -14,13 +17,18 @@ class LlmClient {
     this.model = config.model;
     this.temperature = config.temperature ?? 0.86;
     this.maxTokens = config.maxTokens ?? 2048;
+    this.effort = config.effort;
+    this.thinking = config.thinking;
+    this.extraBody = config.extraBody;
     this.timeoutMs = config.timeoutMs ?? 120000;
     this.maxRetries = config.maxRetries ?? 0;
     this.retryDelayMs = config.retryDelayMs ?? 1000;
+    // 供应商兼容预设:显式 profile 优先,否则按 preset 名解析,默认 openai-chat。
+    this.profile = config.profile || profileFor(config.preset);
 
     this.fetch = deps.fetch;
     this.cleanResponse = deps.cleanResponse;
-    // 退避等待可注入,便于测试时跳过真实计时
+    // 退避等待可注入,便于测试时跳过真实计时。
     this.sleep = deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
@@ -28,7 +36,7 @@ class LlmClient {
   async complete(request) {
     return this._withRetry(async () => {
       const response = await this._send(request, false);
-      const data = await this._parseJson(response);
+      const data = await response.json();
       return this._toResult(data);
     });
   }
@@ -39,27 +47,30 @@ class LlmClient {
     yield* this._readSseDeltas(response);
   }
 
-  //// 在超时与重试控制下执行一次请求,组装供应商协议的请求体 [@busybee 2026-06-13] ////
+  //// 把请求里的覆盖值叠到客户端默认上,得到本次调用的参数 [@busybee 2026-06-13] ////
+  _params(request) {
+    return {
+      model: request.model !== undefined ? request.model : this.model,
+      temperature: this.temperature,
+      maxTokens: this.maxTokens,
+      effort: this.effort,
+      thinking: this.thinking,
+      extraBody: this.extraBody
+    };
+  }
+
+  //// 在超时与重试控制下执行一次请求,经所选预设组装请求体与鉴权头 [@busybee 2026-06-13] ////
   async _send(request, isStream) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
 
-    const body = {
-      model: this.model,
-      messages: request.messages,
-      max_tokens: request.maxTokens ?? this.maxTokens,
-      temperature: request.temperature ?? this.temperature
-    };
-    if (request.tools) body.tools = request.tools;
-    if (isStream) body.stream = true;
+    const body = this.profile.buildBody(request, this._params(request), isStream);
+    const headers = { 'Content-Type': 'application/json', ...this.profile.authHeaders(this.apiKey) };
 
     try {
-      const response = await this.fetch(`${this.baseURL}/chat/completions`, {
+      const response = await this.fetch(`${this.baseURL}${this.profile.path}`, {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${this.apiKey}`
-        },
+        headers,
         body: JSON.stringify(body),
         signal: controller.signal
       });
@@ -95,21 +106,11 @@ class LlmClient {
     throw lastError;
   }
 
-  //// 解析非流式 JSON 响应体 [@busybee 2026-06-13] ////
-  async _parseJson(response) {
-    const data = await response.json();
-    if (!data.choices || !data.choices[0]) {
-      throw new Error('LLM 响应为空');
-    }
-    return data;
-  }
-
-  //// 把供应商响应折叠为无关响应:清理后的文本、工具调用、原始数据 [@busybee 2026-06-13] ////
+  //// 把供应商响应折叠为无关响应:经预设解析再清理文本,透出工具调用与原始数据 [@busybee 2026-06-13] ////
   _toResult(data) {
-    const message = data.choices[0].message || {};
-    const text = message.content ? this.cleanResponse(message.content.trim()) : '';
-    const toolCalls = message.tool_calls || [];
-    return { text, toolCalls, raw: data };
+    const parsed = this.profile.parseComplete(data);
+    const text = parsed.text ? this.cleanResponse(parsed.text.trim()) : '';
+    return { text, toolCalls: parsed.toolCalls || [], raw: data };
   }
 
   //// 逐行读取 SSE 流,把每个 data 块解析为增量并产出,遇 [DONE] 收尾 [@busybee 2026-06-13] ////
@@ -143,15 +144,10 @@ class LlmClient {
   }
   //// /逐行读取 SSE 流 ////
 
-  //// 把单个 SSE data 负载解析为文本与工具调用增量 [@busybee 2026-06-13] ////
+  //// 把单个 SSE data 负载经所选预设解析为文本与工具调用增量 [@busybee 2026-06-13] ////
   _toDelta(payload) {
     const parsed = JSON.parse(payload);
-    const delta = (parsed.choices && parsed.choices[0] && parsed.choices[0].delta) || {};
-    return {
-      text: delta.content || '',
-      toolCalls: delta.tool_calls || [],
-      done: false
-    };
+    return this.profile.parseDelta(parsed);
   }
 }
 

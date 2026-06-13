@@ -12,8 +12,6 @@ import { ImageRenderer } from '../../platform/render/image-renderer.js';
 // 尺寸档位:控件加减号在这几档间移动,组合根只持档位顺序,不散落在多处按钮回调里。
 export const SIZE_PRESETS = [200, 300, 400, 500];
 
-// 模型相对画布的竖直锚点比例:模型中心落在画布高度的这一比例处。
-const MODEL_Y_RATIO = 0.6;
 
 // 默认档位下标:200/300/400/500 里的 300,启动与回退都用它。
 const DEFAULT_SIZE_INDEX = 1;
@@ -21,8 +19,17 @@ const DEFAULT_SIZE_INDEX = 1;
 // 鼠标跟踪归一化半径:光标到窗口中心的像素差除以它再钳到 -1 到 1。
 const TRACK_RADIUS_PX = 300;
 
-// 鼠标跟踪刷新周期(毫秒):每隔这么久取一次光标与窗口位置传给渲染适配。
+// 鼠标跟踪刷新周期(毫秒):每隔这么久取一次光标传给渲染适配。
 const TRACK_INTERVAL_MS = 50;
+
+// 头部跟踪里窗口位置缓存的兜底刷新周期,以跟踪拍数计:窗口移动远少于光标,故缓存复用、每若干拍刷一次,把每拍两次 IPC 降到一次。
+const BOUNDS_REFRESH_TICKS = 10;
+
+// 手势阈值:指针任一轴位移超过 movePx 像素才算拖动,否则在 clickMs 内抬起算一次轻点。拖动判定与轻点判定共用,避免散落。
+const GESTURE_CONFIG = { movePx: 5, clickMs: 700 };
+
+// 轻点回弹动画时长(毫秒):与 pet-window.css 的 pet-poke 动画一致,到时移除类便于下次再触发。
+const POKE_DURATION_MS = 400;
 
 //// 把模型配置解析成「用哪种渲染适配加已定模型目录」的纯数据,不触 DOM [@busybee 2026-06-13] ////
 // raw 为窄接口读到的 config.model;validation 为 live2d 路径校验结果,可空。
@@ -87,6 +94,12 @@ export function classifyGesture(down, up, gesture) {
   return { kind: 'touch', elapsed };
 }
 
+//// 判定指针相对起点的位移是否已超过拖动阈值 [@busybee 2026-06-14] ////
+// start 与 current 为屏幕坐标 {x,y};任一轴位移超过 movePx 即认为进入拖动,未超过则仍按轻点对待。
+export function movementExceeds(start, current, movePx) {
+  return Math.abs(current.x - start.x) > movePx || Math.abs(current.y - start.y) > movePx;
+}
+
 //// 把旧式 (group, index) 动作信号反查成配置里的语义动作名 [@busybee 2026-06-13] ////
 // 旧 IPC 仍按底层 group 与 index 发动作,新接口只认语义名;在组合根把旧词汇翻成新名。
 // 配置 motionEmotions 形如 [{name, group, index}];查不到返回空,调用方据此跳过。
@@ -138,12 +151,15 @@ async function makeLive2dAdapter(plan, env) {
     Live2DModel.registerTicker(PIXI.Ticker);
   }
 
+  // 分辨率封顶 1.5:高分屏(devicePixelRatio=2)按原值会在小窗口里分配两倍像素缓冲,填充与采样开销大;
+  // 3 寸窗口里 1.5 与 2 的锐度肉眼难辨,封顶省约四成开销。抗锯齿仅在非高分屏开,高分屏的原生过采样已够。
+  const dpr = (doc.defaultView && doc.defaultView.devicePixelRatio) || 1;
   const pixiApp = new PIXI.Application({
     view: canvas, transparent: true, autoStart: true,
     width: env.width || (doc.defaultView && doc.defaultView.innerWidth) || 300,
     height: env.height || (doc.defaultView && doc.defaultView.innerHeight) || 300,
-    backgroundAlpha: 0, resolution: (doc.defaultView && doc.defaultView.devicePixelRatio) || 1,
-    autoDensity: true, antialias: true
+    backgroundAlpha: 0, resolution: Math.min(dpr, 1.5),
+    autoDensity: true, antialias: dpr < 2
   });
 
   const modelPath = modelFileUrl(plan.resolvedModelDir, plan.config.modelJsonFile);
@@ -205,16 +221,22 @@ function modelFileUrl(modelDir, modelJsonFile) {
 }
 //// /把模型目录与 model3.json 文件名拼成可加载的 file:// 地址 ////
 
-//// 把模型按画布宽度等比缩放并锚到画布中下部 [@busybee 2026-06-13] ////
+//// 把模型 contain 进整个画布并居中,完整不裁、不留空白带 [@busybee 2026-06-14] ////
+// 用 pixiApp.screen 的 CSS 像素尺寸而非 renderer.width:后者在高分屏按 devicePixelRatio 放大(如 1.75 倍),
+// 会把模型缩放与定位都按设备像素算,导致模型放大且偏出窗口被裁。与旧版用 window.innerWidth 同口径。
+// 按「整宽」与「整高」都放得下的较小比例等比缩放(contain),保证模型完整可见且尽量占满窗口;气泡改由独立窗口承载,故此处不再为气泡留带。
 function fitModel(model, pixiApp) {
-  const w = pixiApp.renderer.width;
-  const h = pixiApp.renderer.height;
+  const screen = pixiApp.screen || { width: pixiApp.renderer.width, height: pixiApp.renderer.height };
+  const w = screen.width;
+  const h = screen.height;
   const origW = model.width || w;
-  model.scale.set(w / origW);
+  const origH = model.height || h;
+  const scale = Math.min(w / origW, h / origH);
+  model.scale.set(scale);
   model.x = w / 2;
-  model.y = h * MODEL_Y_RATIO;
+  model.y = h / 2;
 }
-//// /把模型按画布宽度等比缩放并锚到画布中下部 ////
+//// /把模型 contain 进整个画布并居中 ////
 
 //// 从舞台 DOM 装配 CharacterStage 的协作者:气泡视图、mod 前端槽、舞台尺寸 [@busybee 2026-06-13] ////
 // doc 为承载舞台的文档;从 desktop-pet.html 取容器元素,缺失的元素以空安全方式降级。
@@ -242,6 +264,99 @@ function buildCharacterStage(doc, sandboxHost) {
 }
 //// /从舞台 DOM 装配 CharacterStage 的协作者 ////
 
+//// 由起点窗口位置、起点与当前光标的屏幕坐标算出拖动后的窗口位置 [@busybee 2026-06-14] ////
+// 实测确证:Electron 渲染进程的 MouseEvent.screenX/screenY 与主进程 screen.getCursorScreenPoint() 数值相等,
+// 两者同为 DIP 逻辑像素(并非物理像素),与窗口 getBounds/setPosition 口径一致。故光标位移一比一叠加到起点窗口位置即可,
+// 不做任何 devicePixelRatio 换算——曾误按物理像素除以 dpr,导致窗口只走光标位移的几分之一而落后飘移。
+export function dragTargetPosition(startBounds, startCursor, currentCursor) {
+  return {
+    x: Math.round(startBounds.x + (currentCursor.x - startCursor.x)),
+    y: Math.round(startBounds.y + (currentCursor.y - startCursor.y))
+  };
+}
+//// /由起点窗口位置与光标屏幕坐标算出拖动后的窗口位置 ////
+
+//// 给舞台元素加一次轻点回弹:加 poked 类触发 CSS 动画,到时移除以便再次触发 [@busybee 2026-06-14] ////
+// element 为承载模型画面的舞台元素(#pet-container);view 提供 setTimeout,便于测试替换。
+// 先移除再读一次布局强制回流,使连续轻点也能从头重放动画,而非因类已在而无动作。
+export function applyPokeEffect(element, view, durationMs = POKE_DURATION_MS) {
+  if (!element || !element.classList) return;
+  element.classList.remove('poked');
+  void element.offsetWidth;
+  element.classList.add('poked');
+  const setTimer = (view && typeof view.setTimeout === 'function') ? view.setTimeout.bind(view) : setTimeout;
+  setTimer(() => { element.classList.remove('poked'); }, durationMs);
+}
+//// /给舞台元素加一次轻点回弹 ////
+
+//// 在舞台上挂 JS 拖动与轻点:按下记锚点,位移过阈才改窗口位置;落控件不拖,松手按手势分派拖动或轻点 [@busybee 2026-06-14] ////
+// 旧版前端用 set-window-position 拖动整窗;新架构画布铺满窗口、又是无边框,CSS app-region 拖动被画布盖住而失效,故用 JS 接管。
+// 坐标全程换算到 DIP(见 dragTargetPosition)消除高分屏飘移;位移未过阈前不动窗口,避免轻点时的微小抖动把窗口带偏。
+// 真正拖动时移动只记最新光标,由 requestAnimationFrame 每帧最多发一次 setWindowPosition,避免 mousemove 高频刷 IPC 造成卡顿。
+// callbacks.onMoved 在拖动松手后调用,供调用方刷新头部跟踪用的窗口位置缓存;callbacks.onTap 在原地轻点抬起时调用,触发非语义回弹反馈。
+function setupWindowDrag(doc, narrowApi, callbacks = {}) {
+  const stageElement = doc && doc.getElementById('pet-container');
+  if (!stageElement || !narrowApi || typeof narrowApi.setWindowPosition !== 'function') {
+    return;
+  }
+  const view = doc.defaultView || (typeof window !== 'undefined' ? window : null);
+  if (!view) return;
+  const raf = typeof view.requestAnimationFrame === 'function'
+    ? view.requestAnimationFrame.bind(view)
+    : ((fn) => setTimeout(() => fn(), 16));
+  const onMoved = typeof callbacks.onMoved === 'function' ? callbacks.onMoved : () => {};
+  const onTap = typeof callbacks.onTap === 'function' ? callbacks.onTap : () => {};
+
+  let armed = false;     // 指针已按下、尚未判定为拖动
+  let moving = false;    // 位移已过阈,进入真正拖动并改窗口位置
+  let startCursor = null;
+  let startBounds = null;
+  let startTime = 0;
+  let latestCursor = null;
+  let pending = false;
+
+  function pump() {
+    pending = false;
+    if (!moving || !startBounds || !latestCursor) return;
+    const target = dragTargetPosition(startBounds, startCursor, latestCursor);
+    // 一并下达起点时锁定的宽高:透明无边窗在分数缩放(如 1.75)下,只发位置时会因取整误差逐次长大;
+    // 用 setBounds 把尺寸钉在起点值,每帧重设同一尺寸,窗口不再随拖动膨胀。
+    narrowApi.setWindowPosition(target.x, target.y, startBounds.width, startBounds.height);
+  }
+
+  stageElement.addEventListener('mousedown', async (event) => {
+    // 落在控件按钮上不拖不戳,留给按钮自身的点击
+    if (event.target && event.target.closest && event.target.closest('.controls')) return;
+    startCursor = { x: event.screenX, y: event.screenY };
+    latestCursor = startCursor;
+    startTime = event.timeStamp;
+    armed = true;
+    moving = false;
+    const bounds = await narrowApi.getWindowBounds();
+    if (!bounds) { armed = false; return; }
+    startBounds = bounds;
+  });
+  view.addEventListener('mousemove', (event) => {
+    if (!armed) return;
+    latestCursor = { x: event.screenX, y: event.screenY };
+    if (!moving && movementExceeds(startCursor, latestCursor, GESTURE_CONFIG.movePx)) {
+      moving = true;
+    }
+    if (moving && !pending) { pending = true; raf(pump); }
+  });
+  view.addEventListener('mouseup', (event) => {
+    if (!armed) return;
+    armed = false;
+    moving = false;
+    const down = { x: startCursor.x, y: startCursor.y, time: startTime };
+    const up = { x: event.screenX, y: event.screenY, time: event.timeStamp };
+    const gesture = classifyGesture(down, up, GESTURE_CONFIG);
+    if (gesture.kind === 'drag') onMoved();
+    else onTap(gesture);
+  });
+}
+//// /在舞台上挂 JS 拖动与轻点 ////
+
 //// 装配角色舞台:取窄接口与注入的渲染适配工厂,挂头部、控件、跟踪与事件订阅 [@busybee 2026-06-13] ////
 // narrowApi 为 preload 暴露的窄接口(window.electronAPI);deps 注入可替换的协作者:
 //   createRenderAdapter(plan)  按解析后的模型计划造 RenderAdapter,浏览器侧创建 PIXI 与 Cubism 后注入
@@ -261,7 +376,9 @@ export async function bootStage(narrowApi, deps = {}) {
     adapter: null,
     modelConfig: null,
     sizeIndex: DEFAULT_SIZE_INDEX,
-    trackTimerId: null
+    trackTimerId: null,
+    // 缓存窗口位置供头部跟踪复用:首拍、每若干拍、拖动与改尺寸后刷新,避免每拍都走 IPC 取边界
+    cachedBounds: null
   };
 
   //// 按窄接口读配置、解析模型计划、造适配并挂上头部 [@busybee 2026-06-13] ////
@@ -282,14 +399,27 @@ export async function bootStage(narrowApi, deps = {}) {
   }
   //// /按窄接口读配置、解析模型计划、造适配并挂上头部 ////
 
-  //// 定时取光标与窗口边界,算成跟踪坐标传给渲染适配 [@busybee 2026-06-13] ////
+  //// 取一次窗口位置存入缓存,供头部跟踪复用 [@busybee 2026-06-14] ////
+  async function refreshBounds() {
+    if (typeof narrowApi.getWindowBounds === 'function') {
+      lifecycle.cachedBounds = await narrowApi.getWindowBounds();
+    }
+  }
+
+  //// 定时取光标、用缓存的窗口边界算跟踪坐标传给渲染适配,边界仅首拍与每若干拍刷新 [@busybee 2026-06-14] ////
   function startTracking() {
     stopTracking();
+    let tickCount = 0;
     lifecycle.trackTimerId = timers.setInterval(async () => {
       const adapter = lifecycle.adapter;
       if (!adapter || typeof adapter.setTrack !== 'function') return;
+      // 窗口位置变化远少于光标:首拍或每若干拍才刷边界,其余拍复用缓存,把每拍两次 IPC 降为一次
+      tickCount++;
+      if (!lifecycle.cachedBounds || tickCount % BOUNDS_REFRESH_TICKS === 0) {
+        await refreshBounds();
+      }
       const cursor = await narrowApi.getCursorPosition();
-      const bounds = await narrowApi.getWindowBounds();
+      const bounds = lifecycle.cachedBounds || { x: 0, y: 0, width: 0, height: 0 };
       const v = trackVector(cursor, bounds);
       adapter.setTrack(v.x, v.y);
     }, TRACK_INTERVAL_MS);
@@ -353,6 +483,8 @@ export async function bootStage(narrowApi, deps = {}) {
     if (step.index === lifecycle.sizeIndex) return;
     lifecycle.sizeIndex = step.index;
     if (narrowApi.setWindowSize) narrowApi.setWindowSize(step.size, step.size);
+    // 窗口尺寸变了,跟踪用的中心点随之变,刷新缓存的窗口边界
+    refreshBounds();
   }
   //// /控件 ////
 
@@ -365,6 +497,11 @@ export async function bootStage(narrowApi, deps = {}) {
     narrowApi.onSizeChanged((size) => controls.syncSizeFromMenu(size));
   }
   subscribeSignals();
+  // 拖动松手后刷新缓存的窗口位置使头部跟踪以新位置算中心;原地轻点触发一次非语义回弹反馈,不上报、不调模型 AI
+  setupWindowDrag(doc, narrowApi, {
+    onMoved: () => { refreshBounds(); },
+    onTap: () => { if (doc) applyPokeEffect(doc.getElementById('pet-container'), doc.defaultView); }
+  });
   await mountModel();
 
   return {

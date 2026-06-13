@@ -7,6 +7,8 @@
 // select 接收 { spokenText, enabledNames? } 状态,挑出一个语义动作名,
 // 经 bus 发布 { type:'EmotionSelected', name };选不出时发空名,渲染层自行回退。
 
+const { StepId } = require('../../shared/step-catalog');
+
 // 选定情绪后对外发布的事件类型。
 const EMOTION_SELECTED = 'EmotionSelected';
 
@@ -53,7 +55,8 @@ class EmotionSelector {
       { role: 'system', content: this.promptTemplate.replace('{0}', names.join(', ')) },
       { role: 'user', content: `Character said: "${spokenText}"\nWhich emotion?` }
     ];
-    const result = await this.llm.complete({ messages });
+    // 情绪选择步:交模型路由按 emotionSelect 步配置(默认温度 0)
+    const result = await this.llm.complete({ messages, step: StepId.EmotionSelect });
     return (result && result.text ? result.text : '').trim();
   }
 

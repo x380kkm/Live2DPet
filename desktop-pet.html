@@ -3,67 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>Desktop Pet</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        html, body {
-            width: 100%; height: 100%;
-            background: transparent;
-            overflow: hidden;
-            user-select: none;
-            -webkit-app-region: drag;
-        }
-        #pet-container {
-            width: 100%; height: 100%;
-            display: flex; align-items: center; justify-content: center;
-            position: relative;
-        }
-        #live2d-canvas {
-            position: absolute; top: 0; left: 0;
-            -webkit-app-region: no-drag;
-        }
-        #static-image {
-            position: absolute;
-            top: 0; left: 0;
-            width: 100%;
-            height: auto;
-            transform-origin: top center;
-            display: none;
-            -webkit-app-region: no-drag;
-        }
-        #placeholder {
-            max-width: 80%; max-height: 80%;
-            object-fit: contain;
-            display: none;
-        }
-        .controls {
-            position: absolute; bottom: 5px; right: 5px;
-            display: flex; gap: 3px;
-            -webkit-app-region: no-drag;
-            opacity: 0; transition: opacity 0.3s;
-            z-index: 100;
-        }
-        #pet-container:hover .controls { opacity: 1; }
-        .ctrl-btn {
-            width: 24px; height: 24px;
-            border: none; border-radius: 50%;
-            background: rgba(255,255,255,0.8);
-            cursor: pointer; font-size: 12px;
-            display: flex; align-items: center; justify-content: center;
-        }
-        .ctrl-btn:hover { background: rgba(255,255,255,1); }
-        .ctrl-btn:disabled { opacity: 0.3; cursor: default; }
-    </style>
+    <link rel="stylesheet" href="./src/renderer/pet-window.css">
 </head>
 <body>
     <div id="pet-container">
         <canvas id="live2d-canvas"></canvas>
         <img id="static-image" alt="pet">
         <img id="placeholder" alt="placeholder">
-        <!-- mod 前端槽并入舞台:同一覆盖窗口承载头部与可执行 mod 前端,初始空、隐藏 -->
-        <div id="mod-frontend-slot" style="display:none; position:absolute; bottom:20%; left:50%; transform:translateX(-50%); -webkit-app-region:no-drag; z-index:50;"></div>
-        <!-- 对话气泡并入舞台:同一覆盖窗口承载头部与气泡 -->
-        <div id="stage-bubble" style="display:none; position:absolute; bottom:20%; left:50%; transform:translateX(-50%); -webkit-app-region:no-drag; z-index:50;">
-            <div id="stage-bubble-text" style="background:rgba(255,255,255,0.92); color:#555; padding:10px 14px; border-radius:14px; font-size:14px; max-width:320px; word-break:break-word;"></div>
+        <!-- mod 前端槽:同一覆盖窗口承载头部与可执行 mod 前端,初始空、隐藏;样式见 pet-window.css -->
+        <div id="mod-frontend-slot"></div>
+        <!-- 表达区就地气泡:正式气泡走独立窗口,此处作 CharacterStage 仲裁的就地占用者,默认隐藏;样式见 pet-window.css -->
+        <div id="stage-bubble">
+            <div id="stage-bubble-text"></div>
         </div>
         <div class="controls">
             <button class="ctrl-btn" id="btn-smaller" title="Smaller">−</button>
@@ -136,20 +87,7 @@
         const narrowApi = makeNarrowApi(window.petBridge || {});
         const session = await bootStage(narrowApi, { createRenderAdapter });
 
-        // 把气泡推送并入舞台:订阅聊天消息,写进舞台内气泡而非独立窗口
-        const bubble = document.getElementById('stage-bubble');
-        const bubbleText = document.getElementById('stage-bubble-text');
-        const showBubble = (msg, autoCloseTime) => {
-            bubbleText.textContent = msg;
-            bubble.style.display = 'block';
-            setTimeout(() => { bubble.style.display = 'none'; }, autoCloseTime || 8000);
-        };
-        if (window.petBridge?.events?.onChatBubbleMessage) {
-            window.petBridge.events.onChatBubbleMessage((data) => showBubble(data.message, data.autoCloseTime));
-        }
-        if (window.petBridge?.events?.onShowChatMessage) {
-            window.petBridge.events.onShowChatMessage((data) => showBubble(data.message, data.autoCloseTime));
-        }
+        // 对话气泡改由独立窗口(pet-chat-bubble.html)承载,浮在桌宠上方,这里不再监听气泡消息。
 
         // 控件:加减尺寸、设置、关闭经 stage-boot 暴露的控件下达
         document.getElementById('btn-smaller').addEventListener('click', () => session.controls.shrink());
