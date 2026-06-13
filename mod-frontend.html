@@ -25,6 +25,19 @@
             line-height: 1.55;
             overflow: auto;
         }
+        /* 纯数据档渲出的面板:标题、文本行、玫瑰色按钮 */
+        .mod-panel { display: flex; flex-direction: column; gap: 8px; }
+        .mod-title { font-weight: 700; color: #4a4550; }
+        .mod-text { color: #6f6670; }
+        .mod-btn {
+            align-self: flex-start;
+            padding: 6px 14px; border: none; border-radius: 9px;
+            background: #ef8fa6; color: #fff; font-size: 13px; cursor: pointer;
+            font-family: inherit;
+        }
+        .mod-btn:hover { background: #e87593; }
+        /* 沙箱 iframe 铺满承载区,透明背景 */
+        #mod-root iframe { width: 100%; height: 100%; border: none; background: transparent; }
     </style>
 </head>
 <body>
@@ -38,6 +51,6 @@
             }
         }
     </script>
-    <script src="src/renderer/mod-frontend.js"></script>
+    <script type="module" src="src/renderer/mod-frontend.js"></script>
 </body>
 </html>
