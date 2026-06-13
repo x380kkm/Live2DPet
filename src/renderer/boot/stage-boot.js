@@ -254,7 +254,8 @@ export async function bootStage(narrowApi, deps = {}) {
   const createRenderAdapter = deps.createRenderAdapter;
   const doc = deps.doc || (typeof document !== 'undefined' ? document : null);
   const stage = deps.stage || buildCharacterStage(doc, deps.sandboxHost || null);
-  const timers = deps.timers || { setInterval, clearInterval };
+  // 默认定时器用箭头包一层:浏览器的 setInterval 要求 this 为 window,直接放进对象再 timers.setInterval 调用会触发 Illegal invocation。
+  const timers = deps.timers || { setInterval: (fn, ms) => setInterval(fn, ms), clearInterval: (id) => clearInterval(id) };
 
   const lifecycle = {
     adapter: null,

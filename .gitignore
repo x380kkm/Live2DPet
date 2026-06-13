@@ -3,6 +3,7 @@ dist/
 *.log
 .claude/
 voicevox_core/
+models/
 archive/
 ref/
 manyread/short/
