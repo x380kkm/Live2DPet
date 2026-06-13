@@ -115,7 +115,7 @@ function clampUnit(value) {
 //   doc          document,用于取画布与图片元素
 //   fetchJson    取 JSON 的函数,加载表情文件用,封住对 fetch 的依赖
 // live2d 适配在此完成 PIXI 应用创建、模型加载、缩放贴合与每帧表情应用;Cubism 私有字段访问仍只在 live2d-renderer 内。
-// 头部跟踪所需的角度参数写入 live2d-renderer 暂未暴露公开方法,setTrack 先记录坐标待该方法补齐,见缺口说明。
+// 头部跟踪经 live2d-renderer 的 setTrack 偏转角度参数;无该方法的渲染器(图片、空)由 wrapTrackable 补成无害默认。
 export async function createRenderAdapter(plan, env) {
   if (plan.kind === 'image') {
     return makeImageAdapter(plan, env);
@@ -179,12 +179,11 @@ function makeNullAdapter() {
 //// /造空适配 ////
 
 //// 给渲染器补上 setTrack 与 setTalking,使其满足 stage-boot 调用的适配接口 [@busybee 2026-06-13] ////
-// live2d 渲染器无 setTalking、两渲染器都无 setTrack;此处补成无害默认,有则透传。
-// setTrack 暂存坐标:头部偏转所需的角度参数写入待 live2d-renderer 暴露公开方法后接通。
+// live2d 渲染器自带 setTrack(偏转头部角度)与无 setTalking;图片与空渲染器都无 setTrack。
+// 已有则原样保留,缺则补成无害默认,使组合根对所有适配统一调用。
 function wrapTrackable(renderer) {
-  renderer.track = { x: 0, y: 0 };
   if (typeof renderer.setTrack !== 'function') {
-    renderer.setTrack = (x, y) => { renderer.track.x = x; renderer.track.y = y; };
+    renderer.setTrack = () => {};
   }
   if (typeof renderer.setTalking !== 'function') {
     renderer.setTalking = () => {};

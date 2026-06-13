@@ -43,7 +43,7 @@ function makeFakePixiApp() {
 
 async function makeRenderer(extra = {}) {
   const { Live2dRenderer } = await loadRenderer();
-  const model = makeFakeModel(['ParamMouthOpenY', 'ParamAngleX', 'ParamEyeLOpen']);
+  const model = makeFakeModel(['ParamMouthOpenY', 'ParamAngleX', 'ParamEyeLOpen', 'ParamAngleY', 'ParamAngleZ', 'ParamEyeBallX', 'ParamEyeBallY']);
   const pixiApp = makeFakePixiApp();
   const config = {
     expressions: [{ name: 'happy', file: 'happy.exp3.json' }],
@@ -57,7 +57,8 @@ async function makeRenderer(extra = {}) {
 test('构造时建好参数名到下标的映射', async () => {
   const { renderer } = await makeRenderer();
   assert.deepStrictEqual(renderer.paramMap, {
-    ParamMouthOpenY: 0, ParamAngleX: 1, ParamEyeLOpen: 2
+    ParamMouthOpenY: 0, ParamAngleX: 1, ParamEyeLOpen: 2,
+    ParamAngleY: 3, ParamAngleZ: 4, ParamEyeBallX: 5, ParamEyeBallY: 6
   });
 });
 
@@ -135,6 +136,39 @@ test('hitTest 无命中时返回空', async () => {
   const { renderer, model } = await makeRenderer();
   model.hitReturn = [];
   assert.strictEqual(renderer.hitTest({ x: 0, y: 0 }), null);
+});
+
+test('setTrack 按增益把跟踪坐标写进配出的角度与眼球参数', async () => {
+  const paramMapping = {
+    angleX: 'ParamAngleX', angleY: 'ParamAngleY', angleZ: 'ParamAngleZ',
+    eyeBallX: 'ParamEyeBallX', eyeBallY: 'ParamEyeBallY'
+  };
+  const { renderer, model } = await makeRenderer({ paramMapping });
+  renderer.setTrack(1, 0.5);
+  const values = model.internalModel.coreModel._model.parameters.values;
+  // angleX = 1*30,angleY = 0.5*-30,angleZ = 1*-5,eyeBallX = 1*1,eyeBallY = 0.5*-1
+  assert.strictEqual(values[renderer.paramMap.ParamAngleX], 30);
+  assert.strictEqual(values[renderer.paramMap.ParamAngleY], -15);
+  assert.strictEqual(values[renderer.paramMap.ParamAngleZ], -5);
+  assert.strictEqual(values[renderer.paramMap.ParamEyeBallX], 1);
+  assert.strictEqual(values[renderer.paramMap.ParamEyeBallY], -0.5);
+});
+
+test('setTrack 跳过 paramMapping 里未配出参数名的语义键', async () => {
+  // 只配 angleX,其余语义键缺失;setTrack 只写 angleX,不碰其他参数
+  const { renderer, model } = await makeRenderer({ paramMapping: { angleX: 'ParamAngleX' } });
+  renderer.setTrack(1, 1);
+  const values = model.internalModel.coreModel._model.parameters.values;
+  assert.strictEqual(values[renderer.paramMap.ParamAngleX], 30);
+  assert.strictEqual(values[renderer.paramMap.ParamAngleY], 0);
+  assert.strictEqual(values[renderer.paramMap.ParamEyeBallX], 0);
+});
+
+test('setTrack 无 paramMapping 时不写任何参数', async () => {
+  const { renderer, model } = await makeRenderer();
+  renderer.setTrack(1, -1);
+  const values = model.internalModel.coreModel._model.parameters.values;
+  assert.ok(values.every((v) => v === 0));
 });
 
 test('dispose 从舞台移除模型、销毁模型与 PIXI 应用、清空状态', async () => {

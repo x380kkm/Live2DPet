@@ -8,6 +8,10 @@ import { RenderAdapter, resolveAction, clampOpenness } from './model-renderer.js
 // Cubism 标准口型参数名,config.paramMapping.mouthOpenY 未给时回退到它。
 const DEFAULT_MOUTH_PARAM = 'ParamMouthOpenY';
 
+// 头部跟踪增益:把钳在 -1 到 1 的跟踪坐标放大成各角度参数的取值范围。
+// 迁移自旧 model-adapter 的 _applyTracking;角度按度数偏转,眼球按归一化原值。
+const TRACK_GAIN = { angleX: 30, angleY: -30, angleZ: -5, eyeBallX: 1, eyeBallY: -1 };
+
 export class Live2dRenderer extends RenderAdapter {
   //// 经构造注入接收 PIXI、Cubism 模型与配置,持有内部状态,不抓全局 [@busybee 2026-06-13] ////
   // deps:{ pixiApp, model, config, fetchJson }。pixiApp 与 model 由组合根创建后注入,
@@ -116,6 +120,18 @@ export class Live2dRenderer extends RenderAdapter {
   //// 设置口型开合度,把 0 到 1 写进 Cubism 的口型参数 [@busybee 2026-06-13] ////
   setMouth(openness) {
     this._setParam(this.mouthParam, clampOpenness(openness));
+  }
+
+  //// 按跟踪坐标偏转头部与眼球,经增益写入 config.paramMapping 指名的角度参数 [@busybee 2026-06-13] ////
+  // x、y 为钳在 -1 到 1 的跟踪坐标;某语义键未在 paramMapping 配出参数名时跳过该项,不写值。
+  // angleX/angleZ/eyeBallX 随 x 偏转,angleY/eyeBallY 随 y 偏转,增益与正负见 TRACK_GAIN。
+  setTrack(x, y) {
+    const mapping = this.config.paramMapping || {};
+    if (mapping.angleX) this._setParam(mapping.angleX, x * TRACK_GAIN.angleX);
+    if (mapping.angleY) this._setParam(mapping.angleY, y * TRACK_GAIN.angleY);
+    if (mapping.angleZ) this._setParam(mapping.angleZ, x * TRACK_GAIN.angleZ);
+    if (mapping.eyeBallX) this._setParam(mapping.eyeBallX, x * TRACK_GAIN.eyeBallX);
+    if (mapping.eyeBallY) this._setParam(mapping.eyeBallY, y * TRACK_GAIN.eyeBallY);
   }
 
   //// 命中测试,返回被点中的交互区名或空 [@busybee 2026-06-13] ////

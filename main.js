@@ -20,12 +20,14 @@ const { FileRepository } = require('./src/platform/storage/file-repository');
 const { ConfigStore } = require('./src/platform/config/config-store');
 const { EventBus } = require('./src/platform/bus/event-bus');
 
-// platform 地基:LLM、语音
+// platform 地基:LLM、语音、翻译、语言
 const { LlmClient } = require('./src/platform/llm/llm-client');
 const { cleanResponse } = require('./src/platform/llm/response-cleaner');
+const { TranslationService } = require('./src/platform/llm/translation-service');
 const { VoicevoxBackend } = require('./src/platform/speech/voicevox-backend');
 const { CircuitBreaker } = require('./src/platform/speech/circuit-breaker');
 const { VoicevoxInstaller } = require('./src/platform/speech/voicevox-installer');
+const { LanguageState } = require('./src/platform/config/language-state');
 
 // platform 地基:electron 工厂、源与 ipc
 const windowFactory = require('./src/platform/electron/window-factory');
@@ -37,6 +39,7 @@ const channelRegistry = require('./src/platform/ipc/channel-registry');
 const ipcRouter = require('./src/platform/ipc/ipc-router');
 const capabilityGateway = require('./src/platform/ipc/capability-gateway');
 const { registerAllHandlers, makeCapabilityExecutor } = require('./src/platform/ipc/handler-assembly');
+const { registerUiHandlers } = require('./src/platform/ipc/handlers/ui-handlers');
 
 // 配置字段加解密:平台外的纯函数,经构造注入进 config-store
 const { encrypt, decrypt } = require('./src/main/crypto-utils');
@@ -61,11 +64,15 @@ const { RequestPipeline } = require('./src/domain/pet/request-pipeline');
 const { PetOrchestrator } = require('./src/domain/pet/pet');
 const { EmotionReaction } = require('./src/domain/pet/emotion-reaction');
 const { PerceptionCollector } = require('./src/domain/pet/perception-collector');
+const { PetScheduler } = require('./src/domain/pet/scheduler');
 const { SituationDigestSource } = require('./src/domain/pet/sources/situation-digest-source');
 const { VisualMemorySource } = require('./src/domain/pet/sources/visual-memory-source');
 const { FocusInfoSource } = require('./src/domain/pet/sources/focus-info-source');
 const { IdleInfoSource } = require('./src/domain/pet/sources/idle-info-source');
 const { RecentRepliesSource } = require('./src/domain/pet/sources/recent-replies-source');
+const { LayoutInfoSource } = require('./src/domain/pet/sources/layout-info-source');
+const { PetPositionSource } = require('./src/domain/pet/sources/pet-position-source');
+const { ToneHintSource } = require('./src/domain/pet/sources/tone-hint-source');
 
 // 渲染侧向主进程推送进度的通道名:单向 send,不在 invoke 契约里,故直引字面量。
 const VOICEVOX_PROGRESS_CHANNEL = 'voicevox-setup-progress';
@@ -112,8 +119,9 @@ function assembleLlmClient(global) {
 
 //// 按依赖序装配 domain 角色层,经构造注入串起感知到发言的编排 [@busybee 2026-06-13] ////
 // platform 为已装配的地基;llmClient 为统一模型客户端;global 为全局层配置快照(取人格)。
+// providers 携带六个上下文源的取数函数与标题压缩、略过判定;languageState 给上下文源的成品措辞。
 // 返回有状态子系统与上下文源、连接件供生命周期与事件订阅使用。
-function assembleDomain(platform, llmClient, global) {
+function assembleDomain(platform, llmClient, global, providers, languageState) {
   const { eventBus, repository, speechBackend } = platform;
 
   // 意图:出厂两条核心意图在加载期被发现注入
@@ -143,7 +151,7 @@ function assembleDomain(platform, llmClient, global) {
   const perceptionCollector = new PerceptionCollector({ buffer: keyframeBuffer, extractor: vlmExtractor, memoryStore });
 
   // 命名上下文源:各以意图引用名为 id,注册进管线据 ref 解析
-  const contextSources = assembleContextSources({ vlmExtractor, memoryStore });
+  const contextSources = assembleContextSources({ vlmExtractor, memoryStore, providers, languageState });
 
   // 提示词组装器:接 few-shot 解析器与角色人格,按预算裁样例组装请求
   const promptComposer = assemblePromptComposer(global);
@@ -165,20 +173,59 @@ function assembleDomain(platform, llmClient, global) {
 }
 //// /按依赖序装配 domain 角色层 ////
 
-//// 装配五个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
-// situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies 暂无数据源,
-// 留空 provider 时它们 render 返回 null,装配阶段先接好类型,数据源后续补。
+//// 装配八个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
+// situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies/layoutInfo/
+// petPosition 接 providers 里的取数函数;成品措辞由 languageState 在装配期按当前语言注入。
+// toneHint 暂无下一句情绪的数据源,provider 留空时其 render 返回 null,先接好类型,数据源后续补。
 function assembleContextSources(deps) {
-  const { vlmExtractor, memoryStore } = deps;
+  const { vlmExtractor, memoryStore, providers = {}, languageState } = deps;
+  const mt = (key) => (languageState ? languageState.mt(key) : key);
   return [
     new SituationDigestSource({ extractor: vlmExtractor }),
     new VisualMemorySource({ memoryStore }),
-    new FocusInfoSource({}),
-    new IdleInfoSource({}),
-    new RecentRepliesSource({})
+    new FocusInfoSource(
+      { focusProvider: providers.focusTracker, shortenTitle: providers.shortenTitle },
+      { label: mt('sys.windowUsage'), secondsUnit: mt('sys.seconds') }
+    ),
+    new IdleInfoSource(
+      { idleProvider: providers.idleSeconds },
+      { labelTemplate: mt('sys.userIdle') }
+    ),
+    new RecentRepliesSource(
+      { recentRepliesProvider: providers.recentReplies },
+      { labels: antiRepetitionLabels(mt) }
+    ),
+    new LayoutInfoSource(
+      { windowsProvider: providers.openWindows, shouldSkipApp: providers.shouldSkipApp, shortenTitle: providers.shortenTitle },
+      { label: mt('sys.windowLayout') }
+    ),
+    new PetPositionSource(
+      { boundsProvider: providers.petBounds },
+      { labelTemplate: mt('sys.petPosition') }
+    ),
+    new ToneHintSource(
+      { toneProvider: providers.nextEmotion },
+      { labelTemplate: mt('sys.toneHint') }
+    )
   ];
 }
-//// /装配五个命名上下文源 ////
+//// /装配八个命名上下文源 ////
+
+//// 把反重复源的外壳与各模式名按当前语言取出,组成其标签集 [@busybee 2026-06-13] ////
+// recentReplies 源的 render 用 shell 外壳套 {0},各模式名是命中重复时填入的措辞,分隔符固定顿号。
+function antiRepetitionLabels(mt) {
+  return {
+    shell: mt('sys.antiRepetition'),
+    separator: '、',
+    question: mt('sys.patternQuestion'),
+    opening: mt('sys.patternOpening'),
+    ending: mt('sys.patternEnding'),
+    length: mt('sys.patternLength'),
+    exclamation: mt('sys.patternExclamation'),
+    ellipsis: mt('sys.patternEllipsis')
+  };
+}
+//// /把反重复源的外壳与各模式名按当前语言取出 ////
 
 //// 装配提示词组装器:few-shot 银行与解析器加角色人格 [@busybee 2026-06-13] ////
 // 银行暂无样例入库(磁盘 fewshot 目录为空),解析器对空引用返回空轮次;人格取自激活角色卡的 data。
@@ -197,6 +244,129 @@ function makeSourceRegistry(sources) {
   return { get: (id) => byId.get(id) || null };
 }
 //// /按 id 取命名上下文源的注册表 ////
+
+// 略过自身窗口的应用名片段:这些名字命中即不计入焦点统计与布局摘要。
+const SKIP_APP_FRAGMENTS = ['desktop-pet', 'electron', 'live2dpet'];
+// 窗口标题压短的默认长度上限,超出截断并补省略号。
+const TITLE_MAX_LEN = 30;
+
+//// 装配感知运行态:给调度器一个 capture() 取帧,并维护六个上下文源的取数缓存 [@busybee 2026-06-13] ////
+// 上下文源的 render 是同步的,而活动窗口、空闲秒数、开窗列表都需异步取;故在每拍异步的 capture()
+// 里刷新这些缓存,provider 同步读缓存。capture 截主屏产 base64 JPEG 帧,并据当前活动窗口累计焦点秒数。
+// 迁移自 desktop-pet-system 的 focusTick 焦点累计与 shouldSkipApp/_shortenTitle。
+function makePerceptionRuntime(deps) {
+  const { screenSource, activeWindow, getPetBounds } = deps;
+
+  // 各 provider 的同步缓存:capture 每拍异步刷新,render 同步读取。
+  const state = {
+    idleSeconds: 0,
+    openWindows: [],
+    // 窗口键到累计停留秒数的映射,焦点统计用。
+    focusTracker: {},
+    // 最近若干条发言文本,反重复源用;由组合根订阅发言产物事件喂入。
+    recentReplies: []
+  };
+
+  //// 截主屏产 base64 JPEG 帧,顺带刷新空闲、开窗与焦点缓存;失败回 null [@busybee 2026-06-13] ////
+  async function capture() {
+    await refreshCaches();
+    const image = await screenSource.captureScreen({});
+    if (!image) {
+      return null;
+    }
+    return { image, title: activeTitle(), background: null };
+  }
+
+  //// 异步刷新三类缓存:空闲秒数、开窗列表、当前活动窗口的焦点累计 [@busybee 2026-06-13] ////
+  // 任一查询失败只跳过该项,不抛进调度器单拍;焦点按拍累加,粒度即调度间隔秒数。
+  async function refreshCaches() {
+    try { state.idleSeconds = screenSource.idleTime(); } catch {}
+    try {
+      const result = await activeWindow.openWindows();
+      if (result && result.success && Array.isArray(result.data)) {
+        state.openWindows = result.data;
+      }
+    } catch {}
+    await accumulateFocus();
+  }
+
+  //// 取当前活动窗口,非略过应用则把其停留秒数按调度间隔累加进焦点统计 [@busybee 2026-06-13] ////
+  async function accumulateFocus() {
+    try {
+      const result = await activeWindow.current();
+      const data = result && result.success ? result.data : null;
+      const owner = data && data.owner && data.owner.name;
+      if (!owner || shouldSkipApp(owner)) {
+        return;
+      }
+      const key = data.title || owner;
+      const seconds = Math.max(1, Math.round((SCHEDULER_INTERVAL_MS / 1000)));
+      state.focusTracker[key] = (state.focusTracker[key] || 0) + seconds;
+      _activeTitle = data.title || owner;
+    } catch {}
+  }
+
+  // 最近一次累计到的活动窗口标题,作帧的窗口标题透传给抽取器。
+  let _activeTitle = '';
+  function activeTitle() {
+    return _activeTitle;
+  }
+
+  // 六个上下文源的同步取数函数与两个文本助手,缺数据时各自回空由源跳过。
+  const providers = {
+    focusTracker: () => state.focusTracker,
+    idleSeconds: () => state.idleSeconds,
+    recentReplies: () => state.recentReplies,
+    openWindows: () => state.openWindows,
+    petBounds: () => (typeof getPetBounds === 'function' ? getPetBounds() : null),
+    // toneHint 暂无下一句情绪的数据源,留空 provider 使其 render 返回 null。
+    nextEmotion: null,
+    shouldSkipApp,
+    shortenTitle
+  };
+
+  //// 记一条刚说出的发言,只留最近若干条供反重复源检测 [@busybee 2026-06-13] ////
+  function recordReply(text) {
+    if (!text) {
+      return;
+    }
+    state.recentReplies.push(text);
+    while (state.recentReplies.length > RECENT_REPLIES_KEEP) {
+      state.recentReplies.shift();
+    }
+  }
+
+  return { perception: { capture }, providers, recordReply };
+}
+//// /装配感知运行态 ////
+
+// 调度间隔:每拍采一次感知,焦点统计按此粒度累加秒数。
+const SCHEDULER_INTERVAL_MS = 15000;
+// 反重复源保留的最近发言条数上限。
+const RECENT_REPLIES_KEEP = 8;
+
+//// 判一个应用名是否略过:命中略过片段即不计入焦点与布局,迁移自 desktop-pet-system [@busybee 2026-06-13] ////
+function shouldSkipApp(appName) {
+  if (!appName) {
+    return true;
+  }
+  const lower = appName.toLowerCase();
+  return SKIP_APP_FRAGMENTS.some((fragment) => lower.includes(fragment));
+}
+//// /判一个应用名是否略过 ////
+
+//// 把窗口标题压短:剥常见浏览器与编辑器后缀再截断,迁移自 desktop-pet-system [@busybee 2026-06-13] ////
+function shortenTitle(title) {
+  if (!title) {
+    return '';
+  }
+  let short = title.replace(/\s*[-–—]\s*(?:Google Chrome|Microsoft\s*Edge|Firefox|Brave|Opera|Safari|Cursor|Visual Studio Code|VSCode|Code)$/i, '');
+  if (short.length > TITLE_MAX_LEN) {
+    short = short.slice(0, TITLE_MAX_LEN) + '…';
+  }
+  return short;
+}
+//// /把窗口标题压短 ////
 
 //// 把领域事件经 IPC 转发到渲染窗口:发言进气泡与说话态、选定情绪进表情 [@busybee 2026-06-13] ////
 // 情绪连接件订阅发言产物已在 domain 装配;此处补两条把领域事件桥到宠物窗口的转发,死窗口由总线过滤。
@@ -278,6 +448,23 @@ function makeWindowHandlers(runtime) {
 }
 //// /装配主进程窗口控制的处理器表 ////
 
+//// 装配展示与交互处理器所需的窄接口:取窗口句柄、菜单弹出器、存活判断与翻译 [@busybee 2026-06-13] ////
+// ui-handlers 经窗口工厂句柄的 send/setSize/openDevTools/close/show/focus 转发,故这里给工厂句柄而非裸窗口;
+// menuPopup 由 tray-factory 用 electron.Menu 造,Menu 第三方类型止于工厂;角色数据初值取激活卡的 data。
+function makeUiHandlerDeps(runtime, global) {
+  return {
+    router: ipcRouter,
+    getPetWindow: () => runtime.petWindow,
+    getSettingsWindow: () => runtime.settingsWindow,
+    createSettingsWindow: () => { if (windowFactory.isAlive(runtime.settingsWindow)) { runtime.settingsWindow.show(); runtime.settingsWindow.focus(); } },
+    menuPopup: trayFactory.createMenuPopup({ Menu: electron.Menu }),
+    isAlive: (window) => windowFactory.isAlive(window),
+    mt,
+    initialCharacterData: (global.activeCard && global.activeCard.data) || {}
+  };
+}
+//// /装配展示与交互处理器所需的窄接口 ////
+
 //// 建桌宠主窗口加载 desktop-pet.html,已在则聚焦 [@busybee 2026-06-13] ////
 // 透明无边覆盖窗,置顶到屏保层,关闭时清空句柄;窗口经 platform 工厂创建,第三方类型不外泄。
 function ensurePetWindow(runtime) {
@@ -307,10 +494,12 @@ function runCommand(cmd, args, options) {
 }
 //// /包 child_process.execFile 成 runCommand ////
 
-//// 取一个翻译串:缺省语言英文,未命中回退到键名,迁移自 i18n-helper [@busybee 2026-06-13] ////
+// 当前界面语言的显式载体:替代旧 i18n-helper 读全局缓存的隐式做法,语言据全局配置在就绪期设定。
+const languageState = new LanguageState({ table: I18N });
+
+//// 取一个翻译串:据当前语言查表,未命中逐级回退,迁移自 i18n-helper [@busybee 2026-06-13] ////
 function mt(key) {
-  const lang = 'en';
-  return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+  return languageState.mt(key);
 }
 //// /取一个翻译串 ////
 
@@ -321,7 +510,8 @@ const runtime = {
   tray: null,
   isQuitting: false,
   platform: null,
-  domain: null
+  domain: null,
+  scheduler: null
 };
 
 //// 在 app 就绪后完成依赖 app 的装配,建窗与托盘,注册 IPC [@busybee 2026-06-13] ////
@@ -329,11 +519,24 @@ app.whenReady().then(async () => {
   const platform = assemblePlatform();
   runtime.platform = platform;
 
-  // 读全局层配置,把激活角色卡的人格并进快照,据此造 LLM 客户端并装配领域层
+  // 读全局层配置,把激活角色卡的人格并进快照;界面语言据配置设定,据此造 LLM 客户端
   const global = (await platform.configStore.read('global')) || {};
   global.activeCard = await loadActiveCard(platform, global);
+  languageState.set(global.language || global.lang);
   const llmClient = assembleLlmClient(global);
-  runtime.domain = assembleDomain(platform, llmClient, global);
+
+  // 翻译服务:复用统一 LLM 客户端中译日,供 TTS 合成前注入;无 koffi/客户端时原样返回
+  runtime.translationService = new TranslationService({ llmClient });
+
+  // 感知运行态:给调度器 capture() 取帧,并喂六个上下文源的取数缓存(petPosition 取宠物窗口边界)
+  const perceptionRuntime = makePerceptionRuntime({
+    screenSource, activeWindow: platform.activeWindow,
+    getPetBounds: () => petBounds(runtime)
+  });
+  runtime.perceptionRuntime = perceptionRuntime;
+
+  // 装配领域层:把感知运行态的取数函数与当前语言交给上下文源
+  runtime.domain = assembleDomain(platform, llmClient, global, perceptionRuntime.providers, languageState);
 
   // 记忆生命周期由组合根显式驱动:启动时加载中期记忆
   await runtime.domain.memoryStore.load();
@@ -341,6 +544,9 @@ app.whenReady().then(async () => {
   // 情绪连接件订阅发言产物;领域事件经 IPC 转发到宠物窗口
   runtime.domain.emotionReaction.start();
   subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime));
+
+  // 发言产物喂反重复源:每条刚说出的话记入近期回复缓存
+  platform.eventBus.subscribe('UtteranceProduced', (event) => perceptionRuntime.recordReply(spokenTextOf(event)));
 
   // 能力网关装配协作者:执行器组合屏幕与外发文件两域,逐次确认默认放行
   capabilityGateway.configure({
@@ -353,8 +559,10 @@ app.whenReady().then(async () => {
     confirm: () => true
   });
 
-  // 注册全部 IPC 处理器,再补齐窗口控制与尚无处理器的通道
+  // 注册全部 IPC 处理器;展示与交互通道单列,经 ui-handlers 注册以替换占位失败
   const assembled = registerAllHandlers(ipcRouter, capabilityGateway, makeHandlerDeps(platform, global));
+  registerUiHandlers(makeUiHandlerDeps(runtime, global));
+  // 再补齐窗口控制与仍无处理器的通道;UI 通道已注册,registerRemainingIpc 据 isRegistered 跳过
   registerRemainingIpc(makeWindowHandlers(runtime));
 
   // 设置窗口与托盘:第三方对象只经 platform 工厂创建
@@ -383,6 +591,20 @@ app.whenReady().then(async () => {
 
   // 建桌宠主窗口加载 desktop-pet.html
   ensurePetWindow(runtime);
+
+  // 主循环调度器:按间隔反复采感知、取候选、选意图、跑意图,并按需喂情绪;经感知运行态与领域层注入
+  const domain = runtime.domain;
+  runtime.scheduler = new PetScheduler(
+    {
+      perception: perceptionRuntime.perception,
+      collector: domain.perceptionCollector,
+      registry: domain.intentRegistry,
+      pet: domain.pet,
+      emotionState: domain.emotionState
+    },
+    { intervalMs: SCHEDULER_INTERVAL_MS, chatGapMs: SCHEDULER_INTERVAL_MS }
+  );
+  runtime.scheduler.start();
 
   // 内置卡迁移与语音后端初始化:不阻塞就绪
   setImmediate(() => { assembled.migrateBundledCards().catch((e) => console.error('[main] 内置卡迁移失败:', e && e.message)); });
@@ -433,7 +655,8 @@ function makeHandlerDeps(platform, global) {
     resolveDefaultAudioDir: () => path.join(platform.pathUtils.userDataDir(), 'default-audio'),
     notifyVoicevoxProgress: (progress) => { const w = petWindowRaw(runtime); if (w) w.webContents.send(VOICEVOX_PROGRESS_CHANNEL, progress); },
     relaunch: () => { app.relaunch(); app.exit(0); },
-    translate: null,
+    // 中译日翻译:TTS 处理器据此把回复译为日语再合成,服务未就绪时原样返回
+    translate: (text) => runtime.translationService.translate(text),
     // 转发窗口取值:返回裸 BrowserWindow,死窗口转发判定据其 isDestroyed
     petWindowRaw: () => petWindowRaw(runtime),
     settingsWindowRaw: () => settingsWindowRaw(runtime)
@@ -553,6 +776,12 @@ function settingsWindowRaw(rt) {
 }
 //// /取裸设置窗口供转发判存活 ////
 
+//// 取宠物窗口在屏幕上的边界供 petPosition 源,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+function petBounds(rt) {
+  return windowFactory.isAlive(rt.petWindow) ? rt.petWindow.getBounds() : null;
+}
+//// /取宠物窗口边界供 petPosition 源 ////
+
 //// 算 voicevox 资源根:优先用户数据目录,缺省回退安装目录,均无返回 null [@busybee 2026-06-13] ////
 function resolveVoicevoxDir(platform) {
   const userDir = path.join(platform.pathUtils.userDataDir(), 'voicevox_core');
@@ -595,6 +824,12 @@ app.on('before-quit', async (event) => {
   if (runtime._shutdownDone || !runtime.domain) return;
 
   event.preventDefault();
+  // 先停主循环,避免落盘期间又跑出一拍
+  try {
+    if (runtime.scheduler) runtime.scheduler.stop();
+  } catch (e) {
+    console.error('[main] 调度器停止失败:', e && e.message);
+  }
   try {
     await runtime.domain.memoryStore.flush();
   } catch (e) {

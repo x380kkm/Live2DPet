@@ -2,6 +2,7 @@
 // # tray-factory
 // 把 Tray 与 Menu 的构建包成自有托盘接口,业务侧只见此接口。
 // 不变量:electron 的 Tray 与 Menu 类型不越过本文件。
+// 上下文菜单弹出与托盘共用 Menu,故一并放在本文件。
 
 //// 用注入的 Tray 与 Menu 类建托盘,返回只暴露自有方法的托盘句柄 [@busybee 2026-06-13] ////
 function createTray(spec) {
@@ -27,4 +28,20 @@ function createTray(spec) {
 }
 //// /用注入的 Tray 与 Menu 类建托盘,返回只暴露自有方法的托盘句柄 ////
 
-module.exports = { createTray };
+//// 用注入的 Menu 类造上下文菜单弹出器,把 buildFromTemplate 与 popup 封在本文件 [@busybee 2026-06-13] ////
+function createMenuPopup(spec) {
+    const { Menu } = spec;
+    if (!Menu || typeof Menu.buildFromTemplate !== 'function') {
+        throw new Error('createMenuPopup 需要在 spec.Menu 注入 Menu 类');
+    }
+    return {
+        // template 用平直数组描述菜单项;window 为窗口工厂句柄,经 _raw 取出底层 BrowserWindow 作弹出目标
+        popup(template, window) {
+            const target = window && window._raw ? window._raw : window;
+            Menu.buildFromTemplate(template).popup({ window: target });
+        }
+    };
+}
+//// /用注入的 Menu 类造上下文菜单弹出器 ////
+
+module.exports = { createTray, createMenuPopup };

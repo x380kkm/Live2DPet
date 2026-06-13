@@ -9,6 +9,7 @@ function wrapWindow(browserWindow) {
         loadFile(filePath) { return browserWindow.loadFile(filePath); },
         on(eventName, listener) { browserWindow.on(eventName, listener); return handle; },
         send(channel, payload) { browserWindow.webContents.send(channel, payload); },
+        openDevTools() { browserWindow.webContents.openDevTools(); },
         show() { browserWindow.show(); },
         hide() { browserWindow.hide(); },
         focus() { browserWindow.focus(); },
