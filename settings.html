@@ -23,12 +23,12 @@
 
         <!-- 标签页按钮:data-tab 与下方 tab-content 的后缀对齐,settings-app 据此切换 -->
         <div id="tabs">
-            <button class="tab-btn active" data-tab="api">API</button>
-            <button class="tab-btn" data-tab="model">Model</button>
-            <button class="tab-btn" data-tab="modelconfig">Routing</button>
-            <button class="tab-btn" data-tab="emotion">Emotion</button>
-            <button class="tab-btn" data-tab="tts">TTS</button>
-            <button class="tab-btn" data-tab="prompt">Character</button>
+            <button class="tab-btn active" data-tab="api" data-i18n="tab.api">API</button>
+            <button class="tab-btn" data-tab="model" data-i18n="tab.model">Model</button>
+            <button class="tab-btn" data-tab="modelconfig" data-i18n="tab.routing">Routing</button>
+            <button class="tab-btn" data-tab="emotion" data-i18n="tab.emotion">Emotion</button>
+            <button class="tab-btn" data-tab="tts" data-i18n="tab.tts">TTS</button>
+            <button class="tab-btn" data-tab="prompt" data-i18n="tab.character">Character</button>
         </div>
 
         <!-- API 接入页:主 API、翻译 API、检测频率、token 倍率、增强总闸 -->
@@ -205,10 +205,10 @@
                 <label data-i18n="prompt.card">Character</label>
                 <select id="character-select"></select>
                 <div class="row" style="margin-top:6px;">
-                    <button class="btn btn-secondary btn-sm" id="btn-new-character">New</button>
-                    <button class="btn btn-secondary btn-sm" id="btn-rename-character">Rename</button>
-                    <button class="btn btn-secondary btn-sm" id="btn-import-character">Import</button>
-                    <button class="btn btn-danger btn-sm" id="btn-delete-character">Delete</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-new-character" data-i18n="card.new">New</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-rename-character" data-i18n="card.rename">Rename</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-import-character" data-i18n="card.import">Import</button>
+                    <button class="btn btn-danger btn-sm" id="btn-delete-character" data-i18n="card.delete">Delete</button>
                     <button class="btn btn-secondary btn-sm" id="btn-reset-builtin" data-i18n="card.resetBuiltin">Reset built-in</button>
                 </div>
                 <div class="row" id="character-name-input-row" style="display:none; margin-top:6px;">
@@ -229,11 +229,11 @@
             </div>
             <div class="card">
                 <h3 data-i18n="prompt.hitActions">Hit actions</h3>
-                <label>Click</label><input type="text" id="prompt-hit-click" data-i18n-ph="prompt.hit.click.ph">
-                <label>Touch</label><input type="text" id="prompt-hit-touch" data-i18n-ph="prompt.hit.touch.ph">
-                <label>Drag</label><input type="text" id="prompt-hit-drag" data-i18n-ph="prompt.hit.drag.ph">
-                <label>Swipe</label><input type="text" id="prompt-hit-swipe" data-i18n-ph="prompt.hit.swipe.ph">
-                <label>Resize</label><input type="text" id="prompt-hit-resize" data-i18n-ph="prompt.hit.resize.ph">
+                <label data-i18n="prompt.hit.clickLabel">Click</label><input type="text" id="prompt-hit-click" data-i18n-ph="prompt.hit.click.ph">
+                <label data-i18n="prompt.hit.touchLabel">Touch</label><input type="text" id="prompt-hit-touch" data-i18n-ph="prompt.hit.touch.ph">
+                <label data-i18n="prompt.hit.dragLabel">Drag</label><input type="text" id="prompt-hit-drag" data-i18n-ph="prompt.hit.drag.ph">
+                <label data-i18n="prompt.hit.swipeLabel">Swipe</label><input type="text" id="prompt-hit-swipe" data-i18n-ph="prompt.hit.swipe.ph">
+                <label data-i18n="prompt.hit.resizeLabel">Resize</label><input type="text" id="prompt-hit-resize" data-i18n-ph="prompt.hit.resize.ph">
             </div>
             <button class="btn btn-primary" id="btn-save-prompt" data-i18n="prompt.save">Save</button>
             <div class="status" id="prompt-status"></div>

@@ -4,6 +4,9 @@
  */
 const I18N = {
   en: {
+    'tab.api': 'API', 'tab.routing': 'Routing', 'tab.character': 'Character',
+    'card.new': 'New', 'card.rename': 'Rename', 'card.import': 'Import', 'card.delete': 'Delete',
+    'prompt.hit.clickLabel': 'Click', 'prompt.hit.touchLabel': 'Touch', 'prompt.hit.dragLabel': 'Drag', 'prompt.hit.swipeLabel': 'Swipe', 'prompt.hit.resizeLabel': 'Resize',
     'lang.label': 'Language',
     'tab.settings': 'Settings', 'tab.model': 'Model', 'tab.emotion': 'Emotion', 'tab.tts': 'TTS', 'tab.prompt': 'Prompt', 'tab.enhance': 'Enhance',
     'api.title': 'API Configuration',
@@ -250,6 +253,9 @@ const I18N = {
     'tray.showSettings': 'Show Settings', 'tray.showPet': 'Show Pet', 'tray.hidePet': 'Hide Pet', 'tray.quit': 'Quit',
   },
   zh: {
+    'tab.api': 'API', 'tab.routing': '路由', 'tab.character': '角色',
+    'card.new': '新建', 'card.rename': '重命名', 'card.import': '导入', 'card.delete': '删除',
+    'prompt.hit.clickLabel': '点击', 'prompt.hit.touchLabel': '触摸', 'prompt.hit.dragLabel': '拖拽', 'prompt.hit.swipeLabel': '滑动', 'prompt.hit.resizeLabel': '缩放',
     'lang.label': '语言',
     'tab.settings': '设置', 'tab.model': '模型', 'tab.emotion': '表情', 'tab.tts': 'TTS', 'tab.prompt': 'Prompt', 'tab.enhance': '增强',
     'api.title': 'API 配置',
@@ -496,6 +502,9 @@ const I18N = {
     'tray.showSettings': '显示设置', 'tray.showPet': '显示宠物', 'tray.hidePet': '隐藏宠物', 'tray.quit': '退出',
   },
   ja: {
+    'tab.api': 'API', 'tab.routing': 'ルーティング', 'tab.character': 'キャラクター',
+    'card.new': '新規', 'card.rename': '名前変更', 'card.import': 'インポート', 'card.delete': '削除',
+    'prompt.hit.clickLabel': 'クリック', 'prompt.hit.touchLabel': 'タッチ', 'prompt.hit.dragLabel': 'ドラッグ', 'prompt.hit.swipeLabel': 'スワイプ', 'prompt.hit.resizeLabel': 'リサイズ',
     'lang.label': '言語',
     'tab.settings': '設定', 'tab.model': 'モデル', 'tab.emotion': '表情', 'tab.tts': 'TTS', 'tab.prompt': 'プロンプト', 'tab.enhance': '拡張',
     'api.title': 'API 設定',
