@@ -39,6 +39,7 @@
       "index.html",
       "desktop-pet.html",
       "pet-chat-bubble.html",
+      "settings.html",
       "config.json",
       "src/**/*",
       "assets/**/*",
