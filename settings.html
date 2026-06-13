@@ -290,7 +290,7 @@
         const app = new SettingsApp({
             doc: document,
             electronApi: flattenBridge(window.petBridge || {}),
-            i18n: {}
+            i18n: window.petI18n || {}
         });
         await app.mount();
         console.log('[Settings] settings-app 已装配');

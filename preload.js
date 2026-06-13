@@ -5,6 +5,7 @@
 
 const { contextBridge, ipcRenderer } = require('electron');
 const channelRegistry = require('./src/platform/ipc/channel-registry');
+const i18nTable = require('./src/i18n/locales');
 
 const D = channelRegistry.CapabilityDomain;
 
@@ -72,3 +73,8 @@ contextBridge.exposeInMainWorld('petBridge', {
   rendererLog: (level, args) => ipcRenderer.send('renderer-log', level, args)
 });
 //// /按能力域分级暴露 ////
+
+//// 单列界面文案表:它是静态参考数据而非能力通道,故不挂进 petBridge,另以 petI18n 暴露 [@busybee 2026-06-14] ////
+// 设置界面据当前语言查表把动态文案译出;查不到的语言或键由界面侧回退 en 再回退键名。
+contextBridge.exposeInMainWorld('petI18n', i18nTable);
+//// /单列界面文案表 ////
