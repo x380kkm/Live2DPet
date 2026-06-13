@@ -53,6 +53,20 @@ class PromptComposer {
   }
   //// /把已组装上下文与意图拼成结构化 LLM 请求 ////
 
+  //// 把一个状态边界反应拼成结构化请求:人格系统提示在前,状态边界描述与反应指令收尾 [@busybee 2026-06-14] ////
+  // reactionContext 形如 { state, from, input };只搭结构、不写成品措辞,反应的文风由人格决定。
+  // 反应走不经截图循环的外部触发,故不带屏幕态势上下文;人格作稳定前缀以吃满缓存。
+  composeReaction(reactionContext) {
+    const ctx = reactionContext || {};
+    const messages = [];
+    messages.push({ role: 'system', content: this._buildSystemContent('') });
+    const instruction = `你正在和用户进行一段互动。此刻状态从「${ctx.from || ''}」变成了「${ctx.state || ''}」` +
+      `(由「${ctx.input || ''}」触发)。用你的角色口吻对这一刻说一句简短的反应,贴合当下,不要照抄,也不要重复你最近说过的话。只输出这一句。`;
+    messages.push({ role: 'user', content: instruction });
+    return { messages };
+  }
+  //// /把一个状态边界反应拼成结构化请求 ////
+
   //// 把人格各段与已组装上下文折成一段系统提示,缺字段即略过 [@busybee 2026-06-13] ////
   // 段序迁移自 core/prompt-builder.buildSystemPrompt:回应模式、人物设定、规则、上下文、语言指令。
   _buildSystemContent(contextText) {

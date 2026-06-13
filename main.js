@@ -72,6 +72,8 @@ const { RequestPipeline } = require('./src/domain/pet/request-pipeline');
 const { PetOrchestrator } = require('./src/domain/pet/pet');
 const { InteractionRouter } = require('./src/domain/pet/interaction-router');
 const { InteractionEvent } = require('./src/domain/mod/interaction-event');
+const { ReactionPolicy } = require('./src/domain/statemachine/reaction-policy');
+const { ReactionDriver } = require('./src/domain/statemachine/reaction-driver');
 const { EmotionReaction } = require('./src/domain/pet/emotion-reaction');
 const { PerceptionCollector } = require('./src/domain/pet/perception-collector');
 const { PetScheduler } = require('./src/domain/pet/scheduler');
@@ -213,8 +215,16 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   // 交互路由:mod 交互事件经总线进来,据事件名触发声明消费它的意图,不经截图循环
   const interactionRouter = new InteractionRouter({ eventBus, registry: intentRegistry, pet });
 
+  // 状态机有界事件反应:边界态事件经反应策略产出有界 LLM 反应,反应提示词复用人格组装,不经截图循环
+  const reactionPolicy = new ReactionPolicy({ llmClient, eventBus });
+  const reactionDriver = new ReactionDriver({
+    eventBus, reactionPolicy,
+    composeScope: (event) => promptComposer.composeReaction(event)
+  });
+
   return {
     intentRegistry, modRegistry, stepRegistry, interactionRouter,
+    reactionPolicy, reactionDriver,
     keyframeBuffer, vlmExtractor, memoryStore, perceptionCollector,
     emotionState, emotionSelector, emotionReaction,
     ttsOrchestrator, utteranceSession,
@@ -796,6 +806,11 @@ app.whenReady().then(async () => {
   runtime.domain.emotionReaction.start();
   // 交互路由订阅交互事件:mod 交互经总线触发声明消费它的意图,不经截图循环
   runtime.domain.interactionRouter.start();
+  // 状态机反应驱动订阅边界态事件;产出的反应当作一次发言,复用气泡与情绪那条产物通路把它显示出来
+  runtime.domain.reactionDriver.start();
+  platform.eventBus.subscribe('ReactionProduced', (event) => {
+    platform.eventBus.publish({ type: 'UtteranceProduced', intentId: 'state-reaction', text: event.text, emotion: null, modEvents: [] });
+  });
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
   // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处(里程碑八·3)
   runtime.expressionArbiter = createExpressionArbiter({

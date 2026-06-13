@@ -160,3 +160,17 @@ test('a custom token estimator drives budget trimming', () => {
   assert.strictEqual(messages.length, 3);
   assert.strictEqual(messages[1].content, 'a');
 });
+
+//// composeReaction:状态边界反应复用人格系统提示,收尾给反应指令 [@busybee 2026-06-14] ////
+test('composeReaction 把人格作系统提示在前,状态边界描述与反应指令作用户消息收尾', () => {
+  const composer = new PromptComposer({ persona: { description: 'You are Yuki.', personality: 'Warm.' } });
+  const { messages } = composer.composeReaction({ state: 'won', from: 'playing', input: 'score' });
+  assert.strictEqual(messages.length, 2);
+  assert.strictEqual(messages[0].role, 'system');
+  assert.ok(messages[0].content.includes('You are Yuki.'));
+  assert.strictEqual(messages[1].role, 'user');
+  // 用户消息带入状态边界与触发输入,且要求简短、不照抄
+  assert.ok(messages[1].content.includes('won'));
+  assert.ok(messages[1].content.includes('playing'));
+  assert.ok(messages[1].content.includes('score'));
+});
