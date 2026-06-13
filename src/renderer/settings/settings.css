@@ -195,5 +195,25 @@ input[type=range] { accent-color: var(--accent); flex: 1; min-width: 80px; }
 ::-webkit-scrollbar-thumb:hover { background: #d3c5cc; }
 ::-webkit-scrollbar-track { background: transparent; }
 
-/* 模型路由面板:大类卡与步骤行 */
+/* 模型路由面板:大类卡与步骤块 */
 #model-config-root .card { background: var(--surface-alt); }
+
+/* 步骤块:首行步骤名与跟随开关,次行并排的单独模型与温度;步骤间以细分隔线区隔 */
+.mc-step { padding: 9px 0; border-top: 1px solid var(--border); }
+.mc-step:first-of-type { border-top: none; padding-top: 2px; }
+.mc-step-head {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.mc-step-name { color: var(--text); font-size: 13px; }
+.mc-step-name em { color: var(--text-muted); font-style: normal; font-size: 11.5px; }
+.mc-follow {
+  display: flex; align-items: center; gap: 5px; margin: 0;
+  color: var(--text-muted); font-size: 12.5px; white-space: nowrap; cursor: pointer;
+}
+.mc-step-inputs { display: flex; gap: 8px; margin-top: 6px; }
+/* 用 flex-basis 定主轴尺寸:它优先于 input[type=text] 的 width:100%,免去为压过全局规则而提特异度 */
+.mc-step-model { flex: 1 1 0; min-width: 0; }
+.mc-step-temp { flex: 0 0 88px; }
+/* 跟随大类时,淡化并禁用两个覆盖输入,表明覆盖只在关掉跟随后生效 */
+.mc-step-inputs.is-following { opacity: 0.5; }
+.mc-step-inputs input:disabled { background: var(--surface-alt); cursor: not-allowed; }

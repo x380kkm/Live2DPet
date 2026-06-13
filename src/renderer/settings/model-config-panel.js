@@ -50,44 +50,59 @@ function renderForm(ctx) {
   root.appendChild(stepCard);
 }
 
-//// 渲染一个步骤行:跟随大类开关、单独模型、单独温度 [@busybee 2026-06-13] ////
+//// 渲染一个步骤块:首行步骤名与跟随大类开关,次行并排的单独模型与单独温度 [@busybee 2026-06-14] ////
+// 跟随大类勾选时禁用并淡化两个覆盖输入,直观表明覆盖只在关掉跟随后生效;外观类集中在 settings.css。
 function stepRow(doc, step, override) {
-  const row = doc.createElement('div');
-  row.className = 'row';
-  row.style.marginTop = '4px';
+  const block = doc.createElement('div');
+  block.className = 'mc-step';
 
-  const label = doc.createElement('span');
-  label.textContent = `${step.label}(${step.category})`;
-  label.style.minWidth = '180px';
-  label.style.display = 'inline-block';
-  row.appendChild(label);
+  const head = doc.createElement('div');
+  head.className = 'mc-step-head';
+  const name = doc.createElement('span');
+  name.className = 'mc-step-name';
+  name.innerHTML = `${step.label} <em>${step.category}</em>`;
+  head.appendChild(name);
 
   const follow = doc.createElement('input');
   follow.type = 'checkbox';
   follow.id = `mc-step-${step.id}-follow`;
   // 缺省跟随大类:override.followCategory 显式为 false 才不勾
   follow.checked = override.followCategory !== false;
-  row.appendChild(follow);
-  const followLabel = doc.createElement('span');
-  followLabel.textContent = '跟随大类';
-  row.appendChild(followLabel);
+  const followLabel = doc.createElement('label');
+  followLabel.className = 'mc-follow';
+  followLabel.appendChild(follow);
+  followLabel.appendChild(doc.createTextNode(' 跟随大类'));
+  head.appendChild(followLabel);
+  block.appendChild(head);
 
+  const inputs = doc.createElement('div');
+  inputs.className = 'mc-step-inputs';
   const modelInput = doc.createElement('input');
   modelInput.type = 'text';
   modelInput.id = `mc-step-${step.id}-model`;
-  modelInput.placeholder = '单独模型名(关掉跟随时用)';
+  modelInput.className = 'mc-step-model';
+  modelInput.placeholder = '单独模型名';
   if (override.model) modelInput.value = override.model;
-  row.appendChild(modelInput);
-
   const tempInput = doc.createElement('input');
   tempInput.type = 'text';
   tempInput.id = `mc-step-${step.id}-temp`;
-  tempInput.placeholder = '温度(留空用默认)';
-  tempInput.style.width = '120px';
+  tempInput.className = 'mc-step-temp';
+  tempInput.placeholder = '温度';
   if (override.temperature !== undefined) tempInput.value = String(override.temperature);
-  row.appendChild(tempInput);
+  inputs.appendChild(modelInput);
+  inputs.appendChild(tempInput);
+  block.appendChild(inputs);
 
-  return row;
+  const syncDisabled = () => {
+    const off = follow.checked;
+    modelInput.disabled = off;
+    tempInput.disabled = off;
+    inputs.classList.toggle('is-following', off);
+  };
+  follow.addEventListener('change', syncDisabled);
+  syncDisabled();
+
+  return block;
 }
 
 //// 把填空控件里的值收回数据模型 [@busybee 2026-06-13] ////
