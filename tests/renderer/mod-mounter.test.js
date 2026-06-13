@@ -142,3 +142,18 @@ test('mountMod 返回的卸载函数摘除沙箱消息监听', async () => {
   assert.deepStrictEqual(emitted, []);
 });
 //// /mountMod ////
+
+//// mountMod 沙箱:iframe 尚未就绪(contentWindow 为空)时拒绝消息,杜绝加载窗口期冒充 [@busybee 2026-06-14] ////
+test('mountMod 沙箱档在 contentWindow 为空时不转任何消息', async () => {
+  const { mountMod } = await loadMounter();
+  const doc = makeFakeDoc();
+  const root = doc.createElement('div');
+  const view = makeFakeView();
+  const emitted = [];
+  mountMod(root, { frontendSpec: { kind: 'sandboxed', srcdoc: '' }, emits: ['win'] }, { emit: (n, p) => emitted.push([n, p]), view });
+  const iframe = root.children[0];
+  const ghost = iframe.contentWindow;
+  iframe.contentWindow = null; // 模拟尚未就绪
+  view.fire('message', { source: ghost, data: { type: 'mod-event', name: 'win' } });
+  assert.deepStrictEqual(emitted, []);
+});

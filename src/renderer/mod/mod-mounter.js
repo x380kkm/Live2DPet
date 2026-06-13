@@ -80,8 +80,8 @@ export function mountMod(root, payload, deps) {
     const iframe = buildSandboxFrame(spec, doc);
     root.appendChild(iframe);
     const onMessage = (event) => {
-      // 只接受来自该 iframe 的消息,杜绝别处窗口冒充
-      if (iframe.contentWindow && event.source !== iframe.contentWindow) return;
+      // 只接受来自该 iframe 的消息;contentWindow 尚未就绪时一律拒,杜绝别处窗口在加载窗口期冒充
+      if (!iframe.contentWindow || event.source !== iframe.contentWindow) return;
       const interaction = allowedInteraction(event.data, emits);
       if (interaction) emit(interaction.name, interaction.payload);
     };
