@@ -819,7 +819,13 @@ function makeCardStore(platform) {
   return {
     async get(id) {
       try { return JSON.parse(await fsPromises.readFile(file(id), 'utf-8')); }
-      catch { return null; }
+      catch {
+        // 用户数据目录没有该卡时回退到出厂卡(assets/prompts),使内置卡在开发期与迁移前也可读,展示名与字段不退化成 id
+        try {
+          const bundledFile = path.join(__dirname, 'assets', 'prompts', `${id}.json`);
+          return JSON.parse(await fsPromises.readFile(bundledFile, 'utf-8'));
+        } catch { return null; }
+      }
     },
     async put(id, data) {
       await fsPromises.mkdir(dir(), { recursive: true });
