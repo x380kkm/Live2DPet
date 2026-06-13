@@ -16,8 +16,8 @@
 
         <!-- 启动器:设置窗口先出现,点「启动宠物」才建桌宠窗口并隐藏设置;点「关闭宠物」停感知并显示设置 -->
         <div id="pet-launch-bar">
-            <button class="btn btn-primary" id="btn-launch-pet">启动宠物</button>
-            <button class="btn btn-secondary" id="btn-close-pet">关闭宠物</button>
+            <button class="btn btn-primary" id="btn-launch-pet" data-i18n="btn.start">启动宠物</button>
+            <button class="btn btn-secondary" id="btn-close-pet" data-i18n="btn.stop">关闭宠物</button>
             <span class="status" id="pet-launch-status"></span>
         </div>
 
@@ -34,29 +34,29 @@
         <!-- API 接入页:主 API、翻译 API、检测频率、token 倍率、增强总闸 -->
         <div id="tab-api" class="tab-content active">
             <div class="card">
-                <h3>API</h3>
-                <label>Base URL</label><input type="text" id="api-url">
-                <label>API Key</label><input type="password" id="api-key">
-                <label>Model</label><input type="text" id="model-name">
-                <button class="btn btn-primary" id="btn-save-api">Save</button>
+                <h3 data-i18n="api.title">API</h3>
+                <label data-i18n="api.baseUrl">Base URL</label><input type="text" id="api-url">
+                <label data-i18n="api.key">API Key</label><input type="password" id="api-key">
+                <label data-i18n="api.model">Model</label><input type="text" id="model-name">
+                <button class="btn btn-primary" id="btn-save-api" data-i18n="btn.save">Save</button>
                 <div class="status" id="api-status"></div>
             </div>
             <div class="card">
-                <h3>Translation API</h3>
-                <label>Base URL</label><input type="text" id="tl-api-url">
-                <label>API Key</label><input type="password" id="tl-api-key">
-                <label>Model</label><input type="text" id="tl-model-name">
-                <button class="btn btn-primary" id="btn-save-tl">Save</button>
+                <h3 data-i18n="tl.title">Translation API</h3>
+                <label data-i18n="api.baseUrl">Base URL</label><input type="text" id="tl-api-url">
+                <label data-i18n="api.key">API Key</label><input type="password" id="tl-api-key">
+                <label data-i18n="api.model">Model</label><input type="text" id="tl-model-name">
+                <button class="btn btn-primary" id="btn-save-tl" data-i18n="btn.save">Save</button>
                 <div class="status" id="tl-status"></div>
             </div>
             <div class="card">
-                <h3>Frequency</h3>
-                <label>Interval (s)</label><input type="number" id="interval" min="0" step="1">
-                <label>Chat gap (s)</label><input type="number" id="chat-gap" min="0" step="1">
-                <button class="btn btn-primary" id="btn-save-interval">Save</button>
+                <h3 data-i18n="detect.title">Frequency</h3>
+                <label data-i18n="detect.interval">Interval (s)</label><input type="number" id="interval" min="0" step="1">
+                <label data-i18n="detect.chatGap">Chat gap (s)</label><input type="number" id="chat-gap" min="0" step="1">
+                <button class="btn btn-primary" id="btn-save-interval" data-i18n="btn.save">Save</button>
             </div>
             <div class="card">
-                <label class="row"><input type="checkbox" id="enhance-enabled"> Enhance</label>
+                <label class="row"><input type="checkbox" id="enhance-enabled"> <span data-i18n="tab.enhance">Enhance</span></label>
                 <div class="row">
                     <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="1.0">1.0x</button>
                     <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="1.5">1.5x</button>
@@ -68,28 +68,28 @@
 
         <!-- 模型页:模型模式、Live2D 导入与参数映射、画布锚点、图片文件夹、气泡框、图标 -->
         <div id="tab-model" class="tab-content">
-            <label>Mode</label>
+            <label data-i18n="model.mode">Mode</label>
             <select id="model-type">
-                <option value="none">None</option>
-                <option value="live2d">Live2D</option>
-                <option value="image">Image</option>
+                <option value="none" data-i18n="model.none">None</option>
+                <option value="live2d" data-i18n="model.live2d">Live2D</option>
+                <option value="image" data-i18n="model.image">Image</option>
             </select>
 
             <div class="card" id="card-live2d">
-                <h3>Live2D</h3>
-                <button class="btn btn-primary" id="btn-import-l2d">Import model folder</button>
-                <label class="row"><input type="checkbox" id="copy-to-userdata" checked> Copy to userData</label>
+                <h3 data-i18n="model.l2d.title">Live2D</h3>
+                <button class="btn btn-primary" id="btn-import-l2d" data-i18n="model.l2d.select">Import model folder</button>
+                <label class="row"><input type="checkbox" id="copy-to-userdata" checked> <span data-i18n="model.l2d.copy">Copy to userData</span></label>
                 <div class="status" id="l2d-info"></div>
             </div>
 
             <div class="card" id="card-param-mapping">
-                <h3>Parameter mapping</h3>
-                <button class="btn btn-secondary btn-sm" id="btn-apply-suggested">Apply suggested</button>
+                <h3 data-i18n="model.param.title">Parameter mapping</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-apply-suggested" data-i18n="model.param.apply">Apply suggested</button>
                 <div id="param-mapping-list"></div>
             </div>
 
             <div class="card" id="card-canvas-y">
-                <h3>Canvas anchor</h3>
+                <h3 data-i18n="model.canvas.title">Canvas anchor</h3>
                 <div class="row">
                     <input type="range" id="canvas-y-slider" min="0" max="1" step="0.01" value="0.60">
                     <span id="canvas-y-val">0.60</span>
@@ -97,8 +97,8 @@
             </div>
 
             <div class="card" id="card-image">
-                <h3>Image folder</h3>
-                <button class="btn btn-primary" id="btn-select-image-folder">Select image folder</button>
+                <h3 data-i18n="model.img.title">Image folder</h3>
+                <button class="btn btn-primary" id="btn-select-image-folder" data-i18n="model.img.select">Select image folder</button>
                 <div class="status" id="folder-info"></div>
                 <div class="row">
                     <span>Crop</span>
@@ -111,48 +111,48 @@
             </div>
 
             <div class="card">
-                <h3>Bubble frame</h3>
-                <button class="btn btn-secondary btn-sm" id="btn-select-bubble">Select</button>
-                <button class="btn btn-secondary btn-sm" id="btn-clear-bubble">Clear</button>
+                <h3 data-i18n="model.bubble.title">Bubble frame</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-select-bubble" data-i18n="model.bubble.select">Select</button>
+                <button class="btn btn-secondary btn-sm" id="btn-clear-bubble" data-i18n="model.bubble.clear">Clear</button>
                 <div class="status" id="bubble-info"></div>
             </div>
 
             <div class="card">
-                <h3>App icon</h3>
-                <button class="btn btn-secondary btn-sm" id="btn-select-icon">Select</button>
+                <h3 data-i18n="model.icon.title">App icon</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-select-icon" data-i18n="model.icon.select">Select</button>
                 <img id="icon-preview" alt="icon" style="display:none; width:48px; height:48px;">
                 <div class="status" id="icon-info"></div>
             </div>
 
-            <button class="btn btn-primary" id="btn-save-model">Save model</button>
-            <button class="btn btn-danger" id="btn-clear-model">Clear model</button>
+            <button class="btn btn-primary" id="btn-save-model" data-i18n="model.save">Save model</button>
+            <button class="btn btn-danger" id="btn-clear-model" data-i18n="model.clear">Clear model</button>
             <div class="status" id="model-status"></div>
         </div>
 
         <!-- 情绪页:表情频率、表情列表、动作列表、缺省时长 -->
         <div id="tab-emotion" class="tab-content">
             <div class="card">
-                <h3>Frequency</h3>
-                <label>Emotion frequency</label><input type="number" id="emotion-frequency" min="0" step="1">
-                <label class="row"><input type="checkbox" id="allow-simultaneous"> Allow simultaneous</label>
-                <button class="btn btn-primary" id="btn-save-emotion-freq">Save</button>
+                <h3 data-i18n="emo.freq.title">Frequency</h3>
+                <label data-i18n="emo.freq.label">Emotion frequency</label><input type="number" id="emotion-frequency" min="0" step="1">
+                <label class="row"><input type="checkbox" id="allow-simultaneous"> <span data-i18n="emo.simultaneous">Allow simultaneous</span></label>
+                <button class="btn btn-primary" id="btn-save-emotion-freq" data-i18n="btn.save">Save</button>
                 <div class="status" id="emotion-status"></div>
             </div>
             <div class="card">
-                <h3>Expressions</h3>
-                <label>Default duration (s)</label><input type="number" id="default-expr-duration" min="0" step="0.5">
+                <h3 data-i18n="emo.expr.title">Expressions</h3>
+                <label data-i18n="emo.defExprDur">Default duration (s)</label><input type="number" id="default-expr-duration" min="0" step="0.5">
                 <div id="expr-hint" class="status" style="display:none;">No expressions.</div>
                 <div id="expression-list"></div>
-                <button class="btn btn-secondary btn-sm" id="btn-add-expr">Add expression</button>
+                <button class="btn btn-secondary btn-sm" id="btn-add-expr" data-i18n="emo.expr.add">Add expression</button>
             </div>
             <div class="card">
-                <h3>Motions</h3>
-                <label>Default duration (s)</label><input type="number" id="default-motion-duration" min="0" step="0.5">
+                <h3 data-i18n="emo.motion.title">Motions</h3>
+                <label data-i18n="emo.defMotionDur">Default duration (s)</label><input type="number" id="default-motion-duration" min="0" step="0.5">
                 <div id="motion-hint" class="status" style="display:none;">No motions.</div>
                 <div id="motion-list"></div>
-                <button class="btn btn-secondary btn-sm" id="btn-add-motion">Add motion</button>
+                <button class="btn btn-secondary btn-sm" id="btn-add-motion" data-i18n="emo.motion.add">Add motion</button>
             </div>
-            <button class="btn btn-primary" id="btn-save-expressions">Save expressions</button>
+            <button class="btn btn-primary" id="btn-save-expressions" data-i18n="emo.save">Save expressions</button>
             <div class="status" id="save-emotion-status"></div>
         </div>
 
@@ -161,40 +161,40 @@
             <div class="card">
                 <div class="status" id="tts-status"></div>
                 <div class="status" id="tts-hint">VOICEVOX not detected.</div>
-                <button class="btn btn-secondary btn-sm" id="btn-restart-tts">Restart</button>
-                <button class="btn btn-secondary btn-sm" id="btn-setup-voicevox">Setup VOICEVOX</button>
+                <button class="btn btn-secondary btn-sm" id="btn-restart-tts" data-i18n="tts.restart">Restart</button>
+                <button class="btn btn-secondary btn-sm" id="btn-setup-voicevox" data-i18n="tts.setup">Setup VOICEVOX</button>
                 <div class="status" id="voicevox-setup-status"></div>
-                <label class="row"><input type="checkbox" id="tts-gpu-mode"> GPU mode</label>
+                <label class="row"><input type="checkbox" id="tts-gpu-mode"> <span data-i18n="tts.gpu">GPU mode</span></label>
             </div>
             <div class="card">
-                <label>Speaker</label><select id="tts-speaker"></select>
-                <label>Style</label><select id="tts-style-id"></select>
-                <div class="row"><span>Speed</span><input type="range" id="tts-speed" min="0.5" max="2" step="0.05" value="1.0"><span id="tts-speed-val">1.0</span></div>
-                <div class="row"><span>Pitch</span><input type="range" id="tts-pitch" min="-0.15" max="0.15" step="0.01" value="0.0"><span id="tts-pitch-val">0.0</span></div>
-                <div class="row"><span>Volume</span><input type="range" id="tts-volume" min="0" max="2" step="0.05" value="1.0"><span id="tts-volume-val">1.0</span></div>
+                <label data-i18n="tts.speaker">Speaker</label><select id="tts-speaker"></select>
+                <label data-i18n="tts.style">Style</label><select id="tts-style-id"></select>
+                <div class="row"><span data-i18n="tts.speed">Speed</span><input type="range" id="tts-speed" min="0.5" max="2" step="0.05" value="1.0"><span id="tts-speed-val">1.0</span></div>
+                <div class="row"><span data-i18n="tts.pitch">Pitch</span><input type="range" id="tts-pitch" min="-0.15" max="0.15" step="0.01" value="0.0"><span id="tts-pitch-val">0.0</span></div>
+                <div class="row"><span data-i18n="tts.volume">Volume</span><input type="range" id="tts-volume" min="0" max="2" step="0.05" value="1.0"><span id="tts-volume-val">1.0</span></div>
                 <div class="row">
-                    <label><input type="radio" name="audio-mode" value="tts" checked> TTS</label>
-                    <label><input type="radio" name="audio-mode" value="default"> Default audio</label>
+                    <label><input type="radio" name="audio-mode" value="tts" checked> <span data-i18n="tts.mode.tts">TTS</span></label>
+                    <label><input type="radio" name="audio-mode" value="default"> <span data-i18n="tts.mode.default">Default audio</span></label>
                 </div>
-                <button class="btn btn-primary" id="btn-save-tts">Save</button>
+                <button class="btn btn-primary" id="btn-save-tts" data-i18n="tts.save">Save</button>
                 <div class="status" id="tts-save-status"></div>
             </div>
             <div class="card">
-                <h3>Test</h3>
+                <h3 data-i18n="tts.test.title">Test</h3>
                 <input type="text" id="tts-test-text">
-                <button class="btn btn-secondary btn-sm" id="btn-test-tts">Test</button>
+                <button class="btn btn-secondary btn-sm" id="btn-test-tts" data-i18n="tts.test.btn">Test</button>
                 <div class="status" id="tts-test-status"></div>
             </div>
             <div class="card">
-                <h3>Default audio</h3>
+                <h3 data-i18n="tts.defAudio.title">Default audio</h3>
                 <textarea id="default-audio-phrases"></textarea>
-                <button class="btn btn-secondary btn-sm" id="btn-generate-default-audio">Generate</button>
+                <button class="btn btn-secondary btn-sm" id="btn-generate-default-audio" data-i18n="tts.defAudio.gen">Generate</button>
                 <div class="status" id="default-audio-status"></div>
             </div>
             <div class="card">
-                <h3>VVM</h3>
+                <h3 data-i18n="tts.vvm.title">VVM</h3>
                 <div id="vvm-checkboxes"></div>
-                <button class="btn btn-primary" id="btn-save-vvm">Save VVM</button>
+                <button class="btn btn-primary" id="btn-save-vvm" data-i18n="tts.vvm.save">Save VVM</button>
                 <div class="status" id="vvm-save-status"></div>
             </div>
         </div>
@@ -202,40 +202,40 @@
         <!-- 角色卡页:选择、增删改导入重置、字段编辑与保存 -->
         <div id="tab-prompt" class="tab-content">
             <div class="card">
-                <label>Character</label>
+                <label data-i18n="prompt.card">Character</label>
                 <select id="character-select"></select>
                 <div class="row" style="margin-top:6px;">
                     <button class="btn btn-secondary btn-sm" id="btn-new-character">New</button>
                     <button class="btn btn-secondary btn-sm" id="btn-rename-character">Rename</button>
                     <button class="btn btn-secondary btn-sm" id="btn-import-character">Import</button>
                     <button class="btn btn-danger btn-sm" id="btn-delete-character">Delete</button>
-                    <button class="btn btn-secondary btn-sm" id="btn-reset-builtin">Reset built-in</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-reset-builtin" data-i18n="card.resetBuiltin">Reset built-in</button>
                 </div>
                 <div class="row" id="character-name-input-row" style="display:none; margin-top:6px;">
-                    <input type="text" id="character-name-input">
-                    <button class="btn btn-primary btn-sm" id="btn-confirm-name">OK</button>
-                    <button class="btn btn-secondary btn-sm" id="btn-cancel-name">Cancel</button>
+                    <input type="text" id="character-name-input" data-i18n-ph="prompt.newName.ph">
+                    <button class="btn btn-primary btn-sm" id="btn-confirm-name" data-i18n="prompt.confirm">OK</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-cancel-name" data-i18n="prompt.cancel">Cancel</button>
                 </div>
             </div>
             <div class="card">
-                <label>Name</label><input type="text" id="prompt-name">
-                <label>User identity</label><input type="text" id="prompt-user-identity">
-                <label>User term</label><input type="text" id="prompt-user-term">
-                <label>Description</label><textarea id="prompt-desc"></textarea>
-                <label>Personality</label><textarea id="prompt-personality"></textarea>
-                <label>Scenario</label><textarea id="prompt-scenario"></textarea>
-                <label>Rules</label><textarea id="prompt-rules"></textarea>
-                <label>Language</label><input type="text" id="prompt-language">
+                <label data-i18n="prompt.name">Name</label><input type="text" id="prompt-name" data-i18n-ph="prompt.name.ph">
+                <label data-i18n="prompt.identity">User identity</label><input type="text" id="prompt-user-identity" data-i18n-ph="prompt.identity.ph">
+                <label data-i18n="prompt.term">User term</label><input type="text" id="prompt-user-term" data-i18n-ph="prompt.term.ph">
+                <label data-i18n="prompt.desc">Description</label><textarea id="prompt-desc" data-i18n-ph="prompt.desc.ph"></textarea>
+                <label data-i18n="prompt.personality">Personality</label><textarea id="prompt-personality" data-i18n-ph="prompt.personality.ph"></textarea>
+                <label data-i18n="prompt.scenario">Scenario</label><textarea id="prompt-scenario" data-i18n-ph="prompt.scenario.ph"></textarea>
+                <label data-i18n="prompt.rules">Rules</label><textarea id="prompt-rules" data-i18n-ph="prompt.rules.ph"></textarea>
+                <label data-i18n="prompt.language">Language</label><input type="text" id="prompt-language" data-i18n-ph="prompt.language.ph">
             </div>
             <div class="card">
-                <h3>Hit actions</h3>
-                <label>Click</label><input type="text" id="prompt-hit-click">
-                <label>Touch</label><input type="text" id="prompt-hit-touch">
-                <label>Drag</label><input type="text" id="prompt-hit-drag">
-                <label>Swipe</label><input type="text" id="prompt-hit-swipe">
-                <label>Resize</label><input type="text" id="prompt-hit-resize">
+                <h3 data-i18n="prompt.hitActions">Hit actions</h3>
+                <label>Click</label><input type="text" id="prompt-hit-click" data-i18n-ph="prompt.hit.click.ph">
+                <label>Touch</label><input type="text" id="prompt-hit-touch" data-i18n-ph="prompt.hit.touch.ph">
+                <label>Drag</label><input type="text" id="prompt-hit-drag" data-i18n-ph="prompt.hit.drag.ph">
+                <label>Swipe</label><input type="text" id="prompt-hit-swipe" data-i18n-ph="prompt.hit.swipe.ph">
+                <label>Resize</label><input type="text" id="prompt-hit-resize" data-i18n-ph="prompt.hit.resize.ph">
             </div>
-            <button class="btn btn-primary" id="btn-save-prompt">Save</button>
+            <button class="btn btn-primary" id="btn-save-prompt" data-i18n="prompt.save">Save</button>
             <div class="status" id="prompt-status"></div>
         </div>
 
