@@ -55,6 +55,7 @@ const { builtinIntents } = require('./src/domain/intent/builtin-intents');
 const { ModRegistry } = require('./src/domain/mod/mod-registry');
 const { TRUST } = require('./src/domain/mod/mod');
 const { createModSource } = require('./src/platform/mod/mod-source');
+const { createExpressionArbiter } = require('./src/platform/window/expression-arbiter');
 const { StepRegistry } = require('./src/domain/model/step-registry');
 const { builtinSteps, StepId } = require('./src/shared/step-catalog');
 const { KeyframeBuffer } = require('./src/domain/perception/keyframe-buffer');
@@ -592,6 +593,8 @@ function makeBubbleController(runtime) {
 
   function sendNow(message, autoCloseTime) {
     if (!windowFactory.isAlive(runtime.chatBubbleWindow)) return;
+    // 气泡占主导:先收起占着表达区的 mod 前端,二者不同时显示
+    if (runtime.expressionArbiter) runtime.expressionArbiter.takeOver('bubble');
     const bounds = runtime.chatBubbleWindow.getBounds();
     positionAbovePet(bounds.width || BUBBLE_INIT_WIDTH, bounds.height || BUBBLE_INIT_HEIGHT);
     runtime.chatBubbleWindow.send('chat-bubble-message', { message, autoCloseTime });
@@ -624,6 +627,7 @@ function makeBubbleController(runtime) {
     },
     hide() {
       if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.hide();
+      if (runtime.expressionArbiter) runtime.expressionArbiter.release('bubble');
     }
   };
 }
@@ -669,6 +673,8 @@ function makeModFrontendController(runtime) {
 
   function mountNow(payload) {
     if (!windowFactory.isAlive(runtime.modFrontendWindow)) return;
+    // mod 前端占主导:先收起占着表达区的气泡,二者不同时显示
+    if (runtime.expressionArbiter) runtime.expressionArbiter.takeOver('mod');
     const bounds = runtime.modFrontendWindow.getBounds();
     positionAbovePet(bounds.width || MOD_FRONTEND_INIT_WIDTH, bounds.height || MOD_FRONTEND_INIT_HEIGHT);
     runtime.modFrontendWindow.send('mod-frontend-mount', payload);
@@ -700,6 +706,7 @@ function makeModFrontendController(runtime) {
     },
     hide() {
       if (windowFactory.isAlive(runtime.modFrontendWindow)) runtime.modFrontendWindow.hide();
+      if (runtime.expressionArbiter) runtime.expressionArbiter.release('mod');
     }
   };
 }
@@ -772,9 +779,16 @@ app.whenReady().then(async () => {
   // 情绪连接件订阅发言产物;领域事件经 IPC 转发到宠物窗口
   runtime.domain.emotionReaction.start();
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
+  // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处(里程碑八·3)
+  runtime.expressionArbiter = createExpressionArbiter({
+    hide: {
+      bubble: () => { if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.hide(); },
+      mod: () => { if (windowFactory.isAlive(runtime.modFrontendWindow)) runtime.modFrontendWindow.hide(); }
+    }
+  });
   runtime.bubbleController = makeBubbleController(runtime);
   subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime), runtime.bubbleController);
-  // mod 前端控制器:mod 前端作为独立窗口,挂载与定位经它驱动(里程碑八·2);仲裁与挂载内容在后续里程碑接
+  // mod 前端控制器:mod 前端作为独立窗口,挂载与定位经它驱动(里程碑八·2);挂载内容在后续里程碑接
   runtime.modFrontendController = makeModFrontendController(runtime);
 
   // 发言产物喂反重复源:每条刚说出的话记入近期回复缓存
