@@ -5,10 +5,7 @@
 
 import { AI_CATEGORIES, AI_STEP_CATALOG, MODEL_PRESETS } from './settings-model.js';
 
-// 大类给用户看的中文名。
-const CATEGORY_LABEL = { vlm: '截图(视觉语言模型)', llm: '文本(台词、路由等)', translate: '翻译' };
-
-//// 装配模型路由面板:渲染大类与步骤填空、绑定模式切换与保存 [@busybee 2026-06-13] ////
+//// 装配模型路由面板:渲染大类与步骤填空、绑定模式切换与保存,并留一个按当前语言重渲的钩子 [@busybee 2026-06-13] ////
 export function mountModelConfigPanel(ctx) {
   const { doc, model } = ctx;
   const root = doc.getElementById('model-config-root');
@@ -20,11 +17,14 @@ export function mountModelConfigPanel(ctx) {
 
   bindModeSwitch(ctx);
   bindSave(ctx);
+  // 语言切换时由组合根调此钩子按新语言重渲面板(动态构建的文案不走 applyI18n)
+  ctx.reRenderModelConfig = () => renderForm(ctx);
 }
 
-//// 按大类与步骤目录把当前配置渲染成填空控件 [@busybee 2026-06-13] ////
+//// 按大类与步骤目录把当前配置渲染成填空控件,文案按当前语言查表 [@busybee 2026-06-14] ////
 function renderForm(ctx) {
   const { doc, model } = ctx;
+  const t = ctx.t || ((k) => k);
   const root = doc.getElementById('model-config-root');
   const mc = model.modelConfig();
   root.innerHTML = '';
@@ -33,26 +33,27 @@ function renderForm(ctx) {
     const cat = mc.categories[category] || {};
     const card = doc.createElement('div');
     card.className = 'card';
-    card.appendChild(heading(doc, CATEGORY_LABEL[category] || category));
-    card.appendChild(presetSelect(doc, `mc-cat-${category}-preset`, '兼容预设', cat.preset));
-    card.appendChild(textField(doc, `mc-cat-${category}-baseURL`, '接口地址(baseURL)', cat.baseURL));
-    card.appendChild(textField(doc, `mc-cat-${category}-apiKey`, '密钥(apiKey)', cat.apiKey));
-    card.appendChild(textField(doc, `mc-cat-${category}-model`, '模型名', cat.model));
+    card.appendChild(heading(doc, t(`mc.cat.${category}`)));
+    card.appendChild(presetSelect(doc, `mc-cat-${category}-preset`, t('mc.preset'), cat.preset));
+    card.appendChild(textField(doc, `mc-cat-${category}-baseURL`, t('mc.baseURL'), cat.baseURL));
+    card.appendChild(textField(doc, `mc-cat-${category}-apiKey`, t('mc.apiKey'), cat.apiKey));
+    card.appendChild(textField(doc, `mc-cat-${category}-model`, t('mc.model'), cat.model));
     root.appendChild(card);
   }
 
   const stepCard = doc.createElement('div');
   stepCard.className = 'card';
-  stepCard.appendChild(heading(doc, '各步骤(默认跟随大类,可单独覆盖)'));
+  stepCard.appendChild(heading(doc, t('mc.steps')));
   for (const step of AI_STEP_CATALOG) {
-    stepCard.appendChild(stepRow(doc, step, mc.steps[step.id] || {}));
+    stepCard.appendChild(stepRow(doc, step, mc.steps[step.id] || {}, t));
   }
   root.appendChild(stepCard);
 }
 
 //// 渲染一个步骤块:首行步骤名与跟随大类开关,次行并排的单独模型与单独温度 [@busybee 2026-06-14] ////
 // 跟随大类勾选时禁用并淡化两个覆盖输入,直观表明覆盖只在关掉跟随后生效;外观类集中在 settings.css。
-function stepRow(doc, step, override) {
+function stepRow(doc, step, override, t) {
+  const tr = t || ((k) => k);
   const block = doc.createElement('div');
   block.className = 'mc-step';
 
@@ -60,7 +61,12 @@ function stepRow(doc, step, override) {
   head.className = 'mc-step-head';
   const name = doc.createElement('span');
   name.className = 'mc-step-name';
-  name.innerHTML = `${step.label} <em>${step.category}</em>`;
+  // 步骤名按当前语言查表,查不到回退步骤目录给的标签;大类标记保持原样
+  const stepLabel = tr(`mc.step.${step.id}`) || step.label;
+  name.textContent = stepLabel + ' ';
+  const tag = doc.createElement('em');
+  tag.textContent = step.category;
+  name.appendChild(tag);
   head.appendChild(name);
 
   const follow = doc.createElement('input');
@@ -71,7 +77,7 @@ function stepRow(doc, step, override) {
   const followLabel = doc.createElement('label');
   followLabel.className = 'mc-follow';
   followLabel.appendChild(follow);
-  followLabel.appendChild(doc.createTextNode(' 跟随大类'));
+  followLabel.appendChild(doc.createTextNode(' ' + tr('mc.follow')));
   head.appendChild(followLabel);
   block.appendChild(head);
 
@@ -81,13 +87,13 @@ function stepRow(doc, step, override) {
   modelInput.type = 'text';
   modelInput.id = `mc-step-${step.id}-model`;
   modelInput.className = 'mc-step-model';
-  modelInput.placeholder = '单独模型名';
+  modelInput.placeholder = tr('mc.stepModel');
   if (override.model) modelInput.value = override.model;
   const tempInput = doc.createElement('input');
   tempInput.type = 'text';
   tempInput.id = `mc-step-${step.id}-temp`;
   tempInput.className = 'mc-step-temp';
-  tempInput.placeholder = '温度';
+  tempInput.placeholder = tr('mc.temp');
   if (override.temperature !== undefined) tempInput.value = String(override.temperature);
   inputs.appendChild(modelInput);
   inputs.appendChild(tempInput);

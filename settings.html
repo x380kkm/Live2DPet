@@ -242,23 +242,23 @@
         <!-- 模型路由页:按大类与步骤两层自由装配模型;友好填空与 JSON 高级两种模式 -->
         <div id="tab-modelconfig" class="tab-content">
             <div class="card">
-                <h3>模型自由装配</h3>
-                <p>按大类(截图 / 文本 / 翻译)分别选模型;每个步骤默认跟随所属大类,关掉「跟随大类」即可单独换模型。模型与人设由你掌控,我们不审查、不背书,正确性你自负。</p>
+                <h3 data-i18n="routing.title">模型自由装配</h3>
+                <p data-i18n="routing.desc">按大类(截图 / 文本 / 翻译)分别选模型;每个步骤默认跟随所属大类,关掉「跟随大类」即可单独换模型。模型与人设由你掌控,我们不审查、不背书,正确性你自负。</p>
                 <div class="row" style="margin-top:6px;">
-                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-form">友好模式</button>
-                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-json">JSON 高级</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-form" data-i18n="routing.modeForm">友好模式</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-mc-mode-json" data-i18n="routing.modeJson">JSON 高级</button>
                 </div>
             </div>
             <div id="model-config-root"></div>
             <div class="card" id="model-config-json-card" style="display:none;">
-                <label>模型配置 JSON(高级;直接编辑,格式错误则不保存)</label>
+                <label data-i18n="routing.jsonLabel">模型配置 JSON(高级;直接编辑,格式错误则不保存)</label>
                 <textarea id="model-config-json" rows="16"></textarea>
             </div>
             <div class="card">
-                <label>额外系统提示词(与出厂提示词合并;不审查,用户自负)</label>
+                <label data-i18n="routing.injectionLabel">额外系统提示词(与出厂提示词合并;不审查,用户自负)</label>
                 <textarea id="model-system-injection" rows="3"></textarea>
             </div>
-            <button class="btn btn-primary" id="btn-save-modelconfig">保存模型配置</button>
+            <button class="btn btn-primary" id="btn-save-modelconfig" data-i18n="routing.save">保存模型配置</button>
             <div class="status" id="modelconfig-status"></div>
         </div>
     </div>

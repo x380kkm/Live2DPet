@@ -160,6 +160,10 @@ export class SettingsApp {
       this.currentLang = e.target.value;
       this.applyI18n();
       await this.gateway.config.save({ uiLanguage: this.currentLang });
+      // 模型路由面板的文案是动态构建的、不走 applyI18n,语言切换时按新语言重渲
+      if (this._characterCtx && this._characterCtx.reRenderModelConfig) {
+        this._characterCtx.reRenderModelConfig();
+      }
       if (this._characterCtx) {
         await this._characterCtx.reloadCharacterPrompt();
         await this._characterCtx.reloadCharacterList();
