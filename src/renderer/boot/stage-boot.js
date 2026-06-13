@@ -500,7 +500,13 @@ export async function bootStage(narrowApi, deps = {}) {
   // 拖动松手后刷新缓存的窗口位置使头部跟踪以新位置算中心;原地轻点触发一次非语义回弹反馈,不上报、不调模型 AI
   setupWindowDrag(doc, narrowApi, {
     onMoved: () => { refreshBounds(); },
-    onTap: () => { if (doc) applyPokeEffect(doc.getElementById('pet-container'), doc.defaultView); }
+    onTap: (gesture) => {
+      if (doc) applyPokeEffect(doc.getElementById('pet-container'), doc.defaultView);
+      // 把原地轻点上报成身体交互事件:click 为短按、touch 为久按,交主进程驱动身体交互 mod 的意图
+      if (gesture && typeof narrowApi.reportModInteraction === 'function') {
+        narrowApi.reportModInteraction(gesture.kind, {});
+      }
+    }
   });
   await mountModel();
 

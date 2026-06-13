@@ -1,0 +1,20 @@
+{
+  "id": "body-interaction",
+  "emits": ["click", "touch"],
+  "intents": [
+    {
+      "id": "body-click",
+      "trigger": { "when": "mod-event", "event": "click" },
+      "contextSourceRefs": ["interactionInfo", "petPosition", "toneHint", "recentReplies"],
+      "fewShotRefs": [],
+      "product": { "kind": "use-template", "templateId": "reply-bubble" }
+    },
+    {
+      "id": "body-touch",
+      "trigger": { "when": "mod-event", "event": "touch" },
+      "contextSourceRefs": ["interactionInfo", "petPosition", "toneHint", "recentReplies"],
+      "fewShotRefs": [],
+      "product": { "kind": "use-template", "templateId": "reply-bubble" }
+    }
+  ]
+}

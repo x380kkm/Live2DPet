@@ -86,6 +86,7 @@ const { RecentRepliesSource } = require('./src/domain/pet/sources/recent-replies
 const { LayoutInfoSource } = require('./src/domain/pet/sources/layout-info-source');
 const { PetPositionSource } = require('./src/domain/pet/sources/pet-position-source');
 const { ToneHintSource } = require('./src/domain/pet/sources/tone-hint-source');
+const { InteractionInfoSource } = require('./src/domain/pet/sources/interaction-info-source');
 
 // 渲染侧向主进程推送进度的通道名:单向 send,不在 invoke 契约里,故直引字面量。
 const VOICEVOX_PROGRESS_CHANNEL = 'voicevox-setup-progress';
@@ -269,7 +270,9 @@ function assembleContextSources(deps) {
     new ToneHintSource(
       { toneProvider: providers.nextEmotion },
       { labelTemplate: mt('sys.toneHint') }
-    )
+    ),
+    // 交互信息源:把当下这次身体交互折成一行,供身体交互 mod 的意图据此回应
+    new InteractionInfoSource()
   ];
 }
 //// /装配八个命名上下文源 ////
