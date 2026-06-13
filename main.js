@@ -54,6 +54,7 @@ const { IntentRegistry } = require('./src/domain/intent/intent-registry');
 const { builtinIntents } = require('./src/domain/intent/builtin-intents');
 const { ModRegistry } = require('./src/domain/mod/mod-registry');
 const { TRUST } = require('./src/domain/mod/mod');
+const { ModGenerator } = require('./src/domain/mod/mod-generator');
 const { createModSource } = require('./src/platform/mod/mod-source');
 const { createExpressionArbiter } = require('./src/platform/window/expression-arbiter');
 const { StepRegistry } = require('./src/domain/model/step-registry');
@@ -209,8 +210,10 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   const sourceRegistry = makeSourceRegistry(contextSources);
   const pipeline = new RequestPipeline({ sources: sourceRegistry, llmClient, promptComposer });
 
-  // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层
-  const pet = new PetOrchestrator({ pipeline, llmClient, eventBus });
+  // mod 生成器:生成期一次性造前端与行为,禁写人格与成品措辞;注入编排器供北极星当场生成临时 mod
+  const modGenerator = new ModGenerator({ llm: llmClient });
+  // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层;带 mod 生成器走北极星路
+  const pet = new PetOrchestrator({ pipeline, llmClient, eventBus, modGenerator });
 
   // 交互路由:mod 交互事件经总线进来,据事件名触发声明消费它的意图,不经截图循环
   const interactionRouter = new InteractionRouter({ eventBus, registry: intentRegistry, pet });
@@ -738,6 +741,17 @@ function makeModFrontendController(runtime) {
 }
 //// /造 mod 前端控制器 ////
 
+//// 把生成器产出的前端规格转成 mod 承载器认的沙箱档:运行期生成即执行的前端一律沙箱化 [@busybee 2026-06-14] ////
+// 生成器产出 { html, css, js };承载器认 { kind:'sandboxed', srcdoc }。已是沙箱形状则原样返回。
+function generatedFrontendToSandbox(spec) {
+  if (!spec) return { kind: 'sandboxed', srcdoc: '' };
+  if (spec.kind === 'sandboxed' && typeof spec.srcdoc === 'string') return spec;
+  const css = spec.css ? `<style>${spec.css}</style>` : '';
+  const js = spec.js ? `<script>${spec.js}<\/script>` : '';
+  return { kind: 'sandboxed', srcdoc: `${css}${spec.html || ''}${js}` };
+}
+//// /把生成器产出的前端规格转成沙箱档 ////
+
 //// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
 // 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
 function runCommand(cmd, args, options) {
@@ -810,6 +824,16 @@ app.whenReady().then(async () => {
   runtime.domain.reactionDriver.start();
   platform.eventBus.subscribe('ReactionProduced', (event) => {
     platform.eventBus.publish({ type: 'UtteranceProduced', intentId: 'state-reaction', text: event.text, emotion: null, modEvents: [] });
+  });
+  // 北极星:编排器当场生成临时 mod 后请求挂载;运行期生成即执行的前端一律走沙箱档,经 mod 前端窗口承载
+  platform.eventBus.subscribe('ModMountRequested', (event) => {
+    if (runtime.modFrontendController) {
+      runtime.modFrontendController.mount({
+        modId: event.modId,
+        frontendSpec: generatedFrontendToSandbox(event.frontendSpec),
+        emits: event.emits || []
+      });
+    }
   });
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
   // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处(里程碑八·3)

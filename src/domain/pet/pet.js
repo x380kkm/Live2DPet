@@ -5,6 +5,7 @@
 // 不变量:generateTempMod 产物只含行为与前端,禁止写入人格或成品措辞。
 
 const { StepId } = require('../../shared/step-catalog');
+const { ProductKind } = require('../intent/intent');
 
 class PetOrchestrator {
   //// 构造注入意图来源、请求管线、模型客户端、事件总线 [@busybee 2026-06-13] ////
@@ -42,6 +43,11 @@ class PetOrchestrator {
   //// 跑一个意图:经管线产出回应,把产物经事件总线发出 [@busybee 2026-06-13] ////
   // 编排器只做编排:调管线、把回应折成发言产物事件发布,表现层订阅自取,不直接 send。
   async run(intent, scope) {
+    // 北极星路:产物为「当场生成临时 mod」时,走生成期一次性造前端并请求挂载,不走台词管线
+    if (intent && intent.product && intent.product.kind === ProductKind.GenerateTempMod) {
+      return this._runGenerateTempMod(intent);
+    }
+
     const response = await this.pipeline.run(intent, scope);
     if (!response || !response.text) {
       return null;
@@ -57,6 +63,15 @@ class PetOrchestrator {
     return response;
   }
   //// /跑一个意图 ////
+
+  //// 北极星执行:生成临时 mod 后请求表现层挂载,运行期生成即执行的前端走沙箱档 [@busybee 2026-06-14] ////
+  async _runGenerateTempMod(intent) {
+    const mod = await this.generateTempMod(intent);
+    if (!mod) return null;
+    this.eventBus.publish({ type: 'ModMountRequested', modId: mod.id, frontendSpec: mod.frontendSpec, emits: mod.emits });
+    return { mod };
+  }
+  //// /北极星执行 ////
 
   //// 北极星路:生成期 LLM 一次性造临时 mod,守住隔离边界 [@busybee 2026-06-13] ////
   // 委托注入的 mod 生成器;生成器在代码层禁止往产物写人格或成品措辞,编排器只转交意图规格。

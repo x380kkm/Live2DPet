@@ -146,3 +146,22 @@ test('generateTempMod delegates the product spec to the generator', async () => 
   assert.deepStrictEqual(received, [spec]);
   assert.strictEqual(mod.id, 'temp-mod');
 });
+
+//// run 遇到「当场生成临时 mod」产物时,生成后请求挂载、不走台词管线 [@busybee 2026-06-14] ////
+test('run 对 generate-temp-mod 产物生成临时 mod 并发 ModMountRequested', async () => {
+  const eventBus = fakeEventBus();
+  const generated = { id: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] };
+  const modGenerator = { generate: async () => generated };
+  const pipeline = fakePipeline({ text: '不应被调用' });
+  const pet = new PetOrchestrator({ pipeline, eventBus, modGenerator });
+  const intent = { id: 'make-game', product: { kind: 'generate-temp-mod', spec: { kind: 'mini-game' } } };
+
+  const result = await pet.run(intent, {});
+
+  // 不走台词管线
+  assert.strictEqual(pipeline.calls.length, 0);
+  assert.strictEqual(result.mod, generated);
+  assert.deepStrictEqual(eventBus.published, [{
+    type: 'ModMountRequested', modId: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win']
+  }]);
+});
