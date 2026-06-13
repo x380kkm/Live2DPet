@@ -53,6 +53,8 @@ const I18N = require('./src/i18n/locales');
 const { IntentRegistry } = require('./src/domain/intent/intent-registry');
 const { builtinIntents } = require('./src/domain/intent/builtin-intents');
 const { ModRegistry } = require('./src/domain/mod/mod-registry');
+const { TRUST } = require('./src/domain/mod/mod');
+const { createModSource } = require('./src/platform/mod/mod-source');
 const { StepRegistry } = require('./src/domain/model/step-registry');
 const { builtinSteps, StepId } = require('./src/shared/step-catalog');
 const { KeyframeBuffer } = require('./src/domain/perception/keyframe-buffer');
@@ -154,8 +156,18 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   const intentRegistry = new IntentRegistry();
   intentRegistry.discoverBuiltins(builtinIntents());
 
-  // mod:仓储缺省给空列表,发现后两级启用合并
-  const modRegistry = new ModRegistry({ source: { list: () => [] }, globalEnabled: [] });
+  // mod:从出厂与用户两目录读规格,发现后两级启用合并;信任级别由来源目录强制
+  const modSource = createModSource({
+    dirs: [
+      { dir: path.join(__dirname, 'assets', 'mods'), trust: TRUST.OFFICIAL },
+      { dir: path.join(platform.pathUtils.userDataDir(), 'mods'), trust: TRUST.USER_CUSTOM }
+    ],
+    fs, path
+  });
+  const modRegistry = new ModRegistry({
+    source: modSource,
+    globalEnabled: Array.isArray(global.enabledMods) ? global.enabledMods : []
+  });
   modRegistry.discover();
 
   // AI 步骤:出厂步骤在加载期被发现注入,供设置界面枚举与模型路由校验,可追溯
