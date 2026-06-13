@@ -6,7 +6,7 @@
 
 //// 把语义动作名解析成表情或动作两种底层形态,供两实现共用 [@busybee 2026-06-13] ////
 // 动作表的一项:表情形态为 { name, kind:'expression' },动作形态为 { name, kind:'motion', group, index }。
-function resolveAction(actionTable, name) {
+export function resolveAction(actionTable, name) {
   const entry = actionTable[name];
   if (!entry) return null;
   if (entry.kind === 'motion') {
@@ -16,14 +16,14 @@ function resolveAction(actionTable, name) {
 }
 
 //// 把按开合度的口型值限制在 0 到 1,供两实现共用 [@busybee 2026-06-13] ////
-function clampOpenness(openness) {
+export function clampOpenness(openness) {
   if (typeof openness !== 'number' || Number.isNaN(openness)) return 0;
   if (openness < 0) return 0;
   if (openness > 1) return 1;
   return openness;
 }
 
-class RenderAdapter {
+export class RenderAdapter {
   // 按语义动作名播放,内部映射到 motion 或 expression。
   playAction(name) {
     throw new Error('未实现,见目标架构设计第七节迁移里程碑');
@@ -44,5 +44,3 @@ class RenderAdapter {
     throw new Error('未实现,见目标架构设计第七节迁移里程碑');
   }
 }
-
-module.exports = { RenderAdapter, resolveAction, clampOpenness };

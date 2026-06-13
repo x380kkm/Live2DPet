@@ -88,7 +88,7 @@
     </script>
     <!-- 舞台组合根:加载 stage-boot 模块,把 petBridge 适配成 stage 所需窄接口 -->
     <script type="module">
-        import { bootStage } from './src/renderer/boot/stage-boot.js';
+        import { bootStage, createRenderAdapter as createRealRenderAdapter } from './src/renderer/boot/stage-boot.js';
 
         //// 把分域的 petBridge 拍平成 stage-boot 期待的窄接口 [@busybee 2026-06-13] ////
         // stage-boot 调用 loadConfig、validateModelPaths、getCursorPosition 等扁平方法;
@@ -116,12 +116,19 @@
             };
         }
 
-        //// 临时渲染适配:在渲染端 PIXI 与 Cubism 接好前,先用空适配占位 [@busybee 2026-06-13] ////
-        // 真正的 Live2DAdapter 需在浏览器侧创建 PIXI 与 Cubism 后注入,见报告所列接口缺口。
-        async function createRenderAdapter() {
-            return {
-                playAction() {}, revertAction() {}, setTalking() {}, setTrack() {}, dispose() {}
-            };
+        //// 真实渲染适配:把浏览器侧的 PIXI 与 Cubism 全局与 DOM、取 JSON 函数注入给 stage-boot 的适配工厂 [@busybee 2026-06-13] ////
+        // PIXI 由 libs/pixi.min.js 暴露,Live2DModel 由 libs/cubism4.min.js 挂在 PIXI.live2d 下;
+        // fetchJson 封住对 fetch 的依赖,加载表情文件用。第三方全局只在此入口取,业务模块不直接抓。
+        async function createRenderAdapter(plan) {
+            return createRealRenderAdapter(plan, {
+                PIXI: window.PIXI,
+                Live2DModel: window.PIXI && window.PIXI.live2d && window.PIXI.live2d.Live2DModel,
+                doc: document,
+                fetchJson: async (url) => {
+                    const resp = await fetch(url);
+                    return resp.ok ? resp.json() : null;
+                }
+            });
         }
 
         const narrowApi = makeNarrowApi(window.petBridge || {});

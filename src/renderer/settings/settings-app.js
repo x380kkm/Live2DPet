@@ -3,15 +3,15 @@
 // 设置面板:按领域拆分的子面板装配,以配置数据模型为真相来源而非 DOM 现场抓取。
 // 不变量:真相来源是配置数据模型;读写配置经能力网关,面板不直接抓全局。
 
-const { makeSettingsGateway } = require('./settings-gateway');
-const { SettingsModel } = require('./settings-model');
-const { mountApiPanel } = require('./api-panel');
-const { mountModelPanel } = require('./model-panel');
-const { mountEmotionPanel, renderExpressionList, renderMotionList } = require('./emotion-panel');
-const { mountCharacterPanel, loadCharacterList } = require('./character-panel');
-const { mountTtsPanel } = require('./tts-panel');
+import { makeSettingsGateway } from './settings-gateway.js';
+import { SettingsModel } from './settings-model.js';
+import { mountApiPanel } from './api-panel.js';
+import { mountModelPanel } from './model-panel.js';
+import { mountEmotionPanel, renderExpressionList, renderMotionList } from './emotion-panel.js';
+import { mountCharacterPanel, loadCharacterList } from './character-panel.js';
+import { mountTtsPanel } from './tts-panel.js';
 
-class SettingsApp {
+export class SettingsApp {
   //// 构造注入文档根、能力 api、i18n 表、渲染适配与播音句柄 [@busybee 2026-06-13] ////
   constructor(deps = {}) {
     // 文档根经注入,使面板可在测试里换成 mock 文档。
@@ -155,5 +155,3 @@ class SettingsApp {
     });
   }
 }
-
-module.exports = { SettingsApp };

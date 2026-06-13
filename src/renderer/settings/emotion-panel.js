@@ -3,10 +3,10 @@
 // 情绪标签页子面板:表情频率、表情列表、动作列表、缺省时长。
 // 不变量:列表项以配置数据模型为真相来源,增删改写回模型;保存时一次性把面板值并入模型再落盘。
 
-const { msToSeconds } = require('./settings-model');
+import { msToSeconds } from './settings-model.js';
 
 //// 装配情绪标签页的频率、表情、动作三块并绑定到配置数据模型 [@busybee 2026-06-13] ////
-function mountEmotionPanel(ctx) {
+export function mountEmotionPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.config;
 
@@ -53,7 +53,7 @@ function mountEmotionPanel(ctx) {
 }
 
 //// 按模型快照渲染表情列表,缺省时长留空作占位 [@busybee 2026-06-13] ////
-function renderExpressionList(ctx) {
+export function renderExpressionList(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('expression-list');
   container.innerHTML = '';
@@ -86,7 +86,7 @@ function renderExpressionList(ctx) {
 }
 
 //// 按模型快照渲染动作列表,分组下拉取自扫描结果 [@busybee 2026-06-13] ////
-function renderMotionList(ctx) {
+export function renderMotionList(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('motion-list');
   container.innerHTML = '';
@@ -183,5 +183,3 @@ function collectMotionEdits(doc) {
   });
   return edits;
 }
-
-module.exports = { mountEmotionPanel, renderExpressionList, renderMotionList };

@@ -9,13 +9,15 @@ const { app } = electron;
 const path = require('path');
 const fs = require('fs');
 const fsPromises = require('fs').promises;
+const http = require('http');
+const https = require('https');
+const crypto = require('crypto');
+const childProcess = require('child_process');
 
 // platform 地基:存储、配置、总线
 const { createPathUtils } = require('./src/platform/storage/path-utils');
 const { FileRepository } = require('./src/platform/storage/file-repository');
 const { ConfigStore } = require('./src/platform/config/config-store');
-const { ScopeResolver, ResolvedScope } = require('./src/platform/config/layered-config');
-const { MachineSettings } = require('./src/platform/config/machine-settings');
 const { EventBus } = require('./src/platform/bus/event-bus');
 
 // platform 地基:LLM、语音
@@ -23,32 +25,50 @@ const { LlmClient } = require('./src/platform/llm/llm-client');
 const { cleanResponse } = require('./src/platform/llm/response-cleaner');
 const { VoicevoxBackend } = require('./src/platform/speech/voicevox-backend');
 const { CircuitBreaker } = require('./src/platform/speech/circuit-breaker');
+const { VoicevoxInstaller } = require('./src/platform/speech/voicevox-installer');
 
-// platform 地基:electron 工厂与 ipc
+// platform 地基:electron 工厂、源与 ipc
 const windowFactory = require('./src/platform/electron/window-factory');
 const trayFactory = require('./src/platform/electron/tray-factory');
 const screenSource = require('./src/platform/electron/screen-source');
+const { createActiveWindowSource } = require('./src/platform/electron/active-window-source');
+const { createSearchSource } = require('./src/platform/electron/search-source');
 const channelRegistry = require('./src/platform/ipc/channel-registry');
 const ipcRouter = require('./src/platform/ipc/ipc-router');
 const capabilityGateway = require('./src/platform/ipc/capability-gateway');
+const { registerAllHandlers, makeCapabilityExecutor } = require('./src/platform/ipc/handler-assembly');
 
 // 配置字段加解密:平台外的纯函数,经构造注入进 config-store
 const { encrypt, decrypt } = require('./src/main/crypto-utils');
+const { isValidUUID } = require('./src/main/validators');
+const I18N = require('./src/i18n/locales');
 
-// domain 角色层:意图、mod、感知、情绪、发言、tts、pet 编排
+// domain 角色层:意图、mod、感知、情绪、发言、tts、提示词、上下文源、pet 编排
 const { IntentRegistry } = require('./src/domain/intent/intent-registry');
 const { builtinIntents } = require('./src/domain/intent/builtin-intents');
 const { ModRegistry } = require('./src/domain/mod/mod-registry');
 const { KeyframeBuffer } = require('./src/domain/perception/keyframe-buffer');
 const { VlmExtractor } = require('./src/domain/perception/vlm-extractor');
 const { MemoryStore } = require('./src/domain/perception/memory-store');
-const { PerceptionSource } = require('./src/domain/perception/perception-source');
 const { EmotionState } = require('./src/domain/emotion/emotion-state');
 const { EmotionSelector } = require('./src/domain/emotion/emotion-selector');
 const { TtsOrchestrator } = require('./src/domain/tts/tts-orchestrator');
 const { UtteranceSession } = require('./src/domain/speech/utterance-session');
+const { FewShotBank } = require('./src/domain/fewshot/fewshot-bank');
+const { FewShotResolver } = require('./src/domain/fewshot/fewshot-resolver');
+const { PromptComposer } = require('./src/domain/pet/prompt-composer');
 const { RequestPipeline } = require('./src/domain/pet/request-pipeline');
 const { PetOrchestrator } = require('./src/domain/pet/pet');
+const { EmotionReaction } = require('./src/domain/pet/emotion-reaction');
+const { PerceptionCollector } = require('./src/domain/pet/perception-collector');
+const { SituationDigestSource } = require('./src/domain/pet/sources/situation-digest-source');
+const { VisualMemorySource } = require('./src/domain/pet/sources/visual-memory-source');
+const { FocusInfoSource } = require('./src/domain/pet/sources/focus-info-source');
+const { IdleInfoSource } = require('./src/domain/pet/sources/idle-info-source');
+const { RecentRepliesSource } = require('./src/domain/pet/sources/recent-replies-source');
+
+// 渲染侧向主进程推送进度的通道名:单向 send,不在 invoke 契约里,故直引字面量。
+const VOICEVOX_PROGRESS_CHANNEL = 'voicevox-setup-progress';
 
 //// 按依赖序装配 platform 地基,产出业务侧只见接口的能力集 [@busybee 2026-06-13] ////
 // app 在 whenReady 后才能取路径与版本,故装配分两段:此段只建不依赖 app 的纯地基。
@@ -63,7 +83,17 @@ function assemblePlatform() {
   const circuitBreaker = new CircuitBreaker({ maxFailures: 3, retryInterval: 60000, fallback: null });
   const speechBackend = new VoicevoxBackend({ koffi: require('koffi'), path, fs, circuitBreaker });
 
-  return { eventBus, pathUtils, repository, configStore, circuitBreaker, speechBackend };
+  // 活动窗口与网络搜索源:第三方 active-win 与 http/https 类型止于各自源文件
+  const activeWindow = createActiveWindowSource({});
+  const searchSource = createSearchSource({ http, https });
+
+  // 语音安装器:第三方进程调用(curl/tar/powershell)止于安装器,经注入的 runCommand 适配
+  const voicevoxInstaller = new VoicevoxInstaller({ fs, path, runCommand });
+
+  return {
+    eventBus, pathUtils, repository, configStore, circuitBreaker, speechBackend,
+    activeWindow, searchSource, voicevoxInstaller
+  };
 }
 //// /按依赖序装配 platform 地基 ////
 
@@ -81,8 +111,9 @@ function assembleLlmClient(global) {
 //// /用全局层配置造统一 LLM 客户端 ////
 
 //// 按依赖序装配 domain 角色层,经构造注入串起感知到发言的编排 [@busybee 2026-06-13] ////
-// platform 为已装配的地基;llmClient 为统一模型客户端。返回有状态子系统供生命周期优雅关闭。
-function assembleDomain(platform, llmClient) {
+// platform 为已装配的地基;llmClient 为统一模型客户端;global 为全局层配置快照(取人格)。
+// 返回有状态子系统与上下文源、连接件供生命周期与事件订阅使用。
+function assembleDomain(platform, llmClient, global) {
   const { eventBus, repository, speechBackend } = platform;
 
   // 意图:出厂两条核心意图在加载期被发现注入
@@ -93,40 +124,71 @@ function assembleDomain(platform, llmClient) {
   const modRegistry = new ModRegistry({ source: { list: () => [] }, globalEnabled: [] });
   modRegistry.discover();
 
-  // 感知:关键帧缓冲、态势抽取、记忆三件单一职责,折成一个命名上下文源
+  // 感知:关键帧缓冲、态势抽取、记忆三件单一职责
   const keyframeBuffer = new KeyframeBuffer();
   const vlmExtractor = new VlmExtractor({ llmClient, buffer: keyframeBuffer });
   const memoryStore = new MemoryStore({ repository });
-  const perceptionSource = new PerceptionSource({ extractor: vlmExtractor, memoryStore });
 
   // 情绪:状态推进到阈值发事件,有界 LLM 选语义动作名,经事件总线对外
   const emotionState = new EmotionState(eventBus, {});
-  const emotionSelector = new EmotionSelector(eventBus, llmClient, {});
+  const emotionSelector = new EmotionSelector(eventBus, llmClient, { enabledNames: global.enabledEmotions || [] });
+  // 情绪连接件:订阅发言产物,把刚说出的话喂给情绪选择器
+  const emotionReaction = new EmotionReaction({ eventBus, emotionSelector });
 
   // 发言与 TTS:分句合成对齐,产物经事件总线发布,取消经显式令牌
   const ttsOrchestrator = new TtsOrchestrator({ speechBackend });
   const utteranceSession = new UtteranceSession({ eventBus, ttsOrchestrator });
 
+  // 感知采集连接件:每帧投帧、选关键帧、抽态势、落记忆
+  const perceptionCollector = new PerceptionCollector({ buffer: keyframeBuffer, extractor: vlmExtractor, memoryStore });
+
+  // 命名上下文源:各以意图引用名为 id,注册进管线据 ref 解析
+  const contextSources = assembleContextSources({ vlmExtractor, memoryStore });
+
+  // 提示词组装器:接 few-shot 解析器与角色人格,按预算裁样例组装请求
+  const promptComposer = assemblePromptComposer(global);
+
   // 请求管线:上下文源注册表与提示词组装器经组合根注入,管线自身不抓全局
-  const sourceRegistry = makeSourceRegistry([perceptionSource]);
-  const pipeline = new RequestPipeline({
-    sources: sourceRegistry,
-    llmClient,
-    promptComposer: makePromptComposer()
-  });
+  const sourceRegistry = makeSourceRegistry(contextSources);
+  const pipeline = new RequestPipeline({ sources: sourceRegistry, llmClient, promptComposer });
 
   // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层
   const pet = new PetOrchestrator({ pipeline, llmClient, eventBus });
 
   return {
     intentRegistry, modRegistry,
-    keyframeBuffer, vlmExtractor, memoryStore, perceptionSource,
-    emotionState, emotionSelector,
+    keyframeBuffer, vlmExtractor, memoryStore, perceptionCollector,
+    emotionState, emotionSelector, emotionReaction,
     ttsOrchestrator, utteranceSession,
-    pipeline, pet
+    contextSources, promptComposer, pipeline, pet
   };
 }
 //// /按依赖序装配 domain 角色层 ////
+
+//// 装配五个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
+// situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies 暂无数据源,
+// 留空 provider 时它们 render 返回 null,装配阶段先接好类型,数据源后续补。
+function assembleContextSources(deps) {
+  const { vlmExtractor, memoryStore } = deps;
+  return [
+    new SituationDigestSource({ extractor: vlmExtractor }),
+    new VisualMemorySource({ memoryStore }),
+    new FocusInfoSource({}),
+    new IdleInfoSource({}),
+    new RecentRepliesSource({})
+  ];
+}
+//// /装配五个命名上下文源 ////
+
+//// 装配提示词组装器:few-shot 银行与解析器加角色人格 [@busybee 2026-06-13] ////
+// 银行暂无样例入库(磁盘 fewshot 目录为空),解析器对空引用返回空轮次;人格取自激活角色卡的 data。
+function assemblePromptComposer(global) {
+  const bank = new FewShotBank();
+  const fewShotResolver = new FewShotResolver(bank);
+  const persona = (global.activeCard && global.activeCard.data) || {};
+  return new PromptComposer({ fewShotResolver, persona });
+}
+//// /装配提示词组装器 ////
 
 //// 按 id 取命名上下文源的注册表:管线据此把意图的源引用解析成实例 [@busybee 2026-06-13] ////
 // sources 为已装配的上下文源数组;get 命中返回实例、未命中返回 null。
@@ -136,59 +198,53 @@ function makeSourceRegistry(sources) {
 }
 //// /按 id 取命名上下文源的注册表 ////
 
-//// 把已组装上下文与意图拼成 LLM 请求的 messages,管线经它产出请求 [@busybee 2026-06-13] ////
-// compose 收已组装上下文与意图,产出 { messages };只搭结构不内联成品措辞与人格文本。
-function makePromptComposer() {
-  return {
-    compose(intent, context) {
-      return {
-        messages: [
-          { role: 'system', content: '按给定上下文与意图产出一句角色发言。' },
-          { role: 'user', content: context.text || '' }
-        ]
-      };
-    }
-  };
-}
-//// /把已组装上下文与意图拼成 LLM 请求 ////
+//// 把领域事件经 IPC 转发到渲染窗口:发言进气泡与说话态、选定情绪进表情 [@busybee 2026-06-13] ////
+// 情绪连接件订阅发言产物已在 domain 装配;此处补两条把领域事件桥到宠物窗口的转发,死窗口由总线过滤。
+function subscribeRenderForwarders(eventBus, getPetWindow) {
+  // 发言产物:文本进舞台气泡,并把说话态切到开,供图片帧与表情联动
+  eventBus.subscribe('UtteranceProduced', (event) => {
+    const win = getPetWindow();
+    const text = spokenTextOf(event);
+    if (!win || !text) return;
+    win.webContents.send('show-chat-message', { message: text, autoCloseTime: event.bubbleDurationMs || 8000 });
+    win.webContents.send('talking-state-changed', true);
+  }, () => ipcRouter.isAlive(getPetWindow()));
 
-//// 把屏幕、外发、文件等重能力的执行委托给 platform 工厂,经能力网关门控 [@busybee 2026-06-13] ////
-// executor 按通道名分派到对应 platform 实现;网关在调用前过总闸与逐次确认,本函数不重复门控。
-function makeCapabilityExecutor(deps) {
-  return async function executor(capabilityId, payload) {
-    switch (capabilityId) {
-      case 'get-screen-capture':
-        return screenSource.captureScreen({});
-      case 'get-screen-capture-hq':
-        return screenSource.captureScreen({ targetTitle: payload && payload.targetTitle, quality: 80 });
-      case 'get-system-idle-time':
-        return screenSource.idleTime();
-      case 'open-external':
-        return electron.shell.openExternal(payload && payload.url);
-      default:
-        return { success: false, error: `能力 ${capabilityId} 未提供执行器` };
-    }
-  };
-}
-//// /把重能力的执行委托给 platform 工厂 ////
+  // 发言结束:把说话态切回关
+  eventBus.subscribe('UtteranceEnded', () => {
+    const win = getPetWindow();
+    if (win) win.webContents.send('talking-state-changed', false);
+  }, () => ipcRouter.isAlive(getPetWindow()));
 
-//// 把契约目录里的每个通道经 ipc-router 注册,并桥接到 ipcMain.handle [@busybee 2026-06-13] ////
-// 重能力域的通道经能力网关门控;其余无害控制通道直接走注入的处理器表。
-function registerIpc(handlers, gatewayScope) {
+  // 选定情绪:非空名转成播放表情,空名留给渲染层自行回退
+  eventBus.subscribe('EmotionSelected', (event) => {
+    const win = getPetWindow();
+    if (!win || !event.name) return;
+    win.webContents.send('play-expression', event.name);
+  }, () => ipcRouter.isAlive(getPetWindow()));
+}
+//// /把领域事件经 IPC 转发到渲染窗口 ////
+
+//// 从两种发言产物载荷里取出刚说出的话 [@busybee 2026-06-13] ////
+// utterance-session 发 { utterance:{ text } };pet 编排器发 { text }。
+function spokenTextOf(event) {
+  if (!event) return '';
+  if (event.utterance && event.utterance.text) return event.utterance.text;
+  return event.text || '';
+}
+//// /从两种发言产物载荷里取出刚说出的话 ////
+
+//// 把契约目录里仍未被处理器模块注册的通道补齐:窗口控制走窗口表,其余归一成可判定失败 [@busybee 2026-06-13] ////
+// 处理器模块已注册角色、模型、TTS、音频、感知、情绪、工具诸通道;此处只补窗口控制与尚无处理器的通道,
+// 再把每个通道桥到 electron 的 ipcMain.handle。register 重复会抛错,故先判定通道是否已注册。
+function registerRemainingIpc(handlers) {
   for (const channel of channelRegistry.channels()) {
-    const domain = channelRegistry.capabilityDomainOf(channel);
-    const gated = domain === channelRegistry.CapabilityDomain.screen
-      || domain === channelRegistry.CapabilityDomain.outbound
-      || domain === channelRegistry.CapabilityDomain.file;
-
+    if (ipcRouter.isRegistered(channel)) continue;
     const handler = handlers[channel];
-    if (gated) {
-      // 重能力统一经网关 invoke,缺处理器时网关回执行器
-      ipcRouter.register(channel, (payload) => capabilityGateway.invoke(channel, gatewayScope, payload));
-    } else if (typeof handler === 'function') {
+    if (typeof handler === 'function') {
       ipcRouter.register(channel, handler);
     } else {
-      // 无害控制通道暂无处理器时归一成可判定的未实现失败,而非裸抛
+      // 尚无处理器的控制通道归一成可判定的未实现失败,而非裸抛
       ipcRouter.register(channel, () => ({ success: false, error: `通道 ${channel} 暂无处理器` }));
     }
   }
@@ -198,25 +254,13 @@ function registerIpc(handlers, gatewayScope) {
     electron.ipcMain.handle(channel, (_event, ...args) => ipcRouter.dispatch(channel, args.length <= 1 ? args[0] : args));
   }
 }
-//// /把契约目录里的每个通道经 ipc-router 注册 ////
+//// /把契约目录里仍未被处理器模块注册的通道补齐 ////
 
-//// 装配主进程窗口与托盘的最小处理器表,均经 platform 工厂建第三方对象 [@busybee 2026-06-13] ////
-// runtime 持有窗口句柄等可变状态;返回按通道名索引的无害控制处理器。
+//// 装配主进程窗口控制的处理器表,均经 platform 工厂建第三方对象 [@busybee 2026-06-13] ////
+// runtime 持有窗口句柄等可变状态;返回按通道名索引的无害 UI 控制处理器。
 function makeWindowHandlers(runtime) {
   return {
-    'create-pet-window': () => {
-      if (windowFactory.isAlive(runtime.petWindow)) { runtime.petWindow.focus(); return { success: true }; }
-      runtime.petWindow = windowFactory.createWindow({
-        BrowserWindow: electron.BrowserWindow,
-        width: 300, height: 300, frame: false, transparent: true, alwaysOnTop: true,
-        resizable: true, skipTaskbar: true,
-        webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') }
-      });
-      runtime.petWindow.setAlwaysOnTop(true, 'screen-saver');
-      runtime.petWindow.loadFile(path.join(__dirname, 'desktop-pet.html'));
-      runtime.petWindow.on('closed', () => { runtime.petWindow = null; });
-      return { success: true };
-    },
+    'create-pet-window': () => { ensurePetWindow(runtime); return { success: true }; },
     'close-pet-window': () => { if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.close(); return { success: true }; },
     'set-window-size': (args) => { if (windowFactory.isAlive(runtime.petWindow)) runtime.petWindow.setSize(args[0], args[1]); return { success: true }; },
     'set-window-position': (args) => {
@@ -228,10 +272,47 @@ function makeWindowHandlers(runtime) {
     },
     'get-window-bounds': () => windowFactory.isAlive(runtime.petWindow) ? runtime.petWindow.getBounds() : { x: 0, y: 0, width: 200, height: 200 },
     'get-window-position': () => windowFactory.isAlive(runtime.petWindow) ? runtime.petWindow.getPosition() : { x: 0, y: 0 },
+    'get-cursor-position': () => electron.screen.getCursorScreenPoint(),
     'show-settings': () => { if (windowFactory.isAlive(runtime.settingsWindow)) { runtime.settingsWindow.show(); runtime.settingsWindow.focus(); } return { success: true }; }
   };
 }
-//// /装配主进程窗口与托盘的最小处理器表 ////
+//// /装配主进程窗口控制的处理器表 ////
+
+//// 建桌宠主窗口加载 desktop-pet.html,已在则聚焦 [@busybee 2026-06-13] ////
+// 透明无边覆盖窗,置顶到屏保层,关闭时清空句柄;窗口经 platform 工厂创建,第三方类型不外泄。
+function ensurePetWindow(runtime) {
+  if (windowFactory.isAlive(runtime.petWindow)) { runtime.petWindow.focus(); return runtime.petWindow; }
+  runtime.petWindow = windowFactory.createWindow({
+    BrowserWindow: electron.BrowserWindow,
+    width: 300, height: 300, frame: false, transparent: true, alwaysOnTop: true,
+    resizable: true, skipTaskbar: true,
+    webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') }
+  });
+  runtime.petWindow.setAlwaysOnTop(true, 'screen-saver');
+  runtime.petWindow.loadFile(path.join(__dirname, 'desktop-pet.html'));
+  runtime.petWindow.on('closed', () => { runtime.petWindow = null; });
+  return runtime.petWindow;
+}
+//// /建桌宠主窗口加载 desktop-pet.html ////
+
+//// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
+// 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
+function runCommand(cmd, args, options) {
+  return new Promise((resolve, reject) => {
+    childProcess.execFile(cmd, args, { timeout: (options && options.timeout) || 120000 }, (error, stdout) => {
+      if (error) reject(error);
+      else resolve(stdout);
+    });
+  });
+}
+//// /包 child_process.execFile 成 runCommand ////
+
+//// 取一个翻译串:缺省语言英文,未命中回退到键名,迁移自 i18n-helper [@busybee 2026-06-13] ////
+function mt(key) {
+  const lang = 'en';
+  return (I18N[lang] && I18N[lang][key]) || (I18N.en && I18N.en[key]) || key;
+}
+//// /取一个翻译串 ////
 
 // 主进程可变运行态:窗口句柄、托盘、退出标志,生命周期钩子据此协调
 const runtime = {
@@ -248,26 +329,35 @@ app.whenReady().then(async () => {
   const platform = assemblePlatform();
   runtime.platform = platform;
 
-  // 读全局层配置,据此造 LLM 客户端并装配领域层
+  // 读全局层配置,把激活角色卡的人格并进快照,据此造 LLM 客户端并装配领域层
   const global = (await platform.configStore.read('global')) || {};
+  global.activeCard = await loadActiveCard(platform, global);
   const llmClient = assembleLlmClient(global);
-  runtime.domain = assembleDomain(platform, llmClient);
+  runtime.domain = assembleDomain(platform, llmClient, global);
 
   // 记忆生命周期由组合根显式驱动:启动时加载中期记忆
   await runtime.domain.memoryStore.load();
 
-  // 能力网关装配协作者:执行器委托 platform 工厂,逐次确认默认放行
+  // 情绪连接件订阅发言产物;领域事件经 IPC 转发到宠物窗口
+  runtime.domain.emotionReaction.start();
+  subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime));
+
+  // 能力网关装配协作者:执行器组合屏幕与外发文件两域,逐次确认默认放行
   capabilityGateway.configure({
-    executor: makeCapabilityExecutor({ platform }),
+    executor: makeCapabilityExecutor({
+      screenSource, activeWindow: platform.activeWindow,
+      shell: electron.shell, searchSource: platform.searchSource,
+      enhanceStore: makeEnhanceStore(platform), isValidUrl: isValidHttpUrl
+    }),
     masterEnabled: () => true,
     confirm: () => true
   });
 
-  // 注册 IPC:无害控制走窗口处理器表,重能力经网关
-  const windowHandlers = makeWindowHandlers(runtime);
-  registerIpc(windowHandlers, 'global');
+  // 注册全部 IPC 处理器,再补齐窗口控制与尚无处理器的通道
+  const assembled = registerAllHandlers(ipcRouter, capabilityGateway, makeHandlerDeps(platform, global));
+  registerRemainingIpc(makeWindowHandlers(runtime));
 
-  // 建设置窗口与托盘:第三方对象只经 platform 工厂创建
+  // 设置窗口与托盘:第三方对象只经 platform 工厂创建
   runtime.settingsWindow = windowFactory.createWindow({
     BrowserWindow: electron.BrowserWindow,
     width: 480, height: 600, frame: true, resizable: false,
@@ -291,17 +381,199 @@ app.whenReady().then(async () => {
     { label: 'Quit', click: () => { runtime.isQuitting = true; app.quit(); } }
   ]);
 
-  // TTS 后端初始化:有 voicevox_core 目录才启,缺失则保持禁用态
+  // 建桌宠主窗口加载 desktop-pet.html
+  ensurePetWindow(runtime);
+
+  // 内置卡迁移与语音后端初始化:不阻塞就绪
+  setImmediate(() => { assembled.migrateBundledCards().catch((e) => console.error('[main] 内置卡迁移失败:', e && e.message)); });
   initSpeechBackend(platform);
 });
 //// /在 app 就绪后完成依赖 app 的装配 ////
 
+//// 读激活角色卡:从 assets/prompts 下按激活 id 取卡,缺失返回空 [@busybee 2026-06-13] ////
+// 人格只读卡的 data 段;卡文件先查用户数据目录,缺省回退到内置卡目录。
+async function loadActiveCard(platform, global) {
+  const id = global.activeCharacterId;
+  if (!id || !isValidUUID(id)) return null;
+  const userPath = path.join(platform.pathUtils.userDataDir(), 'characters', `${id}.json`);
+  const bundledPath = path.join(__dirname, 'assets', 'prompts', `${id}.json`);
+  const file = fs.existsSync(userPath) ? userPath : (fs.existsSync(bundledPath) ? bundledPath : null);
+  if (!file) return null;
+  try { return JSON.parse(await fsPromises.readFile(file, 'utf-8')); }
+  catch { return null; }
+}
+//// /读激活角色卡 ////
+
+//// 装配 IPC 处理器所需的全部窄接口与门面,交给处理器装配模块 [@busybee 2026-06-13] ////
+// 第三方门面(fs、path、dialog、shell、app)在此就地注入;窗口取值返回裸 BrowserWindow 供转发判存活。
+function makeHandlerDeps(platform, global) {
+  return {
+    configStore: platform.configStore,
+    eventBus: platform.eventBus,
+    speechBackend: platform.speechBackend,
+    ttsOrchestrator: runtime.domain.ttsOrchestrator,
+    voicevoxInstaller: platform.voicevoxInstaller,
+    screenSource,
+    paths: platform.pathUtils,
+    fs, path, mt,
+    // 角色卡存储与内置卡源
+    cardStore: makeCardStore(platform),
+    bundledCards: makeBundledCards(platform, global),
+    newId: () => crypto.randomUUID(),
+    chooseCharacterFiles: () => chooseFiles({ filters: [{ name: 'JSON', extensions: ['json'] }] }),
+    // 模型文件选择与文件系统窄接口
+    picker: makePicker(),
+    files: makeFilesFacade(),
+    // 工具与增强数据
+    appInfo: { appPath: () => app.getAppPath() },
+    enhanceStore: makeEnhanceStore(platform),
+    logSink: { write: (level, args) => console[level === 'error' ? 'error' : 'log']('[renderer]', ...(args || [])) },
+    // 语音安装与配置目录、重启、进度
+    resolveVoicevoxDir: () => resolveVoicevoxDir(platform),
+    resolveDefaultAudioDir: () => path.join(platform.pathUtils.userDataDir(), 'default-audio'),
+    notifyVoicevoxProgress: (progress) => { const w = petWindowRaw(runtime); if (w) w.webContents.send(VOICEVOX_PROGRESS_CHANNEL, progress); },
+    relaunch: () => { app.relaunch(); app.exit(0); },
+    translate: null,
+    // 转发窗口取值:返回裸 BrowserWindow,死窗口转发判定据其 isDestroyed
+    petWindowRaw: () => petWindowRaw(runtime),
+    settingsWindowRaw: () => settingsWindowRaw(runtime)
+  };
+}
+//// /装配 IPC 处理器所需的全部窄接口与门面 ////
+
+//// 角色卡文件存储窄接口:卡文件落在用户数据目录的 characters 下,异步读写 [@busybee 2026-06-13] ////
+function makeCardStore(platform) {
+  const dir = () => path.join(platform.pathUtils.userDataDir(), 'characters');
+  const file = (id) => path.join(dir(), `${id}.json`);
+  return {
+    async get(id) {
+      try { return JSON.parse(await fsPromises.readFile(file(id), 'utf-8')); }
+      catch { return null; }
+    },
+    async put(id, data) {
+      await fsPromises.mkdir(dir(), { recursive: true });
+      await fsPromises.writeFile(file(id), JSON.stringify(data, null, 2), 'utf-8');
+    },
+    async remove(id) { try { await fsPromises.unlink(file(id)); } catch {} },
+    async exists(id) { try { await fsPromises.access(file(id)); return true; } catch { return false; } },
+    async listIds() {
+      try {
+        const names = await fsPromises.readdir(dir());
+        return names.filter((n) => n.endsWith('.json')).map((n) => n.replace('.json', ''));
+      } catch { return []; }
+    }
+  };
+}
+//// /角色卡文件存储窄接口 ////
+
+//// 内置卡源:从 assets/prompts 读出厂卡,版本经用户数据目录里的标记文件记 [@busybee 2026-06-13] ////
+function makeBundledCards(platform, global) {
+  const promptsDir = path.join(__dirname, 'assets', 'prompts');
+  const versionFile = path.join(platform.pathUtils.userDataDir(), 'bundled-cards-version.txt');
+  return {
+    async isPackaged() { return platform.pathUtils.isPackaged; },
+    async currentVersion() { return String(global.configVersion || app.getVersion()); },
+    async readVersion() { try { return (await fsPromises.readFile(versionFile, 'utf-8')).trim(); } catch { return ''; } },
+    async writeVersion(v) {
+      await fsPromises.mkdir(path.dirname(versionFile), { recursive: true });
+      await fsPromises.writeFile(versionFile, String(v), 'utf-8');
+    },
+    async listNames() {
+      try { return (await fsPromises.readdir(promptsDir)).filter((n) => n.endsWith('.json')); }
+      catch { return []; }
+    },
+    async read(name) { return JSON.parse(await fsPromises.readFile(path.join(promptsDir, name), 'utf-8')); }
+  };
+}
+//// /内置卡源 ////
+
+//// 文件选择框窄接口:包 electron.dialog 的目录与文件选择,产出平直 { canceled, paths } [@busybee 2026-06-13] ////
+function makePicker() {
+  return {
+    async pickDirectory(opts) {
+      return electron.dialog.showOpenDialog({ title: opts && opts.title, properties: ['openDirectory'] });
+    },
+    async pickFile(opts) {
+      return electron.dialog.showOpenDialog({ title: opts && opts.title, filters: opts && opts.filters, properties: ['openFile'] });
+    }
+  };
+}
+//// /文件选择框窄接口 ////
+
+//// 选若干文件并读出其文本内容:供角色卡导入,取消返回空数组 [@busybee 2026-06-13] ////
+async function chooseFiles(opts) {
+  const result = await electron.dialog.showOpenDialog({ filters: opts && opts.filters, properties: ['openFile', 'multiSelections'] });
+  if (result.canceled || !result.filePaths || result.filePaths.length === 0) return [];
+  const texts = [];
+  for (const p of result.filePaths) {
+    try { texts.push(await fsPromises.readFile(p, 'utf-8')); } catch {}
+  }
+  return texts;
+}
+//// /选若干文件并读出其文本内容 ////
+
+//// 文件系统门面:模型处理器期待的异步文件接口加同步纯路径助手 [@busybee 2026-06-13] ////
+function makeFilesFacade() {
+  return {
+    join: (...parts) => path.join(...parts),
+    extname: (p) => path.extname(p),
+    basename: (p) => path.basename(p),
+    async listDir(dir) { try { return await fsPromises.readdir(dir); } catch { return []; } },
+    async readJson(p) { return JSON.parse(await fsPromises.readFile(p, 'utf-8')); },
+    async exists(p) { try { await fsPromises.access(p); return true; } catch { return false; } },
+    async isDirectory(p) { try { return (await fsPromises.stat(p)).isDirectory(); } catch { return false; } },
+    async copyFile(src, dest) {
+      await fsPromises.mkdir(path.dirname(dest), { recursive: true });
+      await fsPromises.copyFile(src, dest);
+    },
+    async copyDir(src, dest) { await fsPromises.cp(src, dest, { recursive: true }); },
+    async removeDir(p) { await fsPromises.rm(p, { recursive: true, force: true }); }
+  };
+}
+//// /文件系统门面 ////
+
+//// 增强数据存储:经仓储读写一份 enhance 数据,网关执行体据此落盘 [@busybee 2026-06-13] ////
+function makeEnhanceStore(platform) {
+  return {
+    async save(data) { await platform.repository.put('enhance-data', data); return { success: true }; },
+    async load() { return { success: true, data: (await platform.repository.get('enhance-data')) || null }; }
+  };
+}
+//// /增强数据存储 ////
+
+//// 取裸宠物窗口供转发判存活,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+function petWindowRaw(rt) {
+  return windowFactory.isAlive(rt.petWindow) ? rt.petWindow._raw : null;
+}
+//// /取裸宠物窗口供转发判存活 ////
+
+//// 取裸设置窗口供转发判存活,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+function settingsWindowRaw(rt) {
+  return windowFactory.isAlive(rt.settingsWindow) ? rt.settingsWindow._raw : null;
+}
+//// /取裸设置窗口供转发判存活 ////
+
+//// 算 voicevox 资源根:优先用户数据目录,缺省回退安装目录,均无返回 null [@busybee 2026-06-13] ////
+function resolveVoicevoxDir(platform) {
+  const userDir = path.join(platform.pathUtils.userDataDir(), 'voicevox_core');
+  const fallbackDir = path.join(__dirname, 'voicevox_core');
+  if (fs.existsSync(userDir)) return userDir;
+  if (fs.existsSync(fallbackDir)) return fallbackDir;
+  return null;
+}
+//// /算 voicevox 资源根 ////
+
+//// 判定一个外发地址是合法 http/https 链接,供工具执行器门控外链 [@busybee 2026-06-13] ////
+function isValidHttpUrl(url) {
+  try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
+  catch { return false; }
+}
+//// /判定一个外发地址是合法 http/https 链接 ////
+
 //// 在不阻塞就绪的前提下初始化语音后端,缺运行时文件则保持禁用 [@busybee 2026-06-13] ////
 function initSpeechBackend(platform) {
   setImmediate(() => {
-    const voicevoxDir = path.join(platform.pathUtils.userDataDir(), 'voicevox_core');
-    const fallbackDir = path.join(__dirname, 'voicevox_core');
-    const dir = fs.existsSync(voicevoxDir) ? voicevoxDir : (fs.existsSync(fallbackDir) ? fallbackDir : null);
+    const dir = resolveVoicevoxDir(platform);
     if (!dir) {
       console.log('[main] voicevox_core 未找到,语音禁用');
       return;

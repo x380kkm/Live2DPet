@@ -4,9 +4,9 @@
 // 不变量:与 Live2D 实现共用同一套语义动作名,不引入任何 Live2D 或 Cubism 类型;
 // 图片元素与配置经构造注入,本文件不抓任何全局。
 
-const { RenderAdapter } = require('./model-renderer');
+import { RenderAdapter } from './model-renderer.js';
 
-class ImageRenderer extends RenderAdapter {
+export class ImageRenderer extends RenderAdapter {
   //// 经构造注入接收图片元素与配置,建好分帧池,不抓全局 [@busybee 2026-06-13] ////
   // deps:{ imageElement, config }。imageElement 为页面里的 <img>,由组合根取好后注入。
   constructor(deps) {
@@ -112,5 +112,3 @@ class ImageRenderer extends RenderAdapter {
     }
   }
 }
-
-module.exports = { ImageRenderer };

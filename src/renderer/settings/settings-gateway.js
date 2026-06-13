@@ -4,7 +4,7 @@
 // 不变量:子面板只见本文件交回的分组句柄,不直接抓 window.electronAPI 全量表。
 
 //// 把 preload 暴露的 api 收窄成设置面板各领域所需的最小动作集 [@busybee 2026-06-13] ////
-function makeSettingsGateway(electronApi) {
+export function makeSettingsGateway(electronApi) {
   const api = electronApi || {};
   return {
     config: {
@@ -49,5 +49,3 @@ function makeSettingsGateway(electronApi) {
     }
   };
 }
-
-module.exports = { makeSettingsGateway };

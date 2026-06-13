@@ -3,10 +3,10 @@
 // 设置标签页子面板:API 接入、翻译 API、检测频率、token 倍率、增强总闸。
 // 不变量:以配置数据模型为真相来源;保存时只发出本领域的配置补丁,不重读整表。
 
-const { tokenCountForMultiplier } = require('./settings-model');
+import { tokenCountForMultiplier } from './settings-model.js';
 
 //// 装配设置标签页的各项控件,绑定到配置数据模型与配置网关 [@busybee 2026-06-13] ////
-function mountApiPanel(ctx) {
+export function mountApiPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.config;
 
@@ -85,5 +85,3 @@ function renderTokenMultiplier(ctx, multiplier) {
     info.textContent = t('enhance.tokens.info').replace('{0}', tokens).replace('{1}', multiplier);
   }
 }
-
-module.exports = { mountApiPanel };

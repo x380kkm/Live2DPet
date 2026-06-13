@@ -3,12 +3,12 @@
 // RenderAdapter 的 Live2D 实现:PIXI 与 Cubism 的私有字段访问全部收在此一文件。
 // 不变量:Cubism 私有字段不外泄给本文件以外的任何模块;PIXI 与 Cubism 经构造注入,本文件不抓任何全局。
 
-const { RenderAdapter, resolveAction, clampOpenness } = require('./model-renderer');
+import { RenderAdapter, resolveAction, clampOpenness } from './model-renderer.js';
 
 // Cubism 标准口型参数名,config.paramMapping.mouthOpenY 未给时回退到它。
 const DEFAULT_MOUTH_PARAM = 'ParamMouthOpenY';
 
-class Live2dRenderer extends RenderAdapter {
+export class Live2dRenderer extends RenderAdapter {
   //// 经构造注入接收 PIXI、Cubism 模型与配置,持有内部状态,不抓全局 [@busybee 2026-06-13] ////
   // deps:{ pixiApp, model, config, fetchJson }。pixiApp 与 model 由组合根创建后注入,
   // fetchJson(url) 用于加载表情文件,把对 fetch 的依赖也收口在注入参数里。
@@ -144,5 +144,3 @@ class Live2dRenderer extends RenderAdapter {
     this.savedParamDefaults = null;
   }
 }
-
-module.exports = { Live2dRenderer };

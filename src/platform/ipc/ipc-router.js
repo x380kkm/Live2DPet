@@ -40,6 +40,11 @@ async function dispatch(channelName, payload) {
   }
 }
 
+//// 判断一个通道是否已登记处理器,供组合根补齐剩余通道时避开重复注册 [@busybee 2026-06-13] ////
+function isRegistered(channelName) {
+  return handlers.has(channelName);
+}
+
 //// 判断一个目标窗口仍存活,集中替代各转发处逐字重复的存活判断 [@busybee 2026-06-13] ////
 function isAlive(target) {
   return !!target && typeof target.isDestroyed === 'function' && !target.isDestroyed();
@@ -50,4 +55,4 @@ function reset() {
   handlers.clear();
 }
 
-module.exports = { register, dispatch, isAlive, reset };
+module.exports = { register, dispatch, isAlive, isRegistered, reset };

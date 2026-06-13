@@ -4,13 +4,13 @@
 // 不变量:本文件不碰 DOM、不碰 window;只做纯数据快照持有与无副作用转换,可脱离浏览器单测。
 
 // 模型参数到 i18n 标签键的固定映射,决定参数映射面板的行顺序。
-const PARAM_LABELS = {
+export const PARAM_LABELS = {
   angleX: 'param.angleX', angleY: 'param.angleY', angleZ: 'param.angleZ',
   bodyAngleX: 'param.bodyAngleX', eyeBallX: 'param.eyeBallX', eyeBallY: 'param.eyeBallY'
 };
 
 // 每个 VVM 文件包含的角色描述,作为语音模型勾选面板的单一目录。
-const VVM_CHARACTERS = {
+export const VVM_CHARACTERS = {
   '0.vvm': '四国めたん, ずんだもん, 春日部つむぎ, 雨晴はう',
   '1.vvm': '冥鳴ひまり',
   '2.vvm': '九州そら',
@@ -39,7 +39,7 @@ const VVM_CHARACTERS = {
 };
 
 //// 把候选参数 id 排序成建议项在前、其余按字母序 [@busybee 2026-06-13] ////
-function sortParamCandidates(scannedIds, suggested) {
+export function sortParamCandidates(scannedIds, suggested) {
   return [...scannedIds].sort((a, b) => {
     if (a === suggested) return -1;
     if (b === suggested) return 1;
@@ -48,25 +48,25 @@ function sortParamCandidates(scannedIds, suggested) {
 }
 
 //// 把秒转成毫秒整数,非正数视为缺省返回 null [@busybee 2026-06-13] ////
-function secondsToMs(seconds) {
+export function secondsToMs(seconds) {
   const value = parseFloat(seconds);
   if (!(value > 0)) return null;
   return Math.round(value * 1000);
 }
 
 //// 把毫秒转成秒,缺失返回空串供输入框占位 [@busybee 2026-06-13] ////
-function msToSeconds(ms) {
+export function msToSeconds(ms) {
   if (!ms) return '';
   return ms / 1000;
 }
 
 //// 取一个带正数下限兜底的秒转毫秒,用于缺省时长 [@busybee 2026-06-13] ////
-function secondsToMsWithFallback(seconds, fallbackMs) {
+export function secondsToMsWithFallback(seconds, fallbackMs) {
   return secondsToMs(seconds) || fallbackMs;
 }
 
 //// 把扫描出的图片列表与既有配置按文件名合并,保留既有的分类开关 [@busybee 2026-06-13] ////
-function mergeImageFiles(existingFiles, scannedImages) {
+export function mergeImageFiles(existingFiles, scannedImages) {
   const existingByName = {};
   for (const file of existingFiles || []) existingByName[file.file] = file;
   return scannedImages.map((image) => {
@@ -76,7 +76,7 @@ function mergeImageFiles(existingFiles, scannedImages) {
 }
 
 //// 从图片的情绪名去重生成表情列表,供情绪系统使用 [@busybee 2026-06-13] ////
-function deriveExpressionsFromImageEmotions(imageFiles) {
+export function deriveExpressionsFromImageEmotions(imageFiles) {
   const names = new Set();
   for (const file of imageFiles || []) {
     if (file.emotionName) names.add(file.emotionName);
@@ -85,14 +85,14 @@ function deriveExpressionsFromImageEmotions(imageFiles) {
 }
 
 //// 把扫描出的表情结果映射成配置里的表情项 [@busybee 2026-06-13] ////
-function expressionsFromScan(scannedExpressions) {
+export function expressionsFromScan(scannedExpressions) {
   return (scannedExpressions || []).map((expr) => ({
     name: expr.name, label: expr.name, file: expr.file
   }));
 }
 
 //// 把扫描出的分组动作扁平成动作情绪项,文件名去路径去后缀作名 [@busybee 2026-06-13] ////
-function motionEmotionsFromScan(scannedMotions) {
+export function motionEmotionsFromScan(scannedMotions) {
   const result = [];
   for (const [group, entries] of Object.entries(scannedMotions || {})) {
     entries.forEach((entry, index) => {
@@ -106,7 +106,7 @@ function motionEmotionsFromScan(scannedMotions) {
 }
 
 //// 为每个 VVM 文件算出勾选面板的状态:磁盘是否就绪、是否选中、是否禁用 [@busybee 2026-06-13] ////
-function availableVvmState(availableOnDisk, loadedFiles) {
+export function availableVvmState(availableOnDisk, loadedFiles) {
   const loaded = new Set(loadedFiles || []);
   const onDisk = new Set(availableOnDisk || []);
   return Object.keys(VVM_CHARACTERS).map((file) => {
@@ -122,7 +122,7 @@ function availableVvmState(availableOnDisk, loadedFiles) {
 }
 
 //// 在说话人元数据里按 styleId 定位说话人下标与该说话人的样式列表 [@busybee 2026-06-13] ////
-function resolveStyleSelection(metas, styleId) {
+export function resolveStyleSelection(metas, styleId) {
   for (let speakerIndex = 0; speakerIndex < (metas || []).length; speakerIndex++) {
     const styles = metas[speakerIndex].styles || [];
     if (styles.some((style) => style.id === styleId)) {
@@ -133,12 +133,12 @@ function resolveStyleSelection(metas, styleId) {
 }
 
 //// 由倍率算出展示用的最大 token 数,基准 2048 [@busybee 2026-06-13] ////
-function tokenCountForMultiplier(multiplier) {
+export function tokenCountForMultiplier(multiplier) {
   return Math.round(2048 * multiplier);
 }
 
 //// 设置面板的配置数据模型:持有一份内存快照作真相来源,产出落盘用的补丁 [@busybee 2026-06-13] ////
-class SettingsModel {
+export class SettingsModel {
   constructor(snapshot = {}) {
     // 深拷贝传入快照,避免与调用方共享引用导致意外联动。
     this.config = JSON.parse(JSON.stringify(snapshot));
@@ -246,20 +246,3 @@ class SettingsModel {
     this.scan = { parameterIds: [], suggestedMapping: {}, motions: {} };
   }
 }
-
-module.exports = {
-  SettingsModel,
-  PARAM_LABELS,
-  VVM_CHARACTERS,
-  sortParamCandidates,
-  secondsToMs,
-  msToSeconds,
-  secondsToMsWithFallback,
-  mergeImageFiles,
-  deriveExpressionsFromImageEmotions,
-  expressionsFromScan,
-  motionEmotionsFromScan,
-  availableVvmState,
-  resolveStyleSelection,
-  tokenCountForMultiplier
-};

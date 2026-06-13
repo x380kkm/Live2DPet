@@ -4,9 +4,14 @@
 // 不变量:渲染侧只经此处装配,业务模块从不直接抓全局,只见构造注入的接口。
 
 import { CharacterStage } from '../stage/character-stage.js';
+import { Live2dRenderer } from '../../platform/render/live2d-renderer.js';
+import { ImageRenderer } from '../../platform/render/image-renderer.js';
 
 // 尺寸档位:控件加减号在这几档间移动,组合根只持档位顺序,不散落在多处按钮回调里。
 export const SIZE_PRESETS = [200, 300, 400, 500];
+
+// 模型相对画布的竖直锚点比例:模型中心落在画布高度的这一比例处。
+const MODEL_Y_RATIO = 0.6;
 
 // 默认档位下标:200/300/400/500 里的 300,启动与回退都用它。
 const DEFAULT_SIZE_INDEX = 1;
@@ -102,6 +107,113 @@ function clampUnit(value) {
   if (value > 1) return 1;
   return value;
 }
+
+//// 按模型计划造真实渲染适配:live2d 起 PIXI 与 Cubism、image 接图片元素、none 给空适配 [@busybee 2026-06-13] ////
+// env 注入浏览器侧全局便于测试替换:{ PIXI, Live2DModel, doc, fetchJson }。
+//   PIXI         libs/pixi.min.js 暴露的全局 PIXI
+//   Live2DModel  libs/cubism4.min.js 挂在 PIXI.live2d.Live2DModel 上的模型类
+//   doc          document,用于取画布与图片元素
+//   fetchJson    取 JSON 的函数,加载表情文件用,封住对 fetch 的依赖
+// live2d 适配在此完成 PIXI 应用创建、模型加载、缩放贴合与每帧表情应用;Cubism 私有字段访问仍只在 live2d-renderer 内。
+// 头部跟踪所需的角度参数写入 live2d-renderer 暂未暴露公开方法,setTrack 先记录坐标待该方法补齐,见缺口说明。
+export async function createRenderAdapter(plan, env) {
+  if (plan.kind === 'image') {
+    return makeImageAdapter(plan, env);
+  }
+  if (plan.kind !== 'live2d') {
+    return makeNullAdapter();
+  }
+  return makeLive2dAdapter(plan, env);
+}
+//// /按模型计划造真实渲染适配 ////
+
+//// 造 live2d 适配:起 PIXI 应用、加载模型、贴合画布、加表情、挂每帧应用 [@busybee 2026-06-13] ////
+async function makeLive2dAdapter(plan, env) {
+  const { PIXI, Live2DModel, doc, fetchJson } = env;
+  const canvas = doc.getElementById('live2d-canvas');
+
+  if (Live2DModel && typeof Live2DModel.registerTicker === 'function') {
+    Live2DModel.registerTicker(PIXI.Ticker);
+  }
+
+  const pixiApp = new PIXI.Application({
+    view: canvas, transparent: true, autoStart: true,
+    width: env.width || (doc.defaultView && doc.defaultView.innerWidth) || 300,
+    height: env.height || (doc.defaultView && doc.defaultView.innerHeight) || 300,
+    backgroundAlpha: 0, resolution: (doc.defaultView && doc.defaultView.devicePixelRatio) || 1,
+    autoDensity: true, antialias: true
+  });
+
+  const modelPath = modelFileUrl(plan.resolvedModelDir, plan.config.modelJsonFile);
+  const model = await Live2DModel.from(modelPath, { autoUpdate: true, autoInteract: false });
+  model.anchor.set(0.5, 0.5);
+  pixiApp.stage.addChild(model);
+  fitModel(model, pixiApp);
+
+  const renderer = new Live2dRenderer({ pixiApp, model, config: plan.config, fetchJson });
+  await renderer.loadExpressions(plan.resolvedModelDir);
+
+  // 每帧把当前激活表情写进模型,口型与表情的逐帧应用收在 live2d-renderer 内。
+  pixiApp.ticker.add(() => renderer.applyExpression());
+
+  return wrapTrackable(renderer);
+}
+//// /造 live2d 适配 ////
+
+//// 造 image 适配:取页面图片元素,隐藏画布,接图片渲染器 [@busybee 2026-06-13] ////
+function makeImageAdapter(plan, env) {
+  const doc = env.doc;
+  const canvas = doc.getElementById('live2d-canvas');
+  if (canvas) canvas.style.display = 'none';
+  const imageElement = doc.getElementById('static-image');
+  if (imageElement) imageElement.style.display = 'block';
+  const renderer = new ImageRenderer({ imageElement, config: plan.config });
+  return wrapTrackable(renderer);
+}
+//// /造 image 适配 ////
+
+//// 造空适配:无模型时只兑现接口,什么都不做 [@busybee 2026-06-13] ////
+function makeNullAdapter() {
+  return { playAction() {}, revertAction() {}, setTalking() {}, setTrack() {}, dispose() {} };
+}
+//// /造空适配 ////
+
+//// 给渲染器补上 setTrack 与 setTalking,使其满足 stage-boot 调用的适配接口 [@busybee 2026-06-13] ////
+// live2d 渲染器无 setTalking、两渲染器都无 setTrack;此处补成无害默认,有则透传。
+// setTrack 暂存坐标:头部偏转所需的角度参数写入待 live2d-renderer 暴露公开方法后接通。
+function wrapTrackable(renderer) {
+  renderer.track = { x: 0, y: 0 };
+  if (typeof renderer.setTrack !== 'function') {
+    renderer.setTrack = (x, y) => { renderer.track.x = x; renderer.track.y = y; };
+  }
+  if (typeof renderer.setTalking !== 'function') {
+    renderer.setTalking = () => {};
+  }
+  return renderer;
+}
+//// /给渲染器补上 setTrack 与 setTalking ////
+
+//// 把模型目录与 model3.json 文件名拼成可加载的 file:// 地址 [@busybee 2026-06-13] ////
+// 已是 file:// 或 http 的目录原样用;否则转成 file:/// 并把反斜杠换成正斜杠。
+function modelFileUrl(modelDir, modelJsonFile) {
+  let base = modelDir || '';
+  if (!base.startsWith('file://') && !base.startsWith('http')) {
+    base = 'file:///' + base.replace(/\\/g, '/');
+  }
+  return base + '/' + modelJsonFile;
+}
+//// /把模型目录与 model3.json 文件名拼成可加载的 file:// 地址 ////
+
+//// 把模型按画布宽度等比缩放并锚到画布中下部 [@busybee 2026-06-13] ////
+function fitModel(model, pixiApp) {
+  const w = pixiApp.renderer.width;
+  const h = pixiApp.renderer.height;
+  const origW = model.width || w;
+  model.scale.set(w / origW);
+  model.x = w / 2;
+  model.y = h * MODEL_Y_RATIO;
+}
+//// /把模型按画布宽度等比缩放并锚到画布中下部 ////
 
 //// 装配角色舞台:取窄接口与注入的渲染适配工厂,挂头部、控件、跟踪与事件订阅 [@busybee 2026-06-13] ////
 // narrowApi 为 preload 暴露的窄接口(window.electronAPI);deps 注入可替换的协作者:

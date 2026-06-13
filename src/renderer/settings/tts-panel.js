@@ -3,10 +3,10 @@
 // TTS 标签页子面板:引擎状态、说话人与样式、语速音高音量、音频模式、默认音声、VVM 勾选。
 // 不变量:说话人元数据与 VVM 勾选态由能力网关取得,经纯逻辑算出视图;保存只发 tts 段补丁不触发整表重载。
 
-const { availableVvmState, resolveStyleSelection, VVM_CHARACTERS } = require('./settings-model');
+import { availableVvmState, resolveStyleSelection, VVM_CHARACTERS } from './settings-model.js';
 
 //// 装配 TTS 面板:载入状态、绑定滑块与各保存按钮 [@busybee 2026-06-13] ////
-function mountTtsPanel(ctx) {
+export function mountTtsPanel(ctx) {
   const { doc } = ctx;
   // 说话人元数据缓存,样式联动下拉据此构建。
   const state = { metas: [] };
@@ -301,4 +301,4 @@ async function saveVvm(ctx) {
   await gateway.system.relaunch();
 }
 
-module.exports = { mountTtsPanel, VVM_CHARACTERS };
+export { VVM_CHARACTERS };

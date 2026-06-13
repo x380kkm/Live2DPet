@@ -25,7 +25,7 @@ const HIT_IDS = {
 };
 
 //// 装配角色卡面板,持有当前角色 id 与新建改名的输入状态 [@busybee 2026-06-13] ////
-function mountCharacterPanel(ctx) {
+export function mountCharacterPanel(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
   const state = { currentId: null, nameAction: null };
 
@@ -64,7 +64,7 @@ function mountCharacterPanel(ctx) {
 }
 
 //// 拉取角色卡列表填入下拉并载入当前角色字段 [@busybee 2026-06-13] ////
-async function loadCharacterList(ctx, state) {
+export async function loadCharacterList(ctx, state) {
   const { doc, gateway, t } = ctx;
   if (!gateway.character.list) return;
   const { characters, activeCharacterId } = await gateway.character.list();
@@ -212,5 +212,3 @@ async function savePrompt(ctx, state) {
     showStatus('prompt-status', t('status.saveFail') + result.error, 'error');
   }
 }
-
-module.exports = { mountCharacterPanel, loadCharacterList };

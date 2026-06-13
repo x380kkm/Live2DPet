@@ -5,7 +5,9 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { SettingsApp } = require('../../src/renderer/settings/settings-app');
+
+// settings-app 是 ESM(渲染侧),用动态 import 载入。
+const loadApp = () => import('../../src/renderer/settings/settings-app.js');
 
 //// 造一个最小文档 mock:支撑 getElementById、querySelectorAll 与元素属性读写 [@busybee 2026-06-13] ////
 function mockDoc() {
@@ -30,24 +32,28 @@ function mockDoc() {
   };
 }
 
-test('t 命中当前语言', () => {
+test('t 命中当前语言', async () => {
+  const { SettingsApp } = await loadApp();
   const app = new SettingsApp({ doc: mockDoc(), i18n: { en: { 'k': 'EN' }, zh: { 'k': 'ZH' } } });
   app.currentLang = 'zh';
   assert.strictEqual(app.t('k'), 'ZH');
 });
 
-test('t 当前语言缺键时回退英文', () => {
+test('t 当前语言缺键时回退英文', async () => {
+  const { SettingsApp } = await loadApp();
   const app = new SettingsApp({ doc: mockDoc(), i18n: { en: { 'k': 'EN' }, zh: {} } });
   app.currentLang = 'zh';
   assert.strictEqual(app.t('k'), 'EN');
 });
 
-test('t 两层都缺时回退键名本身', () => {
+test('t 两层都缺时回退键名本身', async () => {
+  const { SettingsApp } = await loadApp();
   const app = new SettingsApp({ doc: mockDoc(), i18n: { en: {} } });
   assert.strictEqual(app.t('missing.key'), 'missing.key');
 });
 
-test('_showStatus 把消息与类型映射到元素文本与类名', () => {
+test('_showStatus 把消息与类型映射到元素文本与类名', async () => {
+  const { SettingsApp } = await loadApp();
   const doc = mockDoc();
   const app = new SettingsApp({ doc });
   app._showStatus('api-status', '已保存', 'success');
@@ -56,7 +62,8 @@ test('_showStatus 把消息与类型映射到元素文本与类名', () => {
   assert.strictEqual(el.className, 'status success');
 });
 
-test('_applyLanguage 已知语言切换,未知语言维持英文', () => {
+test('_applyLanguage 已知语言切换,未知语言维持英文', async () => {
+  const { SettingsApp } = await loadApp();
   const app = new SettingsApp({ doc: mockDoc(), i18n: { en: {}, zh: {} } });
   app._applyLanguage('zh');
   assert.strictEqual(app.currentLang, 'zh');
@@ -65,6 +72,7 @@ test('_applyLanguage 已知语言切换,未知语言维持英文', () => {
 });
 
 test('save 把数据模型整体委托给配置网关', async () => {
+  const { SettingsApp } = await loadApp();
   const saved = [];
   const electronApi = { loadConfig: async () => ({ model: { type: 'live2d' } }), saveConfig: async (patch) => { saved.push(patch); } };
   const app = new SettingsApp({ doc: mockDoc(), electronApi });
@@ -76,6 +84,7 @@ test('save 把数据模型整体委托给配置网关', async () => {
 });
 
 test('save 在未载入模型时返回 false 且不落盘', async () => {
+  const { SettingsApp } = await loadApp();
   const saved = [];
   const electronApi = { saveConfig: async (patch) => { saved.push(patch); } };
   const app = new SettingsApp({ doc: mockDoc(), electronApi });
@@ -85,6 +94,7 @@ test('save 在未载入模型时返回 false 且不落盘', async () => {
 });
 
 test('load 从网关读配置建模', async () => {
+  const { SettingsApp } = await loadApp();
   const electronApi = { loadConfig: async () => ({ baseURL: 'https://x', model: { type: 'image' } }) };
   const app = new SettingsApp({ doc: mockDoc(), electronApi });
   const model = await app.load();

@@ -3,10 +3,10 @@
 // 模型标签页子面板:模型模式、Live2D 导入、参数映射、画布锚点、图片文件夹、气泡框与图标。
 // 不变量:以配置数据模型为真相来源,导入扫描结果先入模型再渲染;DOM 仅作模型的视图。
 
-const { PARAM_LABELS, sortParamCandidates } = require('./settings-model');
+import { PARAM_LABELS, sortParamCandidates } from './settings-model.js';
 
 //// 装配模型标签页的各项控件,绑定到配置数据模型与文件能力网关 [@busybee 2026-06-13] ////
-function mountModelPanel(ctx) {
+export function mountModelPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
 
   doc.getElementById('model-type').value = model.model().type || 'none';
@@ -277,5 +277,3 @@ async function clearModel(ctx) {
   updateModelCards(ctx);
   showStatus('model-status', t('status.modelCleared'), 'success');
 }
-
-module.exports = { mountModelPanel };
