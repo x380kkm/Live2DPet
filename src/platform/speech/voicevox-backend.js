@@ -2,17 +2,275 @@
 // # voicevox-backend
 // SpeechBackend 的 VOICEVOX 实现:FFI 内存、目录结构、版本号、WAV 头全收在此。
 // 不变量:VOICEVOX 的 FFI 句柄与原生内存生命周期只在本文件管理,不外泄。
+// 构造注入:koffi、path、fs 三个第三方依赖与一个 CircuitBreaker 实例从外部传入,本文件不直接抓全局,第三方类型只在此适配层出现。
 
-class VoicevoxBackend {
-  // 经 VOICEVOX FFI 把文本合成为音频数据。
+const { SpeechBackend } = require('./speech-backend');
+
+// VOICEVOX FFI 调用成功的返回码
+const VOICEVOX_RESULT_OK = 0;
+// 默认加载的语音模型文件
+const DEFAULT_VVM_FILES = ['0.vvm', '8.vvm'];
+// 启用 GPU 时传给初始化选项的加速模式枚举值
+const ACCELERATION_MODE_GPU = 2;
+
+//// VOICEVOX 后端,经 FFI 把日语文本合成为 WAV 缓冲 [@busybee 2026-06-13] ////
+class VoicevoxBackend extends SpeechBackend {
+  constructor({ koffi, path, fs, circuitBreaker } = {}) {
+    super();
+    this.koffi = koffi;
+    this.path = path;
+    this.fs = fs;
+    this.circuitBreaker = circuitBreaker;
+
+    this.lib = null;
+    this.onnxruntime = null;
+    this.openJtalk = null;
+    this.synthesizer = null;
+    this.modelLoaded = false;
+    this.initialized = false;
+    this._fn = null;
+
+    this.styleId = 0;
+    this.speedScale = 1.0;
+    this.pitchScale = 0.0;
+    this.volumeScale = 1.0;
+    this.isGpu = false;
+  }
+
+  //// 加载 DLL、起 ONNX 运行时与合成器、加载语音模型,准备好后端 [@busybee 2026-06-13] ////
+  init(voicevoxDir, vvmFiles, options) {
+    if (this.initialized) return true;
+    const { path, fs } = this;
+    try {
+      const coreDll = path.join(
+        voicevoxDir, 'c_api',
+        'voicevox_core-windows-x64-0.16.3', 'lib',
+        'voicevox_core.dll'
+      );
+      // 按是否要 GPU 在 DirectML 与 CPU 两个 onnxruntime 目录间选一个
+      const dmlDir = path.join(voicevoxDir, 'voicevox_onnxruntime-win-x64-dml-1.17.3');
+      const cpuDir = path.join(voicevoxDir, 'voicevox_onnxruntime-win-x64-1.17.3');
+      const wantGpu = !!(options && options.gpuMode) && fs.existsSync(path.join(dmlDir, 'lib', 'voicevox_onnxruntime.dll'));
+      const onnxDll = path.join(wantGpu ? dmlDir : cpuDir, 'lib', 'voicevox_onnxruntime.dll');
+      const dictDir = path.join(voicevoxDir, 'open_jtalk_dic_utf_8-1.11');
+      const modelsDir = path.join(voicevoxDir, 'models');
+
+      // koffi 不允许重复注册类型,故 DLL 与类型只在首次加载
+      if (!this.lib) {
+        this._defineTypes();
+        this.lib = this.koffi.load(coreDll);
+        this._bindFunctions();
+      }
+
+      const onnxOut = [null];
+      let rc = this._fn.loadOnnxruntime({ filename: onnxDll }, onnxOut);
+      if (rc !== VOICEVOX_RESULT_OK) throw new Error(`loadOnnxruntime: ${this._getError(rc)}`);
+      this.onnxruntime = onnxOut[0];
+
+      const jtalkOut = [null];
+      rc = this._fn.newOpenJtalk(dictDir, jtalkOut);
+      if (rc !== VOICEVOX_RESULT_OK) throw new Error(`newOpenJtalk: ${this._getError(rc)}`);
+      this.openJtalk = jtalkOut[0];
+
+      const initOpts = this._fn.makeDefaultInitOptions();
+      if (wantGpu) initOpts.acceleration_mode = ACCELERATION_MODE_GPU;
+      const synthOut = [null];
+      rc = this._fn.newSynthesizer(this.onnxruntime, this.openJtalk, initOpts, synthOut);
+      if (rc !== VOICEVOX_RESULT_OK) throw new Error(`newSynthesizer: ${this._getError(rc)}`);
+      this.synthesizer = synthOut[0];
+      this.isGpu = wantGpu;
+
+      this.modelLoaded = this._loadVoiceModels(modelsDir, vvmFiles);
+      this.initialized = true;
+      return true;
+    } catch (err) {
+      console.error('[VoicevoxBackend] 初始化失败:', err.message);
+      this.initialized = false;
+      return false;
+    }
+  }
+  //// /加载 DLL、起 ONNX 运行时与合成器、加载语音模型 ////
+
+  //// 逐个打开并加载语音模型文件,返回是否至少加载了一个 [@busybee 2026-06-13] ////
+  _loadVoiceModels(modelsDir, vvmFiles) {
+    const { path, fs } = this;
+    const toLoad = vvmFiles && vvmFiles.length > 0 ? vvmFiles : DEFAULT_VVM_FILES;
+    let loadedCount = 0;
+    for (const vvmFile of toLoad) {
+      const vvmPath = path.join(modelsDir, vvmFile);
+      if (!fs.existsSync(vvmPath)) continue;
+      const modelOut = [null];
+      let rc = this._fn.openVoiceModel(vvmPath, modelOut);
+      if (rc !== VOICEVOX_RESULT_OK) continue;
+      rc = this._fn.loadVoiceModel(this.synthesizer, modelOut[0]);
+      this._fn.deleteVoiceModel(modelOut[0]);
+      if (rc !== VOICEVOX_RESULT_OK) continue;
+      loadedCount++;
+    }
+    return loadedCount > 0;
+  }
+  //// /逐个打开并加载语音模型文件 ////
+
+  //// 声明 VOICEVOX FFI 用到的不透明指针与结构体类型 [@busybee 2026-06-13] ////
+  _defineTypes() {
+    const koffi = this.koffi;
+    koffi.opaque('VoicevoxOnnxruntime');
+    koffi.opaque('OpenJtalkRc');
+    koffi.opaque('VoicevoxSynthesizer');
+    koffi.opaque('VoicevoxVoiceModelFile');
+    koffi.struct('VoicevoxLoadOnnxruntimeOptions', { filename: 'const char *' });
+    koffi.struct('VoicevoxInitializeOptions', {
+      acceleration_mode: 'int32', cpu_num_threads: 'uint16'
+    });
+    koffi.struct('VoicevoxSynthesisOptions', { enable_interrogative_upspeak: 'bool' });
+  }
+  //// /声明 VOICEVOX FFI 用到的不透明指针与结构体类型 ////
+
+  //// 把 DLL 导出函数绑定成可调用句柄表 [@busybee 2026-06-13] ////
+  _bindFunctions() {
+    const l = this.lib;
+    this._fn = {
+      loadOnnxruntime: l.func('int32 voicevox_onnxruntime_load_once(VoicevoxLoadOnnxruntimeOptions, _Out_ VoicevoxOnnxruntime **)'),
+      newOpenJtalk: l.func('int32 voicevox_open_jtalk_rc_new(const char *, _Out_ OpenJtalkRc **)'),
+      deleteOpenJtalk: l.func('void voicevox_open_jtalk_rc_delete(OpenJtalkRc *)'),
+      makeDefaultInitOptions: l.func('VoicevoxInitializeOptions voicevox_make_default_initialize_options()'),
+      newSynthesizer: l.func('int32 voicevox_synthesizer_new(VoicevoxOnnxruntime *, OpenJtalkRc *, VoicevoxInitializeOptions, _Out_ VoicevoxSynthesizer **)'),
+      deleteSynthesizer: l.func('void voicevox_synthesizer_delete(VoicevoxSynthesizer *)'),
+      openVoiceModel: l.func('int32 voicevox_voice_model_file_open(const char *, _Out_ VoicevoxVoiceModelFile **)'),
+      deleteVoiceModel: l.func('void voicevox_voice_model_file_delete(VoicevoxVoiceModelFile *)'),
+      loadVoiceModel: l.func('int32 voicevox_synthesizer_load_voice_model(VoicevoxSynthesizer *, VoicevoxVoiceModelFile *)'),
+      // 用 void** 接住原始指针以便正确释放
+      createAudioQuery: l.func('int32 voicevox_synthesizer_create_audio_query(VoicevoxSynthesizer *, const char *, uint32, _Out_ void **)'),
+      synthesis: l.func('int32 voicevox_synthesizer_synthesis(VoicevoxSynthesizer *, const char *, uint32, VoicevoxSynthesisOptions, _Out_ uintptr_t *, _Out_ void **)'),
+      jsonFree: l.func('void voicevox_json_free(void *)'),
+      wavFree: l.func('void voicevox_wav_free(void *)'),
+      createMetasJson: l.func('void * voicevox_synthesizer_create_metas_json(VoicevoxSynthesizer *)'),
+      errorMessage: l.func('const char * voicevox_error_result_to_message(int32)'),
+      getVersion: l.func('const char * voicevox_get_version()'),
+      makeDefaultSynthesisOptions: l.func('VoicevoxSynthesisOptions voicevox_make_default_synthesis_options()'),
+    };
+  }
+  //// /把 DLL 导出函数绑定成可调用句柄表 ////
+
+  //// 把 FFI 返回码翻成可读错误文本 [@busybee 2026-06-13] ////
+  _getError(code) {
+    if (!this._fn) return `code ${code}`;
+    return this._fn.errorMessage(code) || `code ${code}`;
+  }
+
+  //// 把日语文本合成为 WAV 缓冲,经熔断器执行,失败或断开态返回 null [@busybee 2026-06-13] ////
   synthesize(text, options) {
-    throw new Error('未实现,见目标架构设计第七节迁移里程碑');
+    if (!this.initialized) return null;
+    const opts = options || {};
+    const sid = opts.styleId != null ? opts.styleId : this.styleId;
+    const speedScale = opts.speedScale != null ? opts.speedScale : this.speedScale;
+    const pitchScale = opts.pitchScale != null ? opts.pitchScale : this.pitchScale;
+    const volumeScale = opts.volumeScale != null ? opts.volumeScale : this.volumeScale;
+
+    const run = () => this._synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale);
+    if (this.circuitBreaker) return this.circuitBreaker.execute(run);
+    try {
+      return run();
+    } catch (err) {
+      console.error('[VoicevoxBackend] 合成失败:', err.message);
+      return null;
+    }
   }
 
-  // 释放 FFI 句柄与原生内存。
-  dispose() {
-    throw new Error('未实现,见目标架构设计第七节迁移里程碑');
+  //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
+  _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale) {
+    const koffi = this.koffi;
+
+    const queryOut = [null];
+    let rc = this._fn.createAudioQuery(this.synthesizer, text, sid, queryOut);
+    if (rc !== VOICEVOX_RESULT_OK) throw new Error(`createAudioQuery: ${this._getError(rc)}`);
+
+    const queryPtr = queryOut[0];
+    let query;
+    try {
+      const queryStr = koffi.decode(queryPtr, 'char', -1);
+      query = JSON.parse(queryStr);
+    } finally {
+      this._fn.jsonFree(queryPtr);
+    }
+    query.speedScale = speedScale;
+    query.pitchScale = pitchScale;
+    query.volumeScale = volumeScale;
+    const queryJson = JSON.stringify(query);
+
+    const wavLenOut = [0];
+    const wavOut = [null];
+    const synthOpts = this._fn.makeDefaultSynthesisOptions();
+    rc = this._fn.synthesis(this.synthesizer, queryJson, sid, synthOpts, wavLenOut, wavOut);
+    if (rc !== VOICEVOX_RESULT_OK) throw new Error(`synthesis: ${this._getError(rc)}`);
+
+    const wavPtr = wavOut[0];
+    const wavBuf = Buffer.from(koffi.decode(wavPtr, 'uint8', wavLenOut[0]));
+    this._fn.wavFree(wavPtr);
+    return wavBuf;
   }
+  //// /走 audio_query 路径合成一次 ////
+
+  //// 设置默认风格与速度音高音量参数 [@busybee 2026-06-13] ////
+  setConfig({ styleId, speedScale, pitchScale, volumeScale } = {}) {
+    if (styleId !== undefined) this.styleId = styleId;
+    if (speedScale !== undefined) this.speedScale = speedScale;
+    if (pitchScale !== undefined) this.pitchScale = pitchScale;
+    if (volumeScale !== undefined) this.volumeScale = volumeScale;
+  }
+
+  //// 报告后端是否可用,初始化且熔断器未断开时为真 [@busybee 2026-06-13] ////
+  isAvailable() {
+    if (!this.initialized) return false;
+    return this.circuitBreaker ? !this.circuitBreaker.isOpen() : true;
+  }
+
+  //// 列出模型目录下的语音模型文件名 [@busybee 2026-06-13] ////
+  getAvailableVvms(voicevoxDir) {
+    const { path, fs } = this;
+    try {
+      const modelsDir = path.join(voicevoxDir, 'models');
+      return fs.readdirSync(modelsDir).filter(f => f.endsWith('.vvm')).sort();
+    } catch {
+      return [];
+    }
+  }
+
+  //// 取已加载语音的元数据列表 [@busybee 2026-06-13] ////
+  getMetas() {
+    if (!this.initialized || !this.synthesizer) return [];
+    try {
+      const ptr = this._fn.createMetasJson(this.synthesizer);
+      const json = this.koffi.decode(ptr, 'char', -1);
+      const metas = JSON.parse(json);
+      this._fn.jsonFree(ptr);
+      return metas;
+    } catch (err) {
+      console.error('[VoicevoxBackend] getMetas 失败:', err.message);
+      return [];
+    }
+  }
+
+  //// 取 VOICEVOX Core 版本号 [@busybee 2026-06-13] ////
+  getVersion() {
+    if (!this._fn) return null;
+    return this._fn.getVersion();
+  }
+
+  //// 释放 FFI 句柄与原生内存,回到未初始化态 [@busybee 2026-06-13] ////
+  dispose() {
+    if (this.synthesizer && this._fn) {
+      this._fn.deleteSynthesizer(this.synthesizer);
+      this.synthesizer = null;
+    }
+    if (this.openJtalk && this._fn) {
+      this._fn.deleteOpenJtalk(this.openJtalk);
+      this.openJtalk = null;
+    }
+    this.initialized = false;
+    this.modelLoaded = false;
+  }
+  //// /释放 FFI 句柄与原生内存 ////
 }
 
 module.exports = { VoicevoxBackend };
