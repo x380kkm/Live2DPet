@@ -4,6 +4,8 @@
 // 不变量:渲染侧只经此处装配,业务模块从不直接抓全局,只见构造注入的接口。
 
 import { CharacterStage } from '../stage/character-stage.js';
+import { ChatBubble } from '../stage/chat-bubble.js';
+import { ModFrontendSlot } from '../stage/mod-frontend-slot.js';
 import { Live2dRenderer } from '../../platform/render/live2d-renderer.js';
 import { ImageRenderer } from '../../platform/render/image-renderer.js';
 
@@ -214,15 +216,44 @@ function fitModel(model, pixiApp) {
 }
 //// /把模型按画布宽度等比缩放并锚到画布中下部 ////
 
+//// 从舞台 DOM 装配 CharacterStage 的协作者:气泡视图、mod 前端槽、舞台尺寸 [@busybee 2026-06-13] ////
+// doc 为承载舞台的文档;从 desktop-pet.html 取容器元素,缺失的元素以空安全方式降级。
+//   stageElement   #pet-container,整窗覆盖层,作 mod 槽与气泡的布局基准
+//   chatBubble     ChatBubble 接 #stage-bubble 框与 #stage-bubble-text 文本元素
+//   modSlot        ModFrontendSlot 接 #mod-frontend-slot 槽元素与沙箱宿主
+//   stageSize      取舞台元素当前像素尺寸,作表达区预算的基准
+// 气泡是整窗覆盖层内的浮层,不改 OS 窗口尺寸,故 resizeWindow 给无害默认。
+// sandboxHost 仅在 mod 嵌入时才被调用,启动期不触发;此处可不注入,槽只存引用。
+function buildCharacterStage(doc, sandboxHost) {
+  const stageElement = doc.getElementById('pet-container');
+  const chatBubble = new ChatBubble({
+    frameElement: doc.getElementById('stage-bubble'),
+    textElement: doc.getElementById('stage-bubble-text')
+  });
+  const modSlot = new ModFrontendSlot({
+    slotElement: doc.getElementById('mod-frontend-slot'),
+    sandboxHost
+  });
+  const rect = stageElement && typeof stageElement.getBoundingClientRect === 'function'
+    ? stageElement.getBoundingClientRect()
+    : { width: 0, height: 0 };
+  const stageSize = { width: Math.round(rect.width), height: Math.round(rect.height) };
+  return new CharacterStage({ stageElement, stageSize, modSlot, chatBubble });
+}
+//// /从舞台 DOM 装配 CharacterStage 的协作者 ////
+
 //// 装配角色舞台:取窄接口与注入的渲染适配工厂,挂头部、控件、跟踪与事件订阅 [@busybee 2026-06-13] ////
 // narrowApi 为 preload 暴露的窄接口(window.electronAPI);deps 注入可替换的协作者:
 //   createRenderAdapter(plan)  按解析后的模型计划造 RenderAdapter,浏览器侧创建 PIXI 与 Cubism 后注入
-//   stage                      角色表现层,缺省现造一个 CharacterStage
+//   stage                      角色表现层,缺省按 doc 现造一个装配好协作者的 CharacterStage
+//   doc                        承载舞台的文档,缺省取浏览器全局 document,供 stage 装配取容器
+//   sandboxHost                mod 沙箱宿主,注入给 mod 槽,缺省为 null,启动期不被调用
 //   timers                     setInterval/clearInterval,便于测试替换
 // 返回 { dispose } 供宿主页卸载时停跟踪、释放适配。
 export async function bootStage(narrowApi, deps = {}) {
   const createRenderAdapter = deps.createRenderAdapter;
-  const stage = deps.stage || new CharacterStage();
+  const doc = deps.doc || (typeof document !== 'undefined' ? document : null);
+  const stage = deps.stage || buildCharacterStage(doc, deps.sandboxHost || null);
   const timers = deps.timers || { setInterval, clearInterval };
 
   const lifecycle = {

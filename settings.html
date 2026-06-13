@@ -6,26 +6,252 @@
     <title>Live2DPet Settings</title>
     <style>
         * { margin: 0; padding: 0; box-sizing: border-box; }
-        body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 16px; }
+        body { font-family: 'Microsoft YaHei', Arial, sans-serif; padding: 16px; font-size: 13px; color: #333; }
+        h3 { margin: 12px 0 6px; font-size: 14px; }
+        label { display: block; margin: 6px 0 2px; }
+        input[type=text], input[type=password], input[type=number], textarea, select {
+            width: 100%; padding: 5px 7px; border: 1px solid #ccc; border-radius: 4px; font-size: 13px;
+        }
+        textarea { resize: vertical; min-height: 60px; }
+        .row { display: flex; align-items: center; gap: 8px; }
+        .card { border: 1px solid #e2e2e2; border-radius: 6px; padding: 10px; margin: 8px 0; }
+        .btn { padding: 5px 12px; border: none; border-radius: 4px; cursor: pointer; font-size: 13px; }
+        .btn-primary { background: #4a90d9; color: #fff; }
+        .btn-secondary { background: #e0e0e0; color: #333; }
+        .btn-danger { background: #d9534f; color: #fff; }
+        .btn-sm { padding: 3px 8px; font-size: 12px; }
         .tab-btn { padding: 6px 12px; border: none; background: #eee; cursor: pointer; }
         .tab-btn.active { background: #ddd; font-weight: bold; }
         .tab-content { display: none; padding: 12px 0; }
         .tab-content.active { display: block; }
-        .status { font-size: 12px; color: #888; }
+        .status { font-size: 12px; color: #888; min-height: 16px; }
         .status.success { color: #2a8; }
         .status.error { color: #c33; }
+        .param-row, .expr-item, .image-item { display: flex; align-items: center; gap: 6px; margin: 4px 0; }
+        .image-thumb { width: 36px; height: 36px; object-fit: cover; border-radius: 4px; }
     </style>
 </head>
 <body>
     <!-- 设置面板宿主:子面板布局占位,真相来源是 settings-app 的配置数据模型 -->
     <div id="settings-root">
         <select id="lang-select"><option value="en">English</option><option value="zh">中文</option></select>
-        <div id="tabs"></div>
-        <div id="tab-api" class="tab-content active"></div>
-        <div id="tab-model" class="tab-content"></div>
-        <div id="tab-emotion" class="tab-content"></div>
-        <div id="tab-tts" class="tab-content"></div>
-        <div id="tab-prompt" class="tab-content"></div>
+
+        <!-- 标签页按钮:data-tab 与下方 tab-content 的后缀对齐,settings-app 据此切换 -->
+        <div id="tabs">
+            <button class="tab-btn active" data-tab="api">API</button>
+            <button class="tab-btn" data-tab="model">Model</button>
+            <button class="tab-btn" data-tab="emotion">Emotion</button>
+            <button class="tab-btn" data-tab="tts">TTS</button>
+            <button class="tab-btn" data-tab="prompt">Character</button>
+        </div>
+
+        <!-- API 接入页:主 API、翻译 API、检测频率、token 倍率、增强总闸 -->
+        <div id="tab-api" class="tab-content active">
+            <div class="card">
+                <h3>API</h3>
+                <label>Base URL</label><input type="text" id="api-url">
+                <label>API Key</label><input type="password" id="api-key">
+                <label>Model</label><input type="text" id="model-name">
+                <button class="btn btn-primary" id="btn-save-api">Save</button>
+                <div class="status" id="api-status"></div>
+            </div>
+            <div class="card">
+                <h3>Translation API</h3>
+                <label>Base URL</label><input type="text" id="tl-api-url">
+                <label>API Key</label><input type="password" id="tl-api-key">
+                <label>Model</label><input type="text" id="tl-model-name">
+                <button class="btn btn-primary" id="btn-save-tl">Save</button>
+                <div class="status" id="tl-status"></div>
+            </div>
+            <div class="card">
+                <h3>Frequency</h3>
+                <label>Interval (s)</label><input type="number" id="interval" min="0" step="1">
+                <label>Chat gap (s)</label><input type="number" id="chat-gap" min="0" step="1">
+                <button class="btn btn-primary" id="btn-save-interval">Save</button>
+            </div>
+            <div class="card">
+                <label class="row"><input type="checkbox" id="enhance-enabled"> Enhance</label>
+                <div class="row">
+                    <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="1.0">1.0x</button>
+                    <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="1.5">1.5x</button>
+                    <button class="btn btn-secondary btn-sm token-mult-btn" data-mult="2.0">2.0x</button>
+                </div>
+                <div class="status" id="token-info"></div>
+            </div>
+        </div>
+
+        <!-- 模型页:模型模式、Live2D 导入与参数映射、画布锚点、图片文件夹、气泡框、图标 -->
+        <div id="tab-model" class="tab-content">
+            <label>Mode</label>
+            <select id="model-type">
+                <option value="none">None</option>
+                <option value="live2d">Live2D</option>
+                <option value="image">Image</option>
+            </select>
+
+            <div class="card" id="card-live2d">
+                <h3>Live2D</h3>
+                <button class="btn btn-primary" id="btn-import-l2d">Import model folder</button>
+                <label class="row"><input type="checkbox" id="copy-to-userdata" checked> Copy to userData</label>
+                <div class="status" id="l2d-info"></div>
+            </div>
+
+            <div class="card" id="card-param-mapping">
+                <h3>Parameter mapping</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-apply-suggested">Apply suggested</button>
+                <div id="param-mapping-list"></div>
+            </div>
+
+            <div class="card" id="card-canvas-y">
+                <h3>Canvas anchor</h3>
+                <div class="row">
+                    <input type="range" id="canvas-y-slider" min="0" max="1" step="0.01" value="0.60">
+                    <span id="canvas-y-val">0.60</span>
+                </div>
+            </div>
+
+            <div class="card" id="card-image">
+                <h3>Image folder</h3>
+                <button class="btn btn-primary" id="btn-select-image-folder">Select image folder</button>
+                <div class="status" id="folder-info"></div>
+                <div class="row">
+                    <span>Crop</span>
+                    <input type="range" id="image-crop-slider" min="0.5" max="2" step="0.01" value="1.00">
+                    <span id="image-crop-val">1.00</span>
+                </div>
+                <div id="image-list-container" style="display:none;">
+                    <div id="image-list"></div>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Bubble frame</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-select-bubble">Select</button>
+                <button class="btn btn-secondary btn-sm" id="btn-clear-bubble">Clear</button>
+                <div class="status" id="bubble-info"></div>
+            </div>
+
+            <div class="card">
+                <h3>App icon</h3>
+                <button class="btn btn-secondary btn-sm" id="btn-select-icon">Select</button>
+                <img id="icon-preview" alt="icon" style="display:none; width:48px; height:48px;">
+                <div class="status" id="icon-info"></div>
+            </div>
+
+            <button class="btn btn-primary" id="btn-save-model">Save model</button>
+            <button class="btn btn-danger" id="btn-clear-model">Clear model</button>
+            <div class="status" id="model-status"></div>
+        </div>
+
+        <!-- 情绪页:表情频率、表情列表、动作列表、缺省时长 -->
+        <div id="tab-emotion" class="tab-content">
+            <div class="card">
+                <h3>Frequency</h3>
+                <label>Emotion frequency</label><input type="number" id="emotion-frequency" min="0" step="1">
+                <label class="row"><input type="checkbox" id="allow-simultaneous"> Allow simultaneous</label>
+                <button class="btn btn-primary" id="btn-save-emotion-freq">Save</button>
+                <div class="status" id="emotion-status"></div>
+            </div>
+            <div class="card">
+                <h3>Expressions</h3>
+                <label>Default duration (s)</label><input type="number" id="default-expr-duration" min="0" step="0.5">
+                <div id="expr-hint" class="status" style="display:none;">No expressions.</div>
+                <div id="expression-list"></div>
+                <button class="btn btn-secondary btn-sm" id="btn-add-expr">Add expression</button>
+            </div>
+            <div class="card">
+                <h3>Motions</h3>
+                <label>Default duration (s)</label><input type="number" id="default-motion-duration" min="0" step="0.5">
+                <div id="motion-hint" class="status" style="display:none;">No motions.</div>
+                <div id="motion-list"></div>
+                <button class="btn btn-secondary btn-sm" id="btn-add-motion">Add motion</button>
+            </div>
+            <button class="btn btn-primary" id="btn-save-expressions">Save expressions</button>
+            <div class="status" id="save-emotion-status"></div>
+        </div>
+
+        <!-- TTS 页:引擎状态、说话人样式、参数、音频模式、默认音声、VVM 勾选 -->
+        <div id="tab-tts" class="tab-content">
+            <div class="card">
+                <div class="status" id="tts-status"></div>
+                <div class="status" id="tts-hint">VOICEVOX not detected.</div>
+                <button class="btn btn-secondary btn-sm" id="btn-restart-tts">Restart</button>
+                <button class="btn btn-secondary btn-sm" id="btn-setup-voicevox">Setup VOICEVOX</button>
+                <div class="status" id="voicevox-setup-status"></div>
+                <label class="row"><input type="checkbox" id="tts-gpu-mode"> GPU mode</label>
+            </div>
+            <div class="card">
+                <label>Speaker</label><select id="tts-speaker"></select>
+                <label>Style</label><select id="tts-style-id"></select>
+                <div class="row"><span>Speed</span><input type="range" id="tts-speed" min="0.5" max="2" step="0.05" value="1.0"><span id="tts-speed-val">1.0</span></div>
+                <div class="row"><span>Pitch</span><input type="range" id="tts-pitch" min="-0.15" max="0.15" step="0.01" value="0.0"><span id="tts-pitch-val">0.0</span></div>
+                <div class="row"><span>Volume</span><input type="range" id="tts-volume" min="0" max="2" step="0.05" value="1.0"><span id="tts-volume-val">1.0</span></div>
+                <div class="row">
+                    <label><input type="radio" name="audio-mode" value="tts" checked> TTS</label>
+                    <label><input type="radio" name="audio-mode" value="default"> Default audio</label>
+                </div>
+                <button class="btn btn-primary" id="btn-save-tts">Save</button>
+                <div class="status" id="tts-save-status"></div>
+            </div>
+            <div class="card">
+                <h3>Test</h3>
+                <input type="text" id="tts-test-text">
+                <button class="btn btn-secondary btn-sm" id="btn-test-tts">Test</button>
+                <div class="status" id="tts-test-status"></div>
+            </div>
+            <div class="card">
+                <h3>Default audio</h3>
+                <textarea id="default-audio-phrases"></textarea>
+                <button class="btn btn-secondary btn-sm" id="btn-generate-default-audio">Generate</button>
+                <div class="status" id="default-audio-status"></div>
+            </div>
+            <div class="card">
+                <h3>VVM</h3>
+                <div id="vvm-checkboxes"></div>
+                <button class="btn btn-primary" id="btn-save-vvm">Save VVM</button>
+                <div class="status" id="vvm-save-status"></div>
+            </div>
+        </div>
+
+        <!-- 角色卡页:选择、增删改导入重置、字段编辑与保存 -->
+        <div id="tab-prompt" class="tab-content">
+            <div class="card">
+                <label>Character</label>
+                <select id="character-select"></select>
+                <div class="row" style="margin-top:6px;">
+                    <button class="btn btn-secondary btn-sm" id="btn-new-character">New</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-rename-character">Rename</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-import-character">Import</button>
+                    <button class="btn btn-danger btn-sm" id="btn-delete-character">Delete</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-reset-builtin">Reset built-in</button>
+                </div>
+                <div class="row" id="character-name-input-row" style="display:none; margin-top:6px;">
+                    <input type="text" id="character-name-input">
+                    <button class="btn btn-primary btn-sm" id="btn-confirm-name">OK</button>
+                    <button class="btn btn-secondary btn-sm" id="btn-cancel-name">Cancel</button>
+                </div>
+            </div>
+            <div class="card">
+                <label>Name</label><input type="text" id="prompt-name">
+                <label>User identity</label><input type="text" id="prompt-user-identity">
+                <label>User term</label><input type="text" id="prompt-user-term">
+                <label>Description</label><textarea id="prompt-desc"></textarea>
+                <label>Personality</label><textarea id="prompt-personality"></textarea>
+                <label>Scenario</label><textarea id="prompt-scenario"></textarea>
+                <label>Rules</label><textarea id="prompt-rules"></textarea>
+                <label>Language</label><input type="text" id="prompt-language">
+            </div>
+            <div class="card">
+                <h3>Hit actions</h3>
+                <label>Click</label><input type="text" id="prompt-hit-click">
+                <label>Touch</label><input type="text" id="prompt-hit-touch">
+                <label>Drag</label><input type="text" id="prompt-hit-drag">
+                <label>Swipe</label><input type="text" id="prompt-hit-swipe">
+                <label>Resize</label><input type="text" id="prompt-hit-resize">
+            </div>
+            <button class="btn btn-primary" id="btn-save-prompt">Save</button>
+            <div class="status" id="prompt-status"></div>
+        </div>
     </div>
 
     <!-- 渲染日志转发到主进程,经 petBridge 窄接口 -->

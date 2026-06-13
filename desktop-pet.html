@@ -59,6 +59,8 @@
         <canvas id="live2d-canvas"></canvas>
         <img id="static-image" alt="pet">
         <img id="placeholder" alt="placeholder">
+        <!-- mod 前端槽并入舞台:同一覆盖窗口承载头部与可执行 mod 前端,初始空、隐藏 -->
+        <div id="mod-frontend-slot" style="display:none; position:absolute; bottom:20%; left:50%; transform:translateX(-50%); -webkit-app-region:no-drag; z-index:50;"></div>
         <!-- 对话气泡并入舞台:同一覆盖窗口承载头部与气泡 -->
         <div id="stage-bubble" style="display:none; position:absolute; bottom:20%; left:50%; transform:translateX(-50%); -webkit-app-region:no-drag; z-index:50;">
             <div id="stage-bubble-text" style="background:rgba(255,255,255,0.92); color:#555; padding:10px 14px; border-radius:14px; font-size:14px; max-width:320px; word-break:break-word;"></div>

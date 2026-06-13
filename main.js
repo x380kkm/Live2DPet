@@ -473,7 +473,7 @@ function ensurePetWindow(runtime) {
     BrowserWindow: electron.BrowserWindow,
     width: 300, height: 300, frame: false, transparent: true, alwaysOnTop: true,
     resizable: true, skipTaskbar: true,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') }
   });
   runtime.petWindow.setAlwaysOnTop(true, 'screen-saver');
   runtime.petWindow.loadFile(path.join(__dirname, 'desktop-pet.html'));
@@ -569,9 +569,9 @@ app.whenReady().then(async () => {
   runtime.settingsWindow = windowFactory.createWindow({
     BrowserWindow: electron.BrowserWindow,
     width: 480, height: 600, frame: true, resizable: false,
-    webPreferences: { contextIsolation: true, nodeIntegration: false, preload: path.join(__dirname, 'preload.js') }
+    webPreferences: { contextIsolation: true, nodeIntegration: false, sandbox: false, preload: path.join(__dirname, 'preload.js') }
   });
-  runtime.settingsWindow.loadFile(path.join(__dirname, 'index.html'));
+  runtime.settingsWindow.loadFile(path.join(__dirname, 'settings.html'));
   runtime.settingsWindow.on('close', (e) => {
     if (!runtime.isQuitting) { e.preventDefault(); runtime.settingsWindow.hide(); }
   });
