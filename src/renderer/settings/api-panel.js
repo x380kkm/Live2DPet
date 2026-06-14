@@ -13,11 +13,6 @@ export function mountApiPanel(ctx) {
   doc.getElementById('api-url').value = config.baseURL || '';
   doc.getElementById('api-key').value = config.apiKey || '';
   doc.getElementById('model-name').value = config.modelName || '';
-  if (config.translation) {
-    doc.getElementById('tl-api-url').value = config.translation.baseURL || '';
-    doc.getElementById('tl-api-key').value = config.translation.apiKey || '';
-    doc.getElementById('tl-model-name').value = config.translation.modelName || '';
-  }
   if (config.interval != null) doc.getElementById('interval').value = config.interval;
   if (config.chatGap != null) doc.getElementById('chat-gap').value = config.chatGap;
   doc.getElementById('enhance-enabled').checked = (config.enhance && config.enhance.enabled) || false;
@@ -30,18 +25,6 @@ export function mountApiPanel(ctx) {
     config.modelName = doc.getElementById('model-name').value.trim();
     await gateway.config.save({ baseURL: config.baseURL, apiKey: config.apiKey, modelName: config.modelName });
     showStatus('api-status', t('status.saved'), 'success');
-  });
-
-  //// 保存翻译 API 接入设置 [@busybee 2026-06-13] ////
-  doc.getElementById('btn-save-tl').addEventListener('click', async () => {
-    const translation = {
-      baseURL: doc.getElementById('tl-api-url').value.trim(),
-      apiKey: doc.getElementById('tl-api-key').value.trim(),
-      modelName: doc.getElementById('tl-model-name').value.trim()
-    };
-    config.translation = translation;
-    await gateway.config.save({ translation });
-    showStatus('tl-status', t('status.saved'), 'success');
   });
 
   //// 保存检测频率与最小对话间隔 [@busybee 2026-06-13] ////
