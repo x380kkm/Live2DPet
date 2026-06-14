@@ -5,7 +5,6 @@
 // 构造注入:speechBackend(文本进音频出)与可选 maxChunkLen(分句上限)从外部传入,本文件不直接抓全局。
 
 const { Utterance } = require('../speech/utterance');
-const { synthBreath } = require('./breath');
 
 // 分句的默认最大长度,超过才分,短句合并到此长度上限
 const DEFAULT_MAX_CHUNK_LEN = 80;
@@ -39,11 +38,12 @@ class TtsOrchestrator {
     }
     if (wavBuffers.length === 0) return utterance;
 
-    // 断句处插气音:仅在多块且单声道时,在块间插一段轻吸气声,顺带补出断句停顿。
+    // 断句衔接:语气开时在块间插一段静音作整句停顿,使跨块的句子衔接和块内一样从容,不再忽快忽慢。
     let separator = null;
-    if (options.breath && wavBuffers.length > 1 && wavBuffers[0].readUInt16LE(WAV_NUM_CHANNELS_OFFSET) === 1) {
+    if (tone && wavBuffers.length > 1 && wavBuffers[0].readUInt16LE(WAV_NUM_CHANNELS_OFFSET) === 1) {
       const sampleRate = wavBuffers[0].readUInt32LE(WAV_SAMPLE_RATE_OFFSET);
-      separator = synthBreath(sampleRate, options.breath === true ? {} : options.breath);
+      const gapMs = options.sentenceGapMs != null ? options.sentenceGapMs : 280;
+      separator = Buffer.alloc(Math.floor((sampleRate * gapMs) / 1000) * 2);
     }
     const combined = concatWavBuffers(wavBuffers, separator);
     const durationMs = wavDurationMs(combined);

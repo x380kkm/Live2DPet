@@ -22,12 +22,11 @@ const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null, pro
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.setConfig({ styleId: VOICE });
 backend.warmup();
-// demo 用小分句上限,使每句成一块,断句处都插气音便于试听。
-const orchestrator = new TtsOrchestrator({ speechBackend: backend, maxChunkLen: 24 });
+const orchestrator = new TtsOrchestrator({ speechBackend: backend });
 
 for (const [key, emotion] of [['short-off', null], ['short-calm', 'calm']]) {
   const utterance = Utterance.of(TEXT);
-  orchestrator.synthesize(utterance, emotion ? { tone: toneFor(emotion), breath: true } : {});
+  orchestrator.synthesize(utterance, emotion ? { tone: toneFor(emotion) } : {});
   if (!utterance.hasAudio()) {
     console.log(`${key} 无音频`);
     continue;
