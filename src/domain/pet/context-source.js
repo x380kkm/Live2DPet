@@ -24,7 +24,7 @@ class ContextSource {
 //// /上下文源接口 ////
 
 //// 把一段渲染逻辑包成命名上下文源,替代 sendRequest 里手工拼接的内联块 [@busybee 2026-06-13] ////
-// 用一个渲染函数声明一个上下文源:idleInfo、focusInfo、hitContext 等过去写死在 sendRequest
+// 用一个渲染函数声明一个上下文源:idleInfo、focusInfo、interactionInfo 等过去写死在 sendRequest
 // 里的片段各成一个实例,优先级与 token 估算随声明给定,render 在缺数据时返回 null 由组装器跳过。
 class NamedContextSource extends ContextSource {
   // spec 形如 { id, priority, render, estimateTokens? };render(scope) 返回字符串或 null。

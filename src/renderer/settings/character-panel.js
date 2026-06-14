@@ -15,15 +15,6 @@ const FIELD_IDS = {
   language: 'prompt-language'
 };
 
-// 命中动作字段到表单输入 id 的固定映射。
-const HIT_IDS = {
-  click: 'prompt-hit-click',
-  touch: 'prompt-hit-touch',
-  drag: 'prompt-hit-drag',
-  swipe: 'prompt-hit-swipe',
-  resize: 'prompt-hit-resize'
-};
-
 //// 装配角色卡面板,持有当前角色 id 与新建改名的输入状态 [@busybee 2026-06-13] ////
 export function mountCharacterPanel(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
@@ -101,10 +92,6 @@ function fillFields(ctx, data) {
   for (const [field, id] of Object.entries(FIELD_IDS)) {
     doc.getElementById(id).value = data[field] || '';
   }
-  const hitActions = data.hitActions || {};
-  for (const [action, id] of Object.entries(HIT_IDS)) {
-    doc.getElementById(id).value = hitActions[action] || '';
-  }
 }
 
 //// 从各表单输入收集角色卡数据 [@busybee 2026-06-13] ////
@@ -113,10 +100,6 @@ function collectFields(ctx) {
   const data = {};
   for (const [field, id] of Object.entries(FIELD_IDS)) {
     data[field] = doc.getElementById(id).value;
-  }
-  data.hitActions = {};
-  for (const [action, id] of Object.entries(HIT_IDS)) {
-    data.hitActions[action] = doc.getElementById(id).value.trim();
   }
   return data;
 }
