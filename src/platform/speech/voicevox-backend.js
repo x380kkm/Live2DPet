@@ -15,12 +15,14 @@ const ACCELERATION_MODE_GPU = 2;
 
 //// VOICEVOX 后端,经 FFI 把日语文本合成为 WAV 缓冲 [@busybee 2026-06-13] ////
 class VoicevoxBackend extends SpeechBackend {
-  constructor({ koffi, path, fs, circuitBreaker } = {}) {
+  constructor({ koffi, path, fs, circuitBreaker, prosodyShaper } = {}) {
     super();
     this.koffi = koffi;
     this.path = path;
     this.fs = fs;
     this.circuitBreaker = circuitBreaker;
+    // 韵律塑形函数 (query, tone) => query,经注入;缺省不注入即只做标量微调。
+    this.prosodyShaper = prosodyShaper || null;
 
     this.lib = null;
     this.onnxruntime = null;
@@ -217,6 +219,7 @@ class VoicevoxBackend extends SpeechBackend {
     query.pitchScale = pitchScale;
     query.volumeScale = volumeScale;
     if (tone) this._applyTone(query, tone);
+    if (tone && this.prosodyShaper) this.prosodyShaper(query, tone);
     const queryJson = JSON.stringify(query);
 
     const wavLenOut = [0];
