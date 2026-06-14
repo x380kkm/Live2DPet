@@ -194,22 +194,25 @@ class VoicevoxBackend extends SpeechBackend {
     return wav;
   }
 
-  //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
-  _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {
-    const koffi = this.koffi;
-
+  //// 为文本创建并解析 audio_query,释放原生 JSON 内存后返回纯数据对象 [@busybee 2026-06-14] ////
+  // 产物含 accent_phrases(每句逐个 mora 的 pitch 与 length)与句间 pause_mora,供句内与句间微调读改。
+  audioQuery(text, sid) {
     const queryOut = [null];
-    let rc = this._fn.createAudioQuery(this.synthesizer, text, sid, queryOut);
+    const rc = this._fn.createAudioQuery(this.synthesizer, text, sid, queryOut);
     if (rc !== VOICEVOX_RESULT_OK) throw new Error(`createAudioQuery: ${this._getError(rc)}`);
-
     const queryPtr = queryOut[0];
-    let query;
     try {
-      const queryStr = koffi.decode(queryPtr, 'char', -1);
-      query = JSON.parse(queryStr);
+      return JSON.parse(this.koffi.decode(queryPtr, 'char', -1));
     } finally {
       this._fn.jsonFree(queryPtr);
     }
+  }
+  //// /为文本创建并解析 audio_query ////
+
+  //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
+  _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {
+    const koffi = this.koffi;
+    const query = this.audioQuery(text, sid);
     query.speedScale = speedScale;
     query.pitchScale = pitchScale;
     query.volumeScale = volumeScale;
@@ -219,7 +222,7 @@ class VoicevoxBackend extends SpeechBackend {
     const wavLenOut = [0];
     const wavOut = [null];
     const synthOpts = this._fn.makeDefaultSynthesisOptions();
-    rc = this._fn.synthesis(this.synthesizer, queryJson, sid, synthOpts, wavLenOut, wavOut);
+    const rc = this._fn.synthesis(this.synthesizer, queryJson, sid, synthOpts, wavLenOut, wavOut);
     if (rc !== VOICEVOX_RESULT_OK) throw new Error(`synthesis: ${this._getError(rc)}`);
 
     const wavPtr = wavOut[0];
