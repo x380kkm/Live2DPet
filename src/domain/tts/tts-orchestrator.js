@@ -27,12 +27,13 @@ class TtsOrchestrator {
   }
 
   //// 把发言文本逐句合成、拼接、算时长,回填到发言的音频对齐字段 [@busybee 2026-06-13] ////
-  synthesize(utterance) {
+  synthesize(utterance, options = {}) {
     if (!this.speechBackend) return utterance;
     const chunks = this.segment(utterance.text);
+    const tone = options.tone || null;
     const wavBuffers = [];
     for (const chunk of chunks) {
-      const wav = this.speechBackend.synthesize(chunk);
+      const wav = tone ? this.speechBackend.synthesize(chunk, { tone }) : this.speechBackend.synthesize(chunk);
       if (wav) wavBuffers.push(wav);
     }
     if (wavBuffers.length === 0) return utterance;

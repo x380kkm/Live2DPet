@@ -236,3 +236,33 @@ test('warmup 已初始化合成预热返回真,未初始化返回假', () => {
   hot.init('/voicevox', null, {});
   assert.strictEqual(hot.warmup(), true);
 });
+
+//// 传 tone 时把语调与停顿字段写进 audio_query [@busybee 2026-06-14] ////
+test('synthesize 传 tone 时写入语调与停顿字段', () => {
+  const mocks = makeMocks();
+  const backend = new VoicevoxBackend(mocks);
+  backend.init('/voicevox', null, {});
+  backend.synthesize('text', { tone: { intonationScale: 1.4, prePhonemeLength: 0.05, postPhonemeLength: 0.1 } });
+  const sent = JSON.parse(mocks.calls.lastSynthJson);
+  assert.strictEqual(sent.intonationScale, 1.4);
+  assert.strictEqual(sent.prePhonemeLength, 0.05);
+  assert.strictEqual(sent.postPhonemeLength, 0.1);
+});
+
+//// 不传 tone 时不加语气字段 [@busybee 2026-06-14] ////
+test('synthesize 不传 tone 时不加语气字段', () => {
+  const mocks = makeMocks();
+  const backend = new VoicevoxBackend(mocks);
+  backend.init('/voicevox', null, {});
+  backend.synthesize('text', {});
+  const sent = JSON.parse(mocks.calls.lastSynthJson);
+  assert.strictEqual(sent.intonationScale, undefined);
+});
+
+//// setConfig 设置语气控制开关 [@busybee 2026-06-14] ////
+test('setConfig 设置 toneControl 开关', () => {
+  const backend = new VoicevoxBackend(makeMocks());
+  assert.strictEqual(backend.toneControl, false);
+  backend.setConfig({ toneControl: true });
+  assert.strictEqual(backend.toneControl, true);
+});

@@ -35,6 +35,8 @@ class VoicevoxBackend extends SpeechBackend {
     this.pitchScale = 0.0;
     this.volumeScale = 1.0;
     this.isGpu = false;
+    // 语气控制开关:开启时合成按情绪叠加 audio_query 语气字段,默认关。
+    this.toneControl = false;
 
     // 合成结果缓存:键为文本与影响输出的参数,只存成功的 WAV,按最近使用上限淘汰。
     this._cache = new Map();
@@ -170,12 +172,13 @@ class VoicevoxBackend extends SpeechBackend {
     const speedScale = opts.speedScale != null ? opts.speedScale : this.speedScale;
     const pitchScale = opts.pitchScale != null ? opts.pitchScale : this.pitchScale;
     const volumeScale = opts.volumeScale != null ? opts.volumeScale : this.volumeScale;
+    const tone = opts.tone || null;
 
-    const cacheKey = `${text}|${sid}|${speedScale}|${pitchScale}|${volumeScale}`;
+    const cacheKey = `${text}|${sid}|${speedScale}|${pitchScale}|${volumeScale}|${tone ? JSON.stringify(tone) : ''}`;
     const hit = this._cacheGet(cacheKey);
     if (hit) return hit;
 
-    const run = () => this._synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale);
+    const run = () => this._synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone);
     let wav;
     if (this.circuitBreaker) {
       wav = this.circuitBreaker.execute(run);
@@ -192,7 +195,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
 
   //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
-  _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale) {
+  _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {
     const koffi = this.koffi;
 
     const queryOut = [null];
@@ -210,6 +213,7 @@ class VoicevoxBackend extends SpeechBackend {
     query.speedScale = speedScale;
     query.pitchScale = pitchScale;
     query.volumeScale = volumeScale;
+    if (tone) this._applyTone(query, tone);
     const queryJson = JSON.stringify(query);
 
     const wavLenOut = [0];
@@ -224,6 +228,14 @@ class VoicevoxBackend extends SpeechBackend {
     return wavBuf;
   }
   //// /走 audio_query 路径合成一次 ////
+
+  //// 把语气字段叠加到 audio_query:只写传入的字段,其余保持后端默认 [@busybee 2026-06-14] ////
+  _applyTone(query, tone) {
+    if (tone.intonationScale != null) query.intonationScale = tone.intonationScale;
+    if (tone.prePhonemeLength != null) query.prePhonemeLength = tone.prePhonemeLength;
+    if (tone.postPhonemeLength != null) query.postPhonemeLength = tone.postPhonemeLength;
+  }
+  //// /把语气字段叠加到 audio_query ////
 
   //// 取缓存的合成结果,命中则移到最近使用端 [@busybee 2026-06-14] ////
   _cacheGet(key) {
@@ -250,11 +262,12 @@ class VoicevoxBackend extends SpeechBackend {
   }
 
   //// 设置默认风格与速度音高音量参数 [@busybee 2026-06-13] ////
-  setConfig({ styleId, speedScale, pitchScale, volumeScale } = {}) {
+  setConfig({ styleId, speedScale, pitchScale, volumeScale, toneControl } = {}) {
     if (styleId !== undefined) this.styleId = styleId;
     if (speedScale !== undefined) this.speedScale = speedScale;
     if (pitchScale !== undefined) this.pitchScale = pitchScale;
     if (volumeScale !== undefined) this.volumeScale = volumeScale;
+    if (toneControl !== undefined) this.toneControl = toneControl;
   }
 
   //// 报告后端是否可用,初始化且熔断器未断开时为真 [@busybee 2026-06-13] ////

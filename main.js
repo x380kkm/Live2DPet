@@ -459,6 +459,7 @@ function subscribeRenderForwarders(eventBus, getPetWindow, bubble) {
 
   // 选定情绪:非空名转成播放表情,空名留给渲染层自行回退
   eventBus.subscribe('EmotionSelected', (event) => {
+    runtime.currentEmotionName = event.name || '';
     const win = getPetWindow();
     if (!win || !event.name) return;
     win.webContents.send('play-expression', event.name);
@@ -970,6 +971,8 @@ function makeHandlerDeps(platform, global) {
     relaunch: () => { app.relaunch(); app.exit(0); },
     // 中译日翻译:TTS 处理器据此把回复译为日语再合成,服务未就绪时原样返回
     translate: (text) => runtime.translationService.translate(text),
+    // 最近一次选定的情绪名,供可选的 TTS 语气控制取用
+    currentEmotion: () => runtime.currentEmotionName || '',
     // 转发窗口取值:返回裸 BrowserWindow,死窗口转发判定据其 isDestroyed
     petWindowRaw: () => petWindowRaw(runtime),
     settingsWindowRaw: () => settingsWindowRaw(runtime)

@@ -6,13 +6,14 @@
 // 构造注入:router(ipc-router)、speechBackend(文本进音频出)、orchestrator(分句拼接)、translate(可选译者)、configStore(配置持久化)、installer(安装下载)、resolveVoicevoxDir(算资源根)、relaunch(重启应用)、notifyProgress(上报安装进度)从外部传入。
 
 const { Utterance } = require('../../../domain/speech/utterance');
+const { toneFor } = require('../../../domain/tts/tone-map');
 
 // 全局层配置的作用域 id 占位:全局层只有一份,configStore 忽略此值。
 const GLOBAL_SCOPE = 'global';
 
 //// 把发言文本经译者转日语、经编排器合成,产出 base64 的 WAV [@busybee 2026-06-13] ////
 async function synthesize(deps, text) {
-  const { speechBackend, orchestrator, translate } = deps;
+  const { speechBackend, orchestrator, translate, currentEmotion } = deps;
   if (!speechBackend || !speechBackend.isAvailable()) {
     return { success: false, error: 'TTS not available' };
   }
@@ -20,7 +21,9 @@ async function synthesize(deps, text) {
   if (translate) jaText = await translate(text);
 
   const utterance = Utterance.of(jaText);
-  orchestrator.synthesize(utterance);
+  // 语气控制开着且有当前情绪时,按情绪叠加 audio_query 语气字段;否则不叠加。
+  const tone = (speechBackend.toneControl && currentEmotion) ? toneFor(currentEmotion()) : null;
+  orchestrator.synthesize(utterance, tone ? { tone } : {});
   if (!utterance.hasAudio()) return { success: false, error: 'synthesis failed' };
 
   return { success: true, wav: utterance.audioAlignment.audio.toString('base64'), jaText };
@@ -68,6 +71,7 @@ async function setConfig(deps, config) {
     speedScale: speechBackend.speedScale,
     pitchScale: speechBackend.pitchScale,
     volumeScale: speechBackend.volumeScale,
+    toneControl: speechBackend.toneControl,
   };
   await configStore.write('global', GLOBAL_SCOPE, stored);
   return { success: true };

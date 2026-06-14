@@ -80,6 +80,8 @@ async function applySavedTtsConfig(ctx, state) {
   if (tts.styleId !== undefined) selectStyle(ctx, state, tts.styleId);
   const gpuCheckbox = doc.getElementById('tts-gpu-mode');
   if (gpuCheckbox) gpuCheckbox.checked = tts.gpuMode || false;
+  const toneCheckbox = doc.getElementById('tts-tone-control');
+  if (toneCheckbox) toneCheckbox.checked = tts.toneControl || false;
 }
 
 //// 设置一个滑块的值与其旁标 [@busybee 2026-06-13] ////
@@ -136,7 +138,8 @@ async function saveTts(ctx) {
     styleId: parseInt(doc.getElementById('tts-style-id').value),
     speedScale: parseFloat(doc.getElementById('tts-speed').value),
     pitchScale: parseFloat(doc.getElementById('tts-pitch').value),
-    volumeScale: parseFloat(doc.getElementById('tts-volume').value)
+    volumeScale: parseFloat(doc.getElementById('tts-volume').value),
+    toneControl: (doc.getElementById('tts-tone-control') || {}).checked || false
   };
   await gateway.tts.setConfig(ttsConfig);
   const audioMode = (doc.querySelector('input[name="audio-mode"]:checked') || {}).value || 'tts';
@@ -147,7 +150,8 @@ async function saveTts(ctx) {
       speedScale: ttsConfig.speedScale,
       pitchScale: ttsConfig.pitchScale,
       volumeScale: ttsConfig.volumeScale,
-      gpuMode: (doc.getElementById('tts-gpu-mode') || {}).checked || false
+      gpuMode: (doc.getElementById('tts-gpu-mode') || {}).checked || false,
+      toneControl: ttsConfig.toneControl
     }
   });
   showStatus('tts-save-status', t('status.saved'), 'success');

@@ -55,9 +55,13 @@ function main() {
   const cacheMs = Number(process.hrtime.bigint() - cacheT0) / 1e6;
   const cacheHit = wav2 === wav;
 
+  // 同文本叠加 happy 语气,输出应与无语气不同(键含语气,不命中无语气缓存)。
+  const toneWav = backend.synthesize(TEXT, { tone: { intonationScale: 1.4, prePhonemeLength: 0.05, postPhonemeLength: 0.1 } });
+  const toneDiffers = Boolean(toneWav) && !toneWav.equals(wav);
+
   const durationMs = validateWav(wav);
   fs.writeFileSync(path.join(__dirname, `tts-smoke-${MODE}.wav`), wav);
-  console.log(`[tts-smoke ${MODE}] core=${version} 请求GPU=${WANT_GPU} 实际GPU=${backend.isGpu} WAV=${wav.length}字节 音频时长=${durationMs.toFixed(0)}ms 预热=${warmupMs.toFixed(0)}ms 首句=${firstMs.toFixed(0)}ms 二次=${cacheMs.toFixed(1)}ms 命中缓存=${cacheHit}`);
+  console.log(`[tts-smoke ${MODE}] core=${version} 请求GPU=${WANT_GPU} 实际GPU=${backend.isGpu} WAV=${wav.length}字节 音频时长=${durationMs.toFixed(0)}ms 预热=${warmupMs.toFixed(0)}ms 首句=${firstMs.toFixed(0)}ms 二次=${cacheMs.toFixed(1)}ms 命中缓存=${cacheHit} 语气改变输出=${toneDiffers}`);
   if (WANT_GPU && !backend.isGpu) {
     console.log(`[tts-smoke ${MODE}] 注意:DirectML onnx 缺失已回退 CPU;装上 voicevox_onnxruntime-win-x64-dml-1.17.3 才能真用 GPU`);
   }
