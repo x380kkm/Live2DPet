@@ -190,7 +190,7 @@ AI 说话时自动切换到「说话」图片，触发情绪时切换到对应�
 - **Live2D 桌面角色** — 透明无边框窗口，始终置顶，眼睛跟随鼠标
 - **图片模型** — 支持图片文件夹作为角色，按待机/说话/表情分类，AI 驱动自动切换
 - **AI 视觉感知** — 定时截屏 + 活动窗口检测，AI 根据屏幕内容主动对话
-- **互动系统** — 点击/触摸/拖拽/划过/缩放，互动事件注入 AI 上下文
+- **互动系统(模组化)** — 点击、触摸等身体交互抽象为模组,交互事件触发对应意图,驱动角色作出反应;可执行 mod 前端跑在 iframe 沙箱里
 - **关键帧视觉记忆** — 自动采样截图，VLM 挑选代表性关键帧，AI 可回顾近期活动
 - **VOICEVOX 语音** — 本地日语 TTS，自动翻译，一键安装
 - **情绪系统** — AI 驱动表情/动作选择，情绪累积触发
@@ -219,24 +219,30 @@ AI 说话时自动切换到「说话」图片，触发情绪时切换到对应�
 │   ├── render/              live2d-renderer、image-renderer、model-renderer
 │   ├── speech/              voicevox-backend(koffi FFI)、circuit-breaker、voicevox-installer
 │   ├── storage/             file-repository、path-utils
+│   ├── mod/                 mod-source(从 assets/mods 与用户 mods 目录读模组规格)
+│   ├── window/              expression-arbiter(气泡与 mod 前端窗口同一时刻至多一个占主导)
+│   ├── sandbox/             sandbox-host、sandbox-bridge(可执行 mod 前端的 iframe 沙箱边界)
 │   └── bus/                 event-bus
 └── src/domain/              角色核心(纯逻辑)
-    ├── pet/                 pet 编排、request-pipeline、prompt-composer、perception-collector、scheduler、上下文源 sources/*
+    ├── pet/                 pet 编排、request-pipeline、prompt-composer、perception-collector、scheduler、interaction-router(交互事件驱动意图)、上下文源 sources/*
     ├── intent/              intent、intent-registry、builtin-intents
     ├── model/               step-registry(AI 步骤反射注入式注册)
     ├── fewshot/             fewshot-bank、fewshot-resolver
     ├── perception/          keyframe-buffer、vlm-extractor、memory-store
     ├── emotion/             emotion-state、emotion-selector
-    ├── statemachine/        state-machine、reaction-policy
-    ├── mod/                 mod、mod-registry、mod-generator
+    ├── statemachine/        state-machine、reaction-policy、reaction-driver(边界事件驱动有界反应)
+    ├── mod/                 mod、mod-registry、mod-generator、interaction-event
     ├── speech/              utterance、utterance-session
     └── tts/                 tts-orchestrator
 
-渲染层(三个窗口)
+渲染层(四个窗口)
 ├── 设置窗口    settings.html + src/renderer/settings/*(settings-app、各 panel、settings-model、gateway)
 ├── 桌宠窗口    desktop-pet.html + src/renderer/boot/stage-boot + src/renderer/stage/*
-└── 对话气泡    pet-chat-bubble.html + src/renderer/pet-chat-bubble.js(浮在桌宠上方的独立窗口)
+├── 对话气泡    pet-chat-bubble.html + src/renderer/pet-chat-bubble.js(浮在桌宠上方的独立窗口)
+└── mod 前端    mod-frontend.html + src/renderer/mod-frontend.js + src/renderer/mod/mod-mounter(纯数据档直渲、可执行档走 iframe 沙箱)
 ```
+
+**模组(mod)体系**:用户交互被抽象为模组——一份声明了交互事件、意图与前端规格的纯数据单元。出厂模组随程序发布在 `assets/mods/`,用户模组放在用户数据目录的 `mods/`;信任级别由来源目录决定。模组的意图在加载期被发现并注入意图注册表;交互事件经事件总线触发声明消费它的意图,跑出台词或情绪。默认出厂一个身体交互模组(把点击、触摸做成模组,替代旧的硬编码上报)。可执行的 mod 前端跑在只给 `allow-scripts`、不给 `allow-same-origin` 的 iframe 沙箱里,经收窄的消息白名单回传交互,拿不到 `petBridge`。
 
 </details>
 
