@@ -71,6 +71,10 @@ const { FewShotResolver } = require('./src/domain/fewshot/fewshot-resolver');
 const { PromptComposer } = require('./src/domain/pet/prompt-composer');
 const { RequestPipeline } = require('./src/domain/pet/request-pipeline');
 const { PetOrchestrator } = require('./src/domain/pet/pet');
+const { SplitIntentDecider, MainLlmDecider } = require('./src/domain/pet/action-decider');
+const { WeightModel } = require('./src/domain/pet/weight-model');
+const { LowDiscrepancySequence } = require('./src/domain/pet/low-discrepancy');
+const { makeContextBuilder } = require('./src/domain/pet/action-context-builder');
 const { InteractionRouter } = require('./src/domain/pet/interaction-router');
 const { InteractionEvent } = require('./src/domain/mod/interaction-event');
 const { ReactionPolicy } = require('./src/domain/statemachine/reaction-policy');
@@ -216,6 +220,21 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层;带 mod 生成器,可当场生成临时 mod
   const pet = new PetOrchestrator({ pipeline, llmClient, eventBus, modGenerator });
 
+  // 动作决策器:从候选意图按占比与情绪定一个动作并产回应,作为可切换策略接入调度循环。
+  // 权重模型把对话与模组总权重在候选间平分,情绪当前值抬升模组倾向;低差异采样器给一个建议动作。
+  // 占比描述只进选意图这一步,台词生产委托富管线 pet.run(含发布与临时 mod 生成分支),主模型上下文保持干净。
+  const weightModel = new WeightModel({
+    dialogueBase: global.actionWeightDialogue,
+    modBase: global.actionWeightMod
+  });
+  const decider = makeDecider(global.deciderStrategy, {
+    llm: llmClient,
+    weightModel,
+    sampler: new LowDiscrepancySequence(0),
+    buildContext: makeContextBuilder({ sources: contextSources }),
+    produce: (intent, scope) => pet.run(intent, scope)
+  });
+
   // 交互路由:mod 交互事件经总线进来,据事件名触发声明消费它的意图,不经截图循环
   const interactionRouter = new InteractionRouter({ eventBus, registry: intentRegistry, pet });
 
@@ -232,10 +251,17 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
     keyframeBuffer, vlmExtractor, memoryStore, perceptionCollector,
     emotionState, emotionSelector, emotionReaction,
     ttsOrchestrator, utteranceSession,
-    contextSources, promptComposer, pipeline, pet
+    contextSources, promptComposer, pipeline, pet, decider
   };
 }
 //// /按依赖序装配 domain 角色层 ////
+
+//// 按策略名造决策器:main 取合并策略,其余取拆分策略 [@busybee 2026-06-14] ////
+// 拆分策略让选意图走轻量路由步、台词走干净主模型,是默认;合并策略把两者并进一次主模型调用,供对比。
+function makeDecider(strategy, deps) {
+  return strategy === 'main' ? new MainLlmDecider(deps) : new SplitIntentDecider(deps);
+}
+//// /按策略名造决策器 ////
 
 //// 装配八个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
 // situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies/layoutInfo/
@@ -905,7 +931,7 @@ app.whenReady().then(async () => {
       perception: perceptionRuntime.perception,
       collector: domain.perceptionCollector,
       registry: domain.intentRegistry,
-      pet: domain.pet,
+      decider: domain.decider,
       emotionState: domain.emotionState
     },
     { intervalMs: SCHEDULER_INTERVAL_MS, chatGapMs: SCHEDULER_INTERVAL_MS }

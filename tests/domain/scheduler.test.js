@@ -58,26 +58,23 @@ function fakeRegistry(candidates) {
   };
 }
 
-//// 注入编排器替身:选意图取首个,跑意图记录入参回预置回应 [@busybee 2026-06-13] ////
-function fakePet(response) {
-  const calls = { select: [], run: [] };
+//// 注入决策器替身:据候选定首个意图,记录入参,回预置回应 [@busybee 2026-06-14] ////
+function fakeDecider(response) {
+  const calls = [];
   return {
     calls,
-    async selectIntent(candidates, scope) {
-      calls.select.push({ candidates, scope });
-      return candidates && candidates.length ? candidates[0] : null;
-    },
-    async run(intent, scope) {
-      calls.run.push({ intent, scope });
-      return response;
+    async decide(candidates, scope) {
+      calls.push({ candidates, scope });
+      const intent = candidates && candidates.length ? candidates[0] : null;
+      return { intent, response: intent ? response : null };
     }
   };
 }
 
-//// 注入情绪状态替身:记录每次喂入 [@busybee 2026-06-13] ////
-function fakeEmotionState() {
+//// 注入情绪状态替身:记录每次喂入,normalized 回预置归一值 [@busybee 2026-06-14] ////
+function fakeEmotionState(level) {
   const fed = [];
-  return { fed, feed(input) { fed.push(input); } };
+  return { fed, feed(input) { fed.push(input); }, normalized() { return level || 0; } };
 }
 
 const FRAME = { image: 'img', title: 'editor', background: 'bg' };
@@ -122,17 +119,18 @@ test('start arms the timer at intervalMs and stop clears it cleanly', () => {
   assert.strictEqual(timer.state.cleared, false);
 });
 
-//// 一拍跑通:采感知、组态势作用域、取候选、选意图、跑意图 [@busybee 2026-06-13] ////
-test('one tick drives perceive then candidates then select then run', async () => {
+//// 一拍跑通:采感知、组态势作用域、取候选、交决策器定动作产回应 [@busybee 2026-06-14] ////
+test('one tick drives perceive then candidates then decide', async () => {
   const timer = fakeTimer();
   const collector = fakeCollector(['在写代码']);
   const registry = fakeRegistry([INTENT]);
-  const pet = fakePet(REPLY);
+  const decider = fakeDecider(REPLY);
   const scheduler = new PetScheduler({
     perception: fakePerception([FRAME]),
     collector,
     registry,
-    pet,
+    decider,
+    emotionState: fakeEmotionState(0.4),
     timer
   }, { intervalMs: 15000 });
 
@@ -141,13 +139,14 @@ test('one tick drives perceive then candidates then select then run', async () =
 
   // 帧与背景透传给采集源
   assert.deepStrictEqual(collector.calls[0], { frame: FRAME, background: 'bg' });
-  // 有态势即标记有视觉输入,态势作摘要
+  // 有态势即标记有视觉输入,态势作摘要,带归一情绪值
   const scope = registry.calls[0];
   assert.strictEqual(scope.signals.hasVisualInput, true);
   assert.strictEqual(scope.situationDigest, '在写代码');
-  // 选意图拿到候选,跑意图拿到选出的意图
-  assert.strictEqual(pet.calls.select[0].candidates[0], INTENT);
-  assert.strictEqual(pet.calls.run[0].intent, INTENT);
+  assert.strictEqual(scope.emotion, 0.4);
+  // 决策器拿到候选与同一作用域
+  assert.strictEqual(decider.calls[0].candidates[0], INTENT);
+  assert.strictEqual(decider.calls[0].scope, scope);
 });
 
 //// 无态势时作用域落空闲:无视觉输入、摘要为空 [@busybee 2026-06-13] ////
@@ -158,7 +157,7 @@ test('without a situation the scope falls back to idle', async () => {
     perception: fakePerception([FRAME]),
     collector: fakeCollector([]),
     registry,
-    pet: fakePet(REPLY),
+    decider: fakeDecider(REPLY),
     timer
   }, {});
 
@@ -168,24 +167,27 @@ test('without a situation the scope falls back to idle', async () => {
   const scope = registry.calls[0];
   assert.strictEqual(scope.signals.hasVisualInput, false);
   assert.strictEqual(scope.situationDigest, '');
+  // 无情绪状态时归一情绪值落 0
+  assert.strictEqual(scope.emotion, 0);
 });
 
-//// 无候选意图时不跑意图 [@busybee 2026-06-13] ////
-test('no candidate means run is skipped', async () => {
+//// 无候选意图时不产回应:决策器回空意图,只喂 tick 不喂 reply [@busybee 2026-06-14] ////
+test('no candidate means no response is produced', async () => {
   const timer = fakeTimer();
-  const pet = fakePet(REPLY);
+  const emotionState = fakeEmotionState();
   const scheduler = new PetScheduler({
     perception: fakePerception([FRAME]),
     collector: fakeCollector(['在写代码']),
     registry: fakeRegistry([]),
-    pet,
+    decider: fakeDecider(REPLY),
+    emotionState,
     timer
   }, {});
 
   scheduler.start();
   await timer.fire();
 
-  assert.strictEqual(pet.calls.run.length, 0);
+  assert.deepStrictEqual(emotionState.fed, [{ kind: 'tick' }]);
 });
 
 //// 每拍喂情绪 tick;跑出回应再按文本长度喂一次 reply 加成 [@busybee 2026-06-13] ////
@@ -196,7 +198,7 @@ test('feeds emotion a tick each cycle and a reply bonus on a produced response',
     perception: fakePerception([FRAME]),
     collector: fakeCollector(['在写代码']),
     registry: fakeRegistry([INTENT]),
-    pet: fakePet(REPLY),
+    decider: fakeDecider(REPLY),
     emotionState,
     timer
   }, { intervalMs: 15000, chatGapMs: 10000 });
@@ -218,7 +220,7 @@ test('feeds only a tick when no reply text is produced', async () => {
     perception: fakePerception([FRAME]),
     collector: fakeCollector(['在写代码']),
     registry: fakeRegistry([INTENT]),
-    pet: fakePet({ text: '' }),
+    decider: fakeDecider({ text: '' }),
     emotionState,
     timer
   }, {});
@@ -239,7 +241,7 @@ test('reply bonus is withheld within the chatGap window', async () => {
     perception: fakePerception([FRAME, FRAME]),
     collector: fakeCollector(['在写代码', '还在写代码']),
     registry: fakeRegistry([INTENT]),
-    pet: fakePet(REPLY),
+    decider: fakeDecider(REPLY),
     emotionState,
     clock,
     timer
@@ -261,28 +263,27 @@ test('reply bonus is withheld within the chatGap window', async () => {
   assert.strictEqual(replyFeedsAfter.length, 2);
 });
 
-//// 单拍失败不抛回计时器,下一拍照常进行 [@busybee 2026-06-13] ////
+//// 单拍失败不抛回计时器,下一拍照常进行 [@busybee 2026-06-14] ////
 test('a failing tick does not break the loop', async () => {
   const timer = fakeTimer();
   const registry = fakeRegistry([INTENT]);
   let firstCall = true;
-  const flakyPet = {
-    calls: { run: [] },
-    async selectIntent(candidates) { return candidates[0]; },
-    async run() {
+  const flakyDecider = {
+    calls: [],
+    async decide(candidates, scope) {
       if (firstCall) {
         firstCall = false;
         throw new Error('boom');
       }
-      this.calls.run.push(REPLY);
-      return REPLY;
+      this.calls.push({ candidates, scope });
+      return { intent: candidates[0], response: REPLY };
     }
   };
   const scheduler = new PetScheduler({
     perception: fakePerception([FRAME, FRAME]),
     collector: fakeCollector(['在写代码', '还在写代码']),
     registry,
-    pet: flakyPet,
+    decider: flakyDecider,
     timer
   }, {});
 
@@ -290,19 +291,19 @@ test('a failing tick does not break the loop', async () => {
   await timer.fire();
   await timer.fire();
 
-  assert.strictEqual(flakyPet.calls.run.length, 1);
+  assert.strictEqual(flakyDecider.calls.length, 1);
 });
 
-//// 无感知源时作用域落空闲,仍照常取候选选跑 [@busybee 2026-06-13] ////
-test('without a perception source the tick still drives selection on idle scope', async () => {
+//// 无感知源时作用域落空闲,仍照常取候选交决策 [@busybee 2026-06-14] ////
+test('without a perception source the tick still drives a decision on idle scope', async () => {
   const timer = fakeTimer();
   const registry = fakeRegistry([INTENT]);
-  const pet = fakePet(REPLY);
-  const scheduler = new PetScheduler({ registry, pet, timer }, {});
+  const decider = fakeDecider(REPLY);
+  const scheduler = new PetScheduler({ registry, decider, timer }, {});
 
   scheduler.start();
   await timer.fire();
 
   assert.strictEqual(registry.calls[0].signals.hasVisualInput, false);
-  assert.strictEqual(pet.calls.run.length, 1);
+  assert.strictEqual(decider.calls.length, 1);
 });

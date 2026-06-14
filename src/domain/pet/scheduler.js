@@ -1,14 +1,14 @@
 // audience: internal
 // # scheduler
-// 主循环调度器:按可配间隔周期性驱动一轮角色编排——采感知、取候选、选意图、跑意图,并按需喂情绪。
+// 主循环调度器:按可配间隔周期性驱动一轮角色编排——采感知、取候选、定动作产回应,并按需喂情绪。
 // 不变量:不持窗口句柄、不碰第三方类型;计时与时钟经构造注入,start/stop 干净不残留定时器。
 //
 // 依赖经构造注入:
 //   perception   感知采集源,capture() 返回一帧 { image, title, ... } 或 null,屏蔽截屏与窗口取用细节
 //   collector    PerceptionCollector,tick(frame, background) 投帧选帧抽态势,返回态势文本或 null
 //   registry     IntentRegistry,candidates(scope) 列出当前信号能触发的候选意图
-//   pet          PetOrchestrator,selectIntent(candidates, scope) 选一个、run(intent, scope) 跑出回应
-//   emotionState 可选 EmotionState,每拍喂 tick、产出回应时喂 reply,到阈值由其自行发事件
+//   decider      动作决策器,decide(candidates, scope) 返回 { intent, response },选哪个与怎么说封成可切换策略
+//   emotionState 可选 EmotionState,每拍喂 tick、产出回应时喂 reply,normalized() 供作用域取归一情绪值
 //   clock        注入时钟,now() 返回毫秒时间戳
 //   timer        注入计时接口,setInterval/clearInterval 与全局同形
 
@@ -22,7 +22,7 @@ class PetScheduler {
     this.perception = deps.perception;
     this.collector = deps.collector;
     this.registry = deps.registry;
-    this.pet = deps.pet;
+    this.decider = deps.decider;
     this.emotionState = deps.emotionState || null;
     this.clock = deps.clock || { now: () => Date.now() };
     this.timer = deps.timer || { setInterval, clearInterval };
@@ -58,7 +58,7 @@ class PetScheduler {
   }
   //// /停止周期驱动 ////
 
-  //// 跑一轮:采感知、组装作用域、取候选、选意图、跑意图,并按需喂情绪 [@busybee 2026-06-13] ////
+  //// 跑一轮:采感知、组装作用域、取候选、定动作产回应,并按需喂情绪 [@busybee 2026-06-14] ////
   // 上一拍未跑完则跳过本拍,避免重入;全程不向计时器抛错,单拍失败不拖垮后续周期。
   async _driveOnce() {
     if (this._running) {
@@ -71,12 +71,10 @@ class PetScheduler {
 
       const scope = this._buildScope(situation);
       const candidates = this.registry.candidates(scope);
-      const intent = await this.pet.selectIntent(candidates, scope);
+      const { intent, response } = await this.decider.decide(candidates, scope) || {};
       if (!intent) {
         return;
       }
-
-      const response = await this.pet.run(intent, scope);
       this._afterRun(response);
     } catch (error) {
       // 单拍失败只记录,不抛回计时器,让下一拍照常进行。
@@ -100,13 +98,23 @@ class PetScheduler {
     return this.collector.tick(frame, frame.background || null);
   }
 
-  //// 据本拍态势组装作用域:有态势即有视觉输入,态势文本作摘要交选意图用 [@busybee 2026-06-13] ////
-  // signals 供意图注册表按触发条件筛候选;situationDigest 供选意图请求陈述当前态势。
+  //// 据本拍态势组装作用域:有态势即有视觉输入,态势文本作摘要,带归一情绪值 [@busybee 2026-06-14] ////
+  // signals 供意图注册表按触发条件筛候选;situationDigest 供决策陈述当前态势;
+  // emotion 为归一到 [0,1] 的当前情绪值,供权重模型抬升模组动作倾向。
   _buildScope(situation) {
     return {
       signals: { hasVisualInput: Boolean(situation), modEvents: [] },
-      situationDigest: situation || ''
+      situationDigest: situation || '',
+      emotion: this._emotionLevel()
     };
+  }
+
+  //// 取归一到 [0,1] 的当前情绪值,无情绪状态或其不支持归一时回 0 [@busybee 2026-06-14] ////
+  _emotionLevel() {
+    if (!this.emotionState || typeof this.emotionState.normalized !== 'function') {
+      return 0;
+    }
+    return this.emotionState.normalized();
   }
 
   //// 每拍给情绪状态喂一拍输入,推进积累 [@busybee 2026-06-13] ////

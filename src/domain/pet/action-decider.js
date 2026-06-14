@@ -7,6 +7,9 @@
 //   拆分策略 SplitIntentDecider:先用意图路由步的轻量模型按占比描述选一个意图,再用台词步的主模型产回应,两次调用。
 //   合并策略 MainLlmDecider:把候选清单与占比描述一并塞进台词步的主模型,一次调用既选意图又产回应。
 // 两者都接收 weightModel 与 sampler 算出的选择简报,区别只在调用结构与提示词大小,供仿真对比择优。
+//
+// 台词生产可注入 produce(intent, scope):接入产品时传富管线(含人格、样例、过滤与发布及临时 mod 生成分支),
+// 使占比描述只进选意图这一步、主模型上下文保持干净;不注入时退回自带的轻量台词调用,供策略仿真对比用。
 
 const { StepId } = require('../../shared/step-catalog');
 const { identityMask } = require('./action-mask');
@@ -38,13 +41,15 @@ function listCandidates(candidates) {
 //// /把候选意图压成清单 ////
 
 class SplitIntentDecider {
-  //// 构造注入模型、权重模型、低差异采样器、上下文构造与意图解析 [@busybee 2026-06-14] ////
+  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@busybee 2026-06-14] ////
   // deps.llm.complete({ step, messages }) 返回 { text };buildContext(intent, scope) 返回该意图的上下文文本。
+  // deps.produce(intent, scope) 若给定则委托其产台词(接富管线),否则用自带的轻量台词调用。
   constructor(deps) {
     this.llm = deps.llm;
     this.weightModel = deps.weightModel;
     this.sampler = deps.sampler || null;
     this.buildContext = deps.buildContext;
+    this.produce = deps.produce || null;
     this.intentParser = deps.intentParser || defaultIntentParser;
     this.mask = deps.mask || identityMask;
   }
@@ -84,8 +89,11 @@ class SplitIntentDecider {
   }
   //// /用意图路由步的轻量模型选一个意图 ////
 
-  //// 用台词步的主模型据上下文产一句回应 [@busybee 2026-06-14] ////
+  //// 产一句回应:有注入的生产函数则委托它(接富管线),否则自带轻量台词调用 [@busybee 2026-06-14] ////
   async _produce(intent, scope) {
+    if (this.produce) {
+      return this.produce(intent, scope);
+    }
     const context = this.buildContext ? this.buildContext(intent, scope) : '';
     const request = {
       step: StepId.Dialogue,
@@ -97,16 +105,18 @@ class SplitIntentDecider {
     const result = await this.llm.complete(request);
     return { text: result.text, intentId: intent.id };
   }
-  //// /用台词步的主模型据上下文产一句回应 ////
+  //// /产一句回应 ////
 }
 
 class MainLlmDecider {
-  //// 构造注入模型、权重模型、低差异采样器、上下文构造与意图解析 [@busybee 2026-06-14] ////
+  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@busybee 2026-06-14] ////
+  // deps.produce(intent, scope) 若给定则合并调用只用来选意图,再委托其产台词(接富管线);否则用合并调用产出的台词。
   constructor(deps) {
     this.llm = deps.llm;
     this.weightModel = deps.weightModel;
     this.sampler = deps.sampler || null;
     this.buildContext = deps.buildContext;
+    this.produce = deps.produce || null;
     this.intentParser = deps.intentParser || defaultIntentParser;
     this.mask = deps.mask || identityMask;
   }
@@ -134,12 +144,19 @@ class MainLlmDecider {
       ]
     };
     const result = await this.llm.complete(request);
-    return this._split(result.text, actions);
+    const picked = this._split(result.text, actions);
+    if (this.produce) {
+      return { intent: picked.intent, response: await this.produce(picked.intent, scope) };
+    }
+    return picked;
   }
   //// /一次调用既选意图又产回应 ////
 
-  //// 单候选时省去选择,只产回应 [@busybee 2026-06-14] ////
+  //// 单候选时省去选择,只产回应:有注入的生产函数则委托它,否则自带轻量台词调用 [@busybee 2026-06-14] ////
   async _produceOnly(intent, scope) {
+    if (this.produce) {
+      return { intent, response: await this.produce(intent, scope) };
+    }
     const context = this.buildContext ? this.buildContext(intent, scope) : '';
     const request = {
       step: StepId.Dialogue,

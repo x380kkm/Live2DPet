@@ -12,6 +12,10 @@ const { EventBus } = require('../../src/platform/bus/event-bus');
 const { IntentRegistry } = require('../../src/domain/intent/intent-registry');
 const { builtinIntents } = require('../../src/domain/intent/builtin-intents');
 const { PetOrchestrator } = require('../../src/domain/pet/pet');
+const { SplitIntentDecider } = require('../../src/domain/pet/action-decider');
+const { WeightModel } = require('../../src/domain/pet/weight-model');
+const { LowDiscrepancySequence } = require('../../src/domain/pet/low-discrepancy');
+const { makeContextBuilder } = require('../../src/domain/pet/action-context-builder');
 const { RequestPipeline } = require('../../src/domain/pet/request-pipeline');
 const { PromptComposer } = require('../../src/domain/pet/prompt-composer');
 const { PetScheduler } = require('../../src/domain/pet/scheduler');
@@ -111,7 +115,7 @@ function assembleLoop(opts) {
 
   // 上下文源:态势、视觉记忆、焦点、布局、宠物位置、语气提示、反重复,各以引用名为 id。
   const recentReplies = [];
-  const sources = sourceRegistry([
+  const sourceList = [
     new SituationDigestSource({ extractor }),
     new VisualMemorySource({ memoryStore, now: () => clock.now() }),
     new FocusInfoSource({ focusProvider: () => opts.focus || {} }),
@@ -120,7 +124,8 @@ function assembleLoop(opts) {
     new ToneHintSource({ toneProvider: () => opts.nextEmotion || null }),
     new RecentRepliesSource({ recentRepliesProvider: () => recentReplies }),
     new IdleInfoSource({ idleProvider: () => opts.idleSeconds != null ? opts.idleSeconds : 0 })
-  ]);
+  ];
+  const sources = sourceRegistry(sourceList);
 
   // few-shot 银行装入结构样例(只引结构,语气样例此处不注入即留空骨架)。
   const bank = new FewShotBank();
@@ -150,6 +155,15 @@ function assembleLoop(opts) {
 
   const pet = new PetOrchestrator({ pipeline, llmClient: mainLlm, eventBus: bus });
 
+  // 决策器:与主进程同构装配,选意图走轻量路由步、台词委托富管线 pet.run(含发布)。
+  const decider = new SplitIntentDecider({
+    llm: mainLlm,
+    weightModel: new WeightModel(),
+    sampler: new LowDiscrepancySequence(0),
+    buildContext: makeContextBuilder({ sources: sourceList }),
+    produce: (intent, scope) => pet.run(intent, scope)
+  });
+
   // 情绪:状态积累器每拍喂入,选择器订阅发言产物后经有界 LLM 选名。
   const emotionState = new EmotionState(bus, { threshold: 1, baseRatePerTick: 1 }, { random: () => 0 });
   const emotionSelector = new EmotionSelector(bus, opts.emotionLlm, {
@@ -166,11 +180,11 @@ function assembleLoop(opts) {
   });
 
   const scheduler = new PetScheduler(
-    { perception: opts.perception, collector, registry, pet, emotionState, clock, timer: { setInterval() {}, clearInterval() {} } },
+    { perception: opts.perception, collector, registry, decider, emotionState, clock, timer: { setInterval() {}, clearInterval() {} } },
     { intervalMs: 0, chatGapMs: 0 }
   );
 
-  return { bus, registry, pipeline, pet, scheduler, emotionState, emotionSelector, mainLlm, recentReplies, collector };
+  return { bus, registry, pipeline, pet, decider, scheduler, emotionState, emotionSelector, mainLlm, recentReplies, collector };
 }
 
 //// 排空已挂起的微任务,等情绪选取这类未 await 的异步链落地 [@busybee 2026-06-13] ////

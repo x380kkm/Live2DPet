@@ -148,6 +148,46 @@ test('对比汇总两策略的调用结构与开销', async () => {
 });
 //// /对比汇总 ////
 
+//// 注入台词生产函数后,拆分策略只调一次轻量选意图,台词委托富管线 [@busybee 2026-06-14] ////
+// 接入产品时台词走富管线 produce,占比描述只进选意图这一步,主模型不在决策器里被裸调。
+test('注入 produce 后拆分策略选意图调模型、台词委托 produce', async () => {
+  const candidates = makeCandidates();
+  const scope = { situationDigest: '用户在写代码', emotion: 0.3 };
+  const weightModel = new WeightModel();
+  const produced = [];
+  const produce = async (intent, s) => { produced.push({ intent, scope: s }); return { text: '富管线产出的台词', intentId: intent.id }; };
+
+  const llm = makeStubLlm();
+  const out = await new SplitIntentDecider({ llm, weightModel, sampler: new LowDiscrepancySequence(0), buildContext, produce }).decide(candidates, scope);
+
+  // 只调一次模型,且是意图路由步;台词不再走模型,而来自 produce
+  assert.strictEqual(llm.calls.length, 1);
+  assert.strictEqual(llm.calls[0].step, StepId.IntentRoute);
+  assert.strictEqual(produced.length, 1);
+  assert.strictEqual(produced[0].intent.id, out.intent.id);
+  assert.strictEqual(out.response.text, '富管线产出的台词');
+});
+//// /注入台词生产函数后拆分策略只调一次轻量选意图 ////
+
+//// 注入 produce 后,合并策略一次调用选意图,台词委托富管线 [@busybee 2026-06-14] ////
+test('注入 produce 后合并策略一次选意图、台词委托 produce', async () => {
+  const candidates = makeCandidates();
+  const scope = { situationDigest: '用户在看视频', emotion: 0.3 };
+  const weightModel = new WeightModel();
+  const produced = [];
+  const produce = async (intent, s) => { produced.push(intent.id); return { text: '富管线产出的台词', intentId: intent.id }; };
+
+  const llm = makeStubLlm();
+  const out = await new MainLlmDecider({ llm, weightModel, sampler: new LowDiscrepancySequence(0), buildContext, produce }).decide(candidates, scope);
+
+  assert.strictEqual(llm.calls.length, 1);
+  assert.strictEqual(llm.calls[0].step, StepId.Dialogue);
+  assert.strictEqual(produced.length, 1);
+  assert.strictEqual(produced[0], out.intent.id);
+  assert.strictEqual(out.response.text, '富管线产出的台词');
+});
+//// /注入 produce 后合并策略一次选意图、台词委托 produce ////
+
 //// 屏蔽钩子抑制模组动作后只剩对话候选,决策器据此只产不选 [@busybee 2026-06-14] ////
 test('屏蔽钩子抑制模组动作后,拆分策略只产台词不再选意图', async () => {
   const candidates = makeCandidates();

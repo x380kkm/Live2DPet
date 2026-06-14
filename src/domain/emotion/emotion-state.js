@@ -48,6 +48,15 @@ class EmotionState {
     return this.current >= this.config.threshold;
   }
 
+  //// 当前情绪值归一到 [0,1]:到阈值即 1,供决策器据此抬升模组动作倾向 [@busybee 2026-06-14] ////
+  normalized() {
+    const threshold = this.config.threshold;
+    if (!threshold || threshold <= 0) {
+      return 0;
+    }
+    return Math.min(this.current / threshold, 1);
+  }
+
   //// 把一次输入折算成本次推进量 [@busybee 2026-06-13] ////
   _increment(input) {
     if (!input) return 0;
