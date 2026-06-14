@@ -1,11 +1,12 @@
 // audience: internal
-// # stdio-channel
-// 标准输入输出行协议通道:从输入流逐行读 JSON 命令交处理器,把结果与事件逐行写回输出流。
-// 不变量:流经构造注入、不直接抓 process;一行一条 JSON;解析失败回错误行不崩溃;stop 后不再处理。
+// # line-channel
+// 行协议通道:在任意双工流(标准输入输出或回环套接字)上逐行读 JSON 命令交处理器,把结果与事件逐行写回。
+// 不变量:流经构造注入、不直接抓 process;一行一条 JSON;解析失败回错误行不崩溃;stop 后不再处理;
+//        逐行处理串行成链,保证回应顺序与命令顺序一致。
 
-class StdioChannel {
+class LineChannel {
   //// 构造注入输入输出流与命令处理器 [@busybee 2026-06-14] ////
-  // handle(command) 返回一份结果对象;input 为可读流,output 为可写流。
+  // handle(command) 返回一份结果对象;input 为可读流,output 为可写流(套接字时两者同一对象)。
   constructor({ input, output, handle } = {}) {
     this.input = input;
     this.output = output;
@@ -85,4 +86,4 @@ class StdioChannel {
   }
 }
 
-module.exports = { StdioChannel };
+module.exports = { LineChannel };

@@ -8,6 +8,7 @@
     "start": "node launch.js",
     "dev": "node launch.js --dev",
     "test": "node --test \"tests/**/*.test.js\"",
+    "test:pack": "node tests/pack/pack-test-runner.js",
     "build": "electron-builder --win portable",
     "build:dir": "electron-builder --win dir"
   },

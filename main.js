@@ -504,13 +504,12 @@ function spokenTextOf(event) {
 }
 //// /从两种发言产物载荷里取出刚说出的话 ////
 
-//// 装配自动化操纵通道:把调度、交互注入、取近期发言、合成与窗口快照接到行协议 [@busybee 2026-06-14] ////
-// 经标准输入读 JSON 命令、标准输出回结果与转发的领域事件;就绪日志走标准错误,不污染协议流。
+//// 装配自动化操纵通道:把调度、交互注入、取近期发言、合成与窗口快照接到回环套接字 [@busybee 2026-06-14] ////
+// 命令与转发事件走回环套接字;选中端口经标准输出一行 JSON 回报(打包 GUI 里标准输出可写而标准输入不可靠)。
 function mountAutomationChannel(platform, perceptionRuntime) {
   runtime.automation = mountAutomation({
     eventBus: platform.eventBus,
-    input: process.stdin,
-    output: process.stdout,
+    announce: ({ port }) => process.stdout.write(JSON.stringify({ event: 'automation-listening', port }) + '\n'),
     log: (message) => console.error(message),
     caps: {
       runTick: () => runtime.scheduler.runOnce(),

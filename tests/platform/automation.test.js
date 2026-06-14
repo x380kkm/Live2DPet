@@ -1,15 +1,16 @@
 // audience: internal
 // # automation.test
 // 验证自动化操纵通道:控制器按操作派发并收敛错误、行协议逐行解析命令回结果、窗口快照折成纯数据、
-// 装配把关键领域事件转发到输出。全程用内存流与替身,不起进程不起窗口。
+// 装配在回环套接字上接受连接并把关键领域事件转发到连接。全程用内存流、回环套接字与替身,不起进程不起窗口。
 // 运行: node --test tests/platform/automation.test.js
 
 const { test } = require('node:test');
 const assert = require('node:assert');
+const net = require('node:net');
 const { EventEmitter } = require('node:events');
 
 const { AutomationController } = require('../../src/platform/automation/automation-controller');
-const { StdioChannel } = require('../../src/platform/automation/stdio-channel');
+const { LineChannel } = require('../../src/platform/automation/line-channel');
 const { snapshotWindows } = require('../../src/platform/automation/window-snapshot');
 const { mountAutomation, summarize } = require('../../src/platform/automation');
 const { EventBus } = require('../../src/platform/bus/event-bus');
@@ -82,7 +83,7 @@ test('行协议解析命令、回结果、解析失败回错误行', async () =>
   input.resume = () => {};
   input.setEncoding = () => {};
   const output = memoryOutput();
-  const channel = new StdioChannel({
+  const channel = new LineChannel({
     input,
     output,
     handle: async (command) => ({ id: command.id, ok: true, result: { echo: command.op } })
@@ -126,32 +127,58 @@ test('事件摘要只留可安全行化的纯数据', () => {
   assert.deepStrictEqual(summary, { type: 'UtteranceProduced', text: '你好', bubbleDurationMs: 8000 });
 });
 
-//// 装配把关键领域事件转发到输出,就绪事件先行 [@busybee 2026-06-14] ////
-test('装配转发领域事件到输出并发就绪事件', async () => {
-  const input = new EventEmitter();
-  input.resume = () => {};
-  input.setEncoding = () => {};
-  const output = memoryOutput();
+//// 装配在回环套接字上接受连接、回命令结果并转发领域事件 [@busybee 2026-06-14] ////
+test('装配在回环套接字上回结果并转发领域事件', async () => {
   const bus = new EventBus();
+  const ticks = [];
+  let port = null;
   const mounted = mountAutomation({
     eventBus: bus,
-    input,
-    output,
-    caps: {}
+    caps: { runTick: async () => ticks.push(1) },
+    announce: ({ port: p }) => { port = p; }
   });
 
-  bus.publish({ type: 'UtteranceProduced', text: '在写代码呀', intentId: 'observe-response' });
+  await waitUntil(() => port !== null, 2000, '套接字监听');
 
-  const lines = output.lines().map((l) => JSON.parse(l));
-  assert.strictEqual(lines[0].event, 'automation-ready');
-  assert.ok(Array.isArray(lines[0].payload.ops));
+  const socket = net.connect(port, '127.0.0.1');
+  const lines = [];
+  let buffer = '';
+  socket.setEncoding('utf8');
+  socket.on('data', (chunk) => {
+    buffer += chunk;
+    let nl;
+    while ((nl = buffer.indexOf('\n')) >= 0) {
+      const line = buffer.slice(0, nl).trim();
+      buffer = buffer.slice(nl + 1);
+      if (line) lines.push(JSON.parse(line));
+    }
+  });
+  await waitUntil(() => lines.some((l) => l.event === 'automation-ready'), 2000, '就绪事件');
+
+  // 命令经套接字回结果
+  socket.write(JSON.stringify({ id: 7, op: 'schedule-tick' }) + '\n');
+  await waitUntil(() => lines.some((l) => l.id === 7), 2000, '命令回应');
+  const tickResp = lines.find((l) => l.id === 7);
+  assert.deepStrictEqual(tickResp, { id: 7, ok: true, result: { ticked: true } });
+  assert.strictEqual(ticks.length, 1);
+
+  // 领域事件转发到连接
+  bus.publish({ type: 'UtteranceProduced', text: '在写代码呀', intentId: 'observe-response' });
+  await waitUntil(() => lines.some((l) => l.event === 'UtteranceProduced'), 2000, '产物事件');
   const produced = lines.find((l) => l.event === 'UtteranceProduced');
-  assert.ok(produced, '应转发 UtteranceProduced 事件');
   assert.strictEqual(produced.payload.text, '在写代码呀');
 
-  // 停后解订阅,后续事件不再转发
+  socket.destroy();
   mounted.stop();
-  bus.publish({ type: 'UtteranceProduced', text: '又一句' });
-  const after = output.lines().filter((l) => JSON.parse(l).event === 'UtteranceProduced');
-  assert.strictEqual(after.length, 1);
 });
+
+//// 轮询等一个条件成立或超时 [@busybee 2026-06-14] ////
+function waitUntil(predicate, timeoutMs, label) {
+  return new Promise((resolve, reject) => {
+    const start = Date.now();
+    const timer = setInterval(() => {
+      if (predicate()) { clearInterval(timer); resolve(); }
+      else if (Date.now() - start > timeoutMs) { clearInterval(timer); reject(new Error(`等待超时:${label}`)); }
+    }, 20);
+  });
+}
