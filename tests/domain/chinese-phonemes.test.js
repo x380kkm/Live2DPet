@@ -23,19 +23,24 @@ test('parsePinyin 拆声母韵母声调', () => {
   assert.strictEqual(parsePinyin('ju2').tone, 2);
 });
 
-//// 音节拼成片假名:声母拼到韵母首元音上 [@busybee 2026-06-15] ////
-test('syllableToKana 拼出近似片假名', () => {
+//// 音节拼成片假名:声母拼到韵母首元音上,单元音补长音、轻声不补 [@busybee 2026-06-15] ////
+test('syllableToKana 拼出近似片假名并补长音', () => {
   const k = (raw) => syllableToKana(parsePinyin(raw)).kana;
-  assert.strictEqual(k('ni3'), 'ニ');
+  // 单元音韵母补长音ー
+  assert.strictEqual(k('ni3'), 'ニー');
+  assert.strictEqual(k('wo3'), 'ウォー');
+  assert.strictEqual(k('shi4'), 'シー');
+  // 复元音、鼻韵尾不补长音(本就两拍以上)
   assert.strictEqual(k('hao3'), 'ハオ');
-  assert.strictEqual(k('wo3'), 'ウォ');
-  assert.strictEqual(k('shi4'), 'シ');
   assert.strictEqual(k('zhuo1'), 'ジュオ');
   assert.strictEqual(k('mian4'), 'ミェン');
   assert.strictEqual(k('xing4'), 'シン');
-  // 卷舌 zh 与平舌 z 区别在 i:zhi→ジ、zi→ズ
-  assert.strictEqual(k('zhi1'), 'ジ');
-  assert.strictEqual(k('zi4'), 'ズ');
+  // 卷舌 zh 与平舌 z 区别在 i:zhi→ジー、zi→ズー
+  assert.strictEqual(k('zhi1'), 'ジー');
+  assert.strictEqual(k('zi4'), 'ズー');
+  // 轻声不补长音
+  assert.strictEqual(k('de5'), 'ドゥ');
+  assert.strictEqual(k('ma5'), 'マ');
 });
 
 //// 未知韵母跳过,不拼出也不抛 [@busybee 2026-06-15] ////
@@ -45,13 +50,24 @@ test('syllableToKana 未知韵母回 ok:false', () => {
   assert.strictEqual(out.kana, '');
 });
 
-//// 整句拼接成片假名串与声调计划,标点转日文逗号句号 [@busybee 2026-06-15] ////
-test('sentenceToKana 拼整句与声调计划', () => {
+//// 整句拼接成片假名串与声调计划,三声变调、长音、标点转日文逗号句号 [@busybee 2026-06-15] ////
+test('sentenceToKana 拼整句、三声变调与长音', () => {
+  // ni3 hao3 相邻两三声,前一个变二声;ni 单元音补长音、轻声 ma 不补
   const { kana, plan } = sentenceToKana(['ni3', 'hao3', '，', 'ma5', '。']);
-  assert.strictEqual(kana, 'ニハオ、マ。');
+  assert.strictEqual(kana, 'ニーハオ、マ。');
   assert.strictEqual(plan.length, 3);
-  assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3, 5]);
-  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニ', 'ハオ', 'マ']);
+  assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3, 5]);
+  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニー', 'ハオ', 'マ']);
+});
+
+//// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
+test('sentenceToKana 三声变调不跨标点', () => {
+  // 两个三声被逗号隔开,不变调
+  const { plan } = sentenceToKana(['hao3', '，', 'ni3']);
+  assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3]);
+  // 连续三个三声变成 二 二 三
+  const { plan: p3 } = sentenceToKana(['wo3', 'hen3', 'hao3']);
+  assert.deepStrictEqual(p3.map((p) => p.tone), [2, 2, 3]);
 });
 
 //// 四声调型形状:一声高平、四声多音下降、三声单音压低,且夹在区间内 [@busybee 2026-06-15] ////

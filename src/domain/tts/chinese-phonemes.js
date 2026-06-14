@@ -49,6 +49,8 @@ const FINAL_KANA = {
 const BASE_VOWEL = { ア: 'a', イ: 'i', ウ: 'u', エ: 'e', オ: 'o' };
 // 与前一基音合成一个 mora 的小书写假名,数 mora 时跳过。
 const COMBINING = new Set(['ァ', 'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ']);
+// 单元音韵母:中文这些音比日语 mora 长而平,补长音ー拉成两拍,既更像中文也给升降调留出展开空间(轻声不拉)。
+const ELONGATE_FINALS = new Set(['a', 'o', 'e', 'ê', 'i', 'u', 'ü', 'v']);
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 
@@ -98,13 +100,17 @@ function applyInitial(initial, finalKana) {
 }
 //// /把声母拼到韵母首元音上 ////
 
-//// 把一个拼音音节拼成片假名,回 { kana, moras, ok } [@busybee 2026-06-15] ////
+//// 把一个拼音音节拼成片假名,单元音韵母补长音ー,回 { kana, moras, ok } [@busybee 2026-06-15] ////
+// 长音让中文单元音持续得更像中文,也把单拍音节拉成两拍,使升降调能在音节内展开;轻声不拉。
 function syllableToKana(parsed) {
   const finalKana = FINAL_KANA[parsed.final];
   if (!finalKana) {
     return { kana: '', moras: 0, ok: false };
   }
-  const kana = applyInitial(parsed.initial, finalKana);
+  let kana = applyInitial(parsed.initial, finalKana);
+  if (ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
+    kana += 'ー';
+  }
   return { kana, moras: moraCount(kana), ok: true };
 }
 //// /把一个拼音音节拼成片假名 ////
@@ -115,26 +121,44 @@ function isPunctuation(token) {
 }
 
 //// 把一串拼音与标点 token 拼成片假名串与声调计划 [@busybee 2026-06-15] ////
-// 标点转成日文逗号句号驱动停顿;每个有效音节往计划里记下它占的 mora 数与声调,供按调型改音高。
+// 先按三声变调改声调(相邻两个三声,前一个读二声;标点断开不变调),再据变调后的声调拼假名(含长音)与计划。
 function sentenceToKana(tokens) {
+  const items = tokens.map((token) => (isPunctuation(token) ? { punct: token } : { parsed: parsePinyin(token) }));
+  applyToneSandhi(items);
+
   let kana = '';
   const plan = [];
-  for (const token of tokens) {
-    if (isPunctuation(token)) {
-      kana += /[。.！？!?]/.test(token) ? '。' : '、';
+  for (const item of items) {
+    if (item.punct) {
+      kana += /[。.！？!?]/.test(item.punct) ? '。' : '、';
       continue;
     }
-    const parsed = parsePinyin(token);
-    const syllable = syllableToKana(parsed);
+    const syllable = syllableToKana(item.parsed);
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
     kana += syllable.kana;
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: parsed.tone });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
   }
   return { kana, plan };
 }
 //// /把一串拼音与标点 token 拼成片假名串与声调计划 ////
+
+//// 三声变调:相邻两个三声里前一个改读二声,标点断开则重置不跨标点变调 [@busybee 2026-06-15] ////
+function applyToneSandhi(items) {
+  let prev = null;
+  for (const item of items) {
+    if (item.punct) {
+      prev = null;
+      continue;
+    }
+    if (prev && prev.tone === 3 && item.parsed.tone === 3) {
+      prev.tone = 2;
+    }
+    prev = item.parsed;
+  }
+}
+//// /三声变调 ////
 
 //// 据声调与音节 mora 数算各 mora 的目标音高,相对基准音高 [@busybee 2026-06-15] ////
 // 一声高平、二声上升、三声压低微升、四声下降、轻声略低;单 mora 取代表值(调内走势靠相邻音节体现)。
@@ -154,7 +178,15 @@ function toneContour(tone, moras, base) {
     if (moras === 1) {
       fill(base - 0.40);
     } else {
-      ramp(base - 0.45, base - 0.10);
+      // 低降到谷底再略升:三声的特征是压低,升尾很弱
+      const valley = Math.max(1, Math.floor(moras * 0.6));
+      for (let i = 0; i < moras; i += 1) {
+        if (i < valley) {
+          out.push(base - 0.45 - 0.10 * (i / valley));
+        } else {
+          out.push(base - 0.45 + 0.30 * ((i - valley) / Math.max(1, moras - valley)));
+        }
+      }
     }
   } else if (tone === 4) {
     if (moras === 1) {
