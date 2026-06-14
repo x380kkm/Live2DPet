@@ -9,7 +9,7 @@ const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
 const { TtsOrchestrator } = require('../src/domain/tts/tts-orchestrator');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
-const { shape } = require('../src/domain/tts/prosody-shaper');
+const { shape, applyNarration } = require('../src/domain/tts/prosody-shaper');
 const { toneFor } = require('../src/domain/tts/tone-map');
 
 const VOICE = 2;
@@ -28,29 +28,34 @@ function measure(emotion) {
   let pause = 0;
   let pad = 0;
   const spreads = [];
+  const meanStds = [];
   for (const chunk of chunks) {
     const q = backend.audioQuery(chunk, VOICE);
     if (tone) {
       if (tone.prePhonemeLength != null) q.prePhonemeLength = tone.prePhonemeLength;
       if (tone.postPhonemeLength != null) q.postPhonemeLength = tone.postPhonemeLength;
       shape(q, tone);
+      applyNarration(q);
     }
     const f = analyze(q);
     dur += f.durationSec;
     pause += f.pauseTotalSec;
     pad += ((q.prePhonemeLength || 0) + (q.postPhonemeLength || 0)) / (q.speedScale || 1);
     spreads.push(f.phraseStdSpread);
+    meanStds.push(f.phraseMeanStd);
   }
   const silence = pause + pad;
+  const avg = (xs) => xs.reduce((a, b) => a + b, 0) / xs.length;
   return {
     chunks: chunks.length, dur, pause, pad,
     silencePct: (100 * silence) / dur,
-    avgSpread: spreads.reduce((a, b) => a + b, 0) / spreads.length
+    avgSpread: avg(spreads),
+    avgMeanStd: avg(meanStds)
   };
 }
 
 for (const emotion of [null, 'calm', 'excited']) {
   const m = measure(emotion);
-  console.log(`${(emotion || '中性').padEnd(8)} 块=${m.chunks} 总时长=${m.dur.toFixed(1)}s 句间停顿=${m.pause.toFixed(1)}s 块间留白=${m.pad.toFixed(1)}s 静音占比=${m.silencePct.toFixed(1)}% 逐句落差均=${m.avgSpread.toFixed(3)}`);
+  console.log(`${(emotion || '中性').padEnd(8)} 块=${m.chunks} 总时长=${m.dur.toFixed(1)}s 静音占比=${m.silencePct.toFixed(1)}% 逐句起伏落差=${m.avgSpread.toFixed(3)} 逐句均音高落差=${m.avgMeanStd.toFixed(3)}`);
 }
 backend.dispose();

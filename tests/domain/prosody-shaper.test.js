@@ -4,7 +4,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { shape } = require('../../src/domain/tts/prosody-shaper');
+const { shape, applyNarration } = require('../../src/domain/tts/prosody-shaper');
 const { analyze } = require('../../src/domain/tts/prosody-analyzer');
 
 function mora(pitch, vowelLength = 0.1, consonantLength = 0.05) {
@@ -66,4 +66,18 @@ test('情绪按包络集中在锚点,中段更平直', () => {
   };
   assert.ok(std(q.accent_phrases[4]) > std(q.accent_phrases[2]), '末句锚点应比中段更起伏');
   assert.ok(std(q.accent_phrases[0]) > std(q.accent_phrases[2]), '首句锚点应比中段更起伏');
+});
+
+//// applyNarration:句内音高下倾,句界后重置 [@busybee 2026-06-14] ////
+test('applyNarration 句内下倾、句界后重置', () => {
+  const two = () => [mora(5.7), mora(5.7)];
+  const head = (p) => p.moras[0].pitch;
+  // 单句四短语、无句界:越靠后越低(下倾)。
+  const q = query([phrase(two()), phrase(two()), phrase(two()), phrase(two())]);
+  applyNarration(q);
+  assert.ok(head(q.accent_phrases[0]) > head(q.accent_phrases[3]), '同句内越靠后越低');
+  // 第二短语后有长停顿(句界),第三短语是新句首,应回升、高于上句尾。
+  const q2 = query([phrase(two()), phrase(two(), 0.4), phrase(two()), phrase(two())]);
+  applyNarration(q2);
+  assert.ok(head(q2.accent_phrases[2]) > head(q2.accent_phrases[1]), '句界后新句首应回升');
 });

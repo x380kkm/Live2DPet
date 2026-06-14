@@ -131,11 +131,59 @@ function volumeGainSpans(query, tone) {
 }
 //// /算逐句的音量增益段 ////
 
-//// 整合:在 query 上做韵律塑形,并算出音量增益段供合成后施加 [@busybee 2026-06-14] ////
+// 朗读结构常量:专业朗读的句内音高下倾、句首重置、停顿前延长,以及句末降、逗号续接、疑问升,数值据真机取证。
+const NARRATION = Object.freeze({
+  declStep: 0.04,
+  resetBoost: 0.03,
+  sentencePause: 0.32,
+  preLengthen: 1.12,
+  questionRise: 0.18,
+  sentenceFall: 0.08,
+  commaRise: 0.02
+});
+
+//// 按朗读结构调 query:句内下倾加句首重置、停顿前延长、按句界与逗号疑问调边界 [@busybee 2026-06-14] ////
+// 句界由停顿长短判定:长于阈值算句号、短于算逗号;这套结构独立于情绪,总在合成路径里施加。
+function applyNarration(query) {
+  const phrases = (query && query.accent_phrases) || [];
+  let posInSentence = 0;
+  for (let i = 0; i < phrases.length; i++) {
+    const phrase = phrases[i];
+    const voiced = (phrase.moras || []).filter((m) => m.pitch > 0);
+    // 句首略高、随位置渐低,得到句内自然下倾;每到句界重置。
+    const shift = NARRATION.resetBoost - NARRATION.declStep * posInSentence;
+    for (const mora of voiced) {
+      mora.pitch = Math.max(0.1, mora.pitch + shift);
+    }
+    const pause = phrase.pause_mora ? phrase.pause_mora.vowel_length : 0;
+    const isSentenceEnd = pause > NARRATION.sentencePause;
+    if (voiced.length && pause > 0) {
+      const last = voiced[voiced.length - 1];
+      last.vowel_length *= NARRATION.preLengthen;
+      if (phrase.is_interrogative) {
+        last.pitch += NARRATION.questionRise;
+      } else if (isSentenceEnd) {
+        last.pitch = Math.max(0.1, last.pitch - NARRATION.sentenceFall);
+      } else {
+        last.pitch += NARRATION.commaRise;
+      }
+    }
+    if (isSentenceEnd || i === phrases.length - 1) {
+      posInSentence = 0;
+    } else {
+      posInSentence += 1;
+    }
+  }
+  return query;
+}
+//// /按朗读结构调 query ////
+
+//// 整合:先按情绪塑形,再叠朗读结构,最后算音量增益段供合成后施加 [@busybee 2026-06-14] ////
 function apply(query, tone) {
   shape(query, tone);
+  applyNarration(query);
   return volumeGainSpans(query, tone);
 }
 //// /整合 ////
 
-module.exports = { shape, apply, volumeGainSpans, shapeContour, shapeFinal, applyLength, envelope };
+module.exports = { shape, apply, applyNarration, volumeGainSpans, shapeContour, shapeFinal, applyLength, envelope };

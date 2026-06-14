@@ -22,6 +22,7 @@ function analyze(query) {
   const pitches = [];
   const pauses = [];
   const phraseStds = [];
+  const phraseMeans = [];
   let rawDur = 0;
   let moraCount = 0;
   let lastVoicedPitch = 0;
@@ -36,6 +37,9 @@ function analyze(query) {
         lastVoicedPitch = m.pitch;
         phrasePitches.push(m.pitch);
       }
+    }
+    if (phrasePitches.length >= 1) {
+      phraseMeans.push(mean(phrasePitches));
     }
     if (phrasePitches.length >= 2) {
       phraseStds.push(stdDev(phrasePitches, mean(phrasePitches)));
@@ -68,7 +72,9 @@ function analyze(query) {
     // 逐句音高起伏的落差:大表示中段平直、锚点突出的非均匀结构。
     phraseStdMax: phraseStds.length ? Math.max(...phraseStds) : 0,
     phraseStdMin: phraseStds.length ? Math.min(...phraseStds) : 0,
-    phraseStdSpread: phraseStds.length ? Math.max(...phraseStds) - Math.min(...phraseStds) : 0
+    phraseStdSpread: phraseStds.length ? Math.max(...phraseStds) - Math.min(...phraseStds) : 0,
+    // 逐句均音高的标准差:大表示有句内下倾、句首重置等音高走势,小表示平板棒读。
+    phraseMeanStd: phraseMeans.length ? stdDev(phraseMeans, mean(phraseMeans)) : 0
   };
 }
 //// /从 audio_query 量出韵律特征 ////
