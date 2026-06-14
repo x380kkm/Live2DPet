@@ -19,6 +19,10 @@ const KEY_FLOOR = {
   modelConfig: 'global',
   uiLanguage: 'global',
   enabledMods: 'global',
+  // 动作权重与决策策略:机器级设置,锁全局。
+  actionWeightDialogue: 'global',
+  actionWeightMod: 'global',
+  deciderStrategy: 'global',
   // 角色层为底:角色怎么表现,意图层不得改。
   emotionFrequency: 'character',
   interval: 'character',

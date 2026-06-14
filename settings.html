@@ -139,6 +139,14 @@
                 <div class="status" id="emotion-status"></div>
             </div>
             <div class="card">
+                <h3 data-i18n="weight.title">Action Weights</h3>
+                <label data-i18n="weight.hint">Relative tendency to chat versus run a mod action.</label>
+                <label data-i18n="weight.dialogue">Dialogue total weight</label><input type="number" id="action-weight-dialogue" min="0" step="50">
+                <label data-i18n="weight.mod">Mod total weight</label><input type="number" id="action-weight-mod" min="0" step="50">
+                <button class="btn btn-primary" id="btn-save-weights" data-i18n="btn.save">Save</button>
+                <div class="status" id="weight-status"></div>
+            </div>
+            <div class="card">
                 <h3 data-i18n="emo.expr.title">Expressions</h3>
                 <label data-i18n="emo.defExprDur">Default duration (s)</label><input type="number" id="default-expr-duration" min="0" step="0.5">
                 <div id="expr-hint" class="status" style="display:none;">No expressions.</div>

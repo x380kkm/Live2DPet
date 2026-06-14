@@ -9,6 +9,7 @@ import { mountApiPanel } from './api-panel.js';
 import { mountModelPanel } from './model-panel.js';
 import { mountModelConfigPanel } from './model-config-panel.js';
 import { mountEmotionPanel, renderExpressionList, renderMotionList } from './emotion-panel.js';
+import { mountWeightPanel } from './weight-panel.js';
 import { mountCharacterPanel, loadCharacterList } from './character-panel.js';
 import { mountTtsPanel } from './tts-panel.js';
 
@@ -43,6 +44,7 @@ export class SettingsApp {
     mountModelPanel(ctx);
     mountModelConfigPanel(ctx);
     mountEmotionPanel(ctx);
+    mountWeightPanel(ctx);
     mountTtsPanel(ctx);
     mountCharacterPanel(ctx);
     this._characterCtx = ctx;
