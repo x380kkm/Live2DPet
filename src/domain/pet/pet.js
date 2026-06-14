@@ -6,6 +6,7 @@
 
 const { StepId } = require('../../shared/step-catalog');
 const { ProductKind } = require('../intent/intent');
+const { describeModNeutrally } = require('./mod-introduction');
 
 class PetOrchestrator {
   //// 构造注入意图来源、请求管线、模型客户端、事件总线 [@busybee 2026-06-13] ////
@@ -43,9 +44,9 @@ class PetOrchestrator {
   //// 跑一个意图:经管线产出回应,把产物经事件总线发出 [@busybee 2026-06-13] ////
   // 编排器只做编排:调管线、把回应折成发言产物事件发布,表现层订阅自取,不直接 send。
   async run(intent, scope) {
-    // 产物为「当场生成临时 mod」时,走生成期一次性造前端并请求挂载,不走台词管线
+    // 产物为「当场生成临时 mod」时,走生成期一次性造前端并请求挂载,挂载后再产一句引入台词
     if (intent && intent.product && intent.product.kind === ProductKind.GenerateTempMod) {
-      return this._runGenerateTempMod(intent);
+      return this._runGenerateTempMod(intent, scope);
     }
 
     const response = await this.pipeline.run(intent, scope);
@@ -64,14 +65,27 @@ class PetOrchestrator {
   }
   //// /跑一个意图 ////
 
-  //// 生成临时 mod 后请求表现层挂载,运行期生成即执行的前端走沙箱隔离 [@busybee 2026-06-14] ////
-  async _runGenerateTempMod(intent) {
+  //// 生成临时 mod 后请求挂载,再据中性描述经富管线产一句引入台词 [@busybee 2026-06-14] ////
+  // 引入台词由主模型据人格现场生成,只喂 mod 的中性行为描述,守住生成期不写措辞的隔离边界。
+  async _runGenerateTempMod(intent, scope) {
     const mod = await this.generateTempMod(intent);
     if (!mod) return null;
     this.eventBus.publish({ type: 'ModMountRequested', modId: mod.id, frontendSpec: mod.frontendSpec, emits: mod.emits });
-    return { mod };
+
+    const introScope = { ...(scope || {}), modIntroduction: describeModNeutrally(mod) };
+    const response = this.pipeline ? await this.pipeline.run(intent, introScope) : null;
+    if (response && response.text) {
+      this.eventBus.publish({
+        type: 'UtteranceProduced',
+        intentId: intent.id,
+        text: response.text,
+        emotion: response.emotion,
+        modEvents: []
+      });
+    }
+    return { mod, response };
   }
-  //// /生成临时 mod 后请求表现层挂载 ////
+  //// /生成临时 mod 后请求挂载并产引入台词 ////
 
   //// 生成期 LLM 一次性造临时 mod,守住隔离边界 [@busybee 2026-06-13] ////
   // 委托注入的 mod 生成器;生成器在代码层禁止往产物写人格或成品措辞,编排器只转交意图规格。

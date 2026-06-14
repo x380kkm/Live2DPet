@@ -147,21 +147,42 @@ test('generateTempMod delegates the product spec to the generator', async () => 
   assert.strictEqual(mod.id, 'temp-mod');
 });
 
-//// run 遇到「当场生成临时 mod」产物时,生成后请求挂载、不走台词管线 [@busybee 2026-06-14] ////
-test('run 对 generate-temp-mod 产物生成临时 mod 并发 ModMountRequested', async () => {
+//// run 遇到「当场生成临时 mod」产物时,生成后请求挂载、再经富管线产引入台词 [@busybee 2026-06-14] ////
+test('run 对 generate-temp-mod 产物生成临时 mod、请求挂载并产引入台词', async () => {
   const eventBus = fakeEventBus();
   const generated = { id: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] };
   const modGenerator = { generate: async () => generated };
-  const pipeline = fakePipeline({ text: '不应被调用' });
+  const pipeline = fakePipeline({ text: '我新弄了个小玩意,来玩玩看吧', emotion: null, modEvents: [] });
   const pet = new PetOrchestrator({ pipeline, eventBus, modGenerator });
-  const intent = { id: 'make-game', product: { kind: 'generate-temp-mod', spec: { kind: 'mini-game' } } };
+  const intent = { id: 'make-game', contextSourceRefs: ['modIntroduction'], product: { kind: 'generate-temp-mod', spec: { kind: 'mini-game' } } };
 
-  const result = await pet.run(intent, {});
+  const result = await pet.run(intent, { situationDigest: '空闲' });
 
-  // 不走台词管线
-  assert.strictEqual(pipeline.calls.length, 0);
+  // 先请求挂载,再经富管线据中性描述产一句引入台词
   assert.strictEqual(result.mod, generated);
-  assert.deepStrictEqual(eventBus.published, [{
-    type: 'ModMountRequested', modId: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win']
-  }]);
+  assert.strictEqual(pipeline.calls.length, 1);
+  // 引入那次调用的作用域带中性描述,提到该 mod 会响应的交互,并保留原作用域字段
+  const introScope = pipeline.calls[0].scope;
+  assert.match(introScope.modIntroduction, /win/);
+  assert.strictEqual(introScope.situationDigest, '空闲');
+  assert.deepStrictEqual(eventBus.published, [
+    { type: 'ModMountRequested', modId: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] },
+    { type: 'UtteranceProduced', intentId: 'make-game', text: '我新弄了个小玩意,来玩玩看吧', emotion: null, modEvents: [] }
+  ]);
+});
+
+//// 引入台词为空时只请求挂载,不发空发言产物 [@busybee 2026-06-14] ////
+test('run 对 generate-temp-mod 在引入台词为空时只发 ModMountRequested', async () => {
+  const eventBus = fakeEventBus();
+  const generated = { id: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] };
+  const modGenerator = { generate: async () => generated };
+  const pipeline = fakePipeline({ text: '', emotion: null, modEvents: [] });
+  const pet = new PetOrchestrator({ pipeline, eventBus, modGenerator });
+  const intent = { id: 'make-game', product: { kind: 'generate-temp-mod', spec: {} } };
+
+  await pet.run(intent, {});
+
+  assert.deepStrictEqual(eventBus.published, [
+    { type: 'ModMountRequested', modId: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] }
+  ]);
 });
