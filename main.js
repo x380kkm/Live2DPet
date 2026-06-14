@@ -75,6 +75,8 @@ const { SplitIntentDecider, MainLlmDecider } = require('./src/domain/pet/action-
 const { WeightModel } = require('./src/domain/pet/weight-model');
 const { LowDiscrepancySequence } = require('./src/domain/pet/low-discrepancy');
 const { makeContextBuilder } = require('./src/domain/pet/action-context-builder');
+const { mountAutomation, snapshotWindows } = require('./src/platform/automation');
+const { synthesize: ttsSynthesize } = require('./src/platform/ipc/handlers/tts-handlers');
 const { InteractionRouter } = require('./src/domain/pet/interaction-router');
 const { InteractionEvent } = require('./src/domain/mod/interaction-event');
 const { ReactionPolicy } = require('./src/domain/statemachine/reaction-policy');
@@ -502,6 +504,44 @@ function spokenTextOf(event) {
 }
 //// /从两种发言产物载荷里取出刚说出的话 ////
 
+//// 装配自动化操纵通道:把调度、交互注入、取近期发言、合成与窗口快照接到行协议 [@busybee 2026-06-14] ////
+// 经标准输入读 JSON 命令、标准输出回结果与转发的领域事件;就绪日志走标准错误,不污染协议流。
+function mountAutomationChannel(platform, perceptionRuntime) {
+  runtime.automation = mountAutomation({
+    eventBus: platform.eventBus,
+    input: process.stdin,
+    output: process.stdout,
+    log: (message) => console.error(message),
+    caps: {
+      runTick: () => runtime.scheduler.runOnce(),
+      injectInteraction: ({ name, payload }) => platform.eventBus.publish(new InteractionEvent(name, payload)),
+      fetchRecentReplies: (count) => perceptionRuntime.providers.recentReplies().slice(-count),
+      synthesize: (text) => automationSynthesize(platform, text),
+      listWindows: () => snapshotWindows(
+        { pet: runtime.petWindow, bubble: runtime.chatBubbleWindow, modFrontend: runtime.modFrontendWindow, settings: runtime.settingsWindow },
+        (win) => Boolean(win) && (typeof win.isDestroyed !== 'function' || !win.isDestroyed())
+      )
+    }
+  });
+}
+//// /装配自动化操纵通道 ////
+
+//// 经 TTS 处理器合成一段语音,回是否有音频与字节数,供自动化断言链路打通 [@busybee 2026-06-14] ////
+async function automationSynthesize(platform, text) {
+  const result = await ttsSynthesize({
+    speechBackend: platform.speechBackend,
+    orchestrator: runtime.domain.ttsOrchestrator,
+    translate: (value) => runtime.translationService.translate(value),
+    currentEmotion: () => runtime.currentEmotionName || ''
+  }, text);
+  return {
+    hasAudio: !!result.success,
+    bytes: result.wav ? Buffer.byteLength(result.wav, 'base64') : 0,
+    error: result.error
+  };
+}
+//// /经 TTS 处理器合成一段语音 ////
+
 //// 把契约目录里仍未被处理器模块注册的通道补齐:窗口控制走窗口表,其余归一成可判定失败 [@busybee 2026-06-13] ////
 // 处理器模块已注册角色、模型、TTS、音频、感知、情绪、工具诸通道;此处只补窗口控制与尚无处理器的通道,
 // 再把每个通道桥到 electron 的 ipcMain.handle。register 重复会抛错,故先判定通道是否已注册。
@@ -812,7 +852,8 @@ const runtime = {
   isQuitting: false,
   platform: null,
   domain: null,
-  scheduler: null
+  scheduler: null,
+  automation: null
 };
 
 //// 在 app 就绪后完成依赖 app 的装配,建窗与托盘,注册 IPC [@busybee 2026-06-13] ////
@@ -936,6 +977,11 @@ app.whenReady().then(async () => {
     },
     { intervalMs: SCHEDULER_INTERVAL_MS, chatGapMs: SCHEDULER_INTERVAL_MS }
   );
+
+  // 自动化操纵通道:默认关闭;设 LIVE2DPET_AUTOMATION=1 时按标准输入输出行协议接受驱动,供打包版无人实测。
+  if (process.env.LIVE2DPET_AUTOMATION === '1') {
+    mountAutomationChannel(platform, perceptionRuntime);
+  }
 
   // 自动启动桌宠:默认关闭;设 LIVE2DPET_AUTOLAUNCH=1 时启动即建桌宠与气泡窗并开调度。
   if (process.env.LIVE2DPET_AUTOLAUNCH === '1') {
@@ -1178,6 +1224,12 @@ app.on('before-quit', async (event) => {
     if (runtime.scheduler) runtime.scheduler.stop();
   } catch (e) {
     console.error('[main] 调度器停止失败:', e && e.message);
+  }
+  // 停自动化操纵通道:解订阅并停监听输入
+  try {
+    if (runtime.automation) runtime.automation.stop();
+  } catch (e) {
+    console.error('[main] 自动化通道停止失败:', e && e.message);
   }
   try {
     await runtime.domain.memoryStore.flush();
