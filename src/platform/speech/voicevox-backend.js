@@ -21,7 +21,7 @@ class VoicevoxBackend extends SpeechBackend {
     this.path = path;
     this.fs = fs;
     this.circuitBreaker = circuitBreaker;
-    // 韵律塑形函数 (query, tone) => query,经注入;缺省不注入即只做标量微调。
+    // 韵律塑形函数 (query, tone) => 逐句音量增益段,经注入;它原地改 query 做逐句塑形并返回增益段,缺省不注入即不塑形。
     this.prosodyShaper = prosodyShaper || null;
 
     this.lib = null;
@@ -219,7 +219,8 @@ class VoicevoxBackend extends SpeechBackend {
     query.pitchScale = pitchScale;
     query.volumeScale = volumeScale;
     if (tone) this._applyTone(query, tone);
-    if (tone && this.prosodyShaper) this.prosodyShaper(query, tone);
+    let gainSpans = null;
+    if (tone && this.prosodyShaper) gainSpans = this.prosodyShaper(query, tone);
     const queryJson = JSON.stringify(query);
 
     const wavLenOut = [0];
@@ -231,19 +232,53 @@ class VoicevoxBackend extends SpeechBackend {
     const wavPtr = wavOut[0];
     const wavBuf = Buffer.from(koffi.decode(wavPtr, 'uint8', wavLenOut[0]));
     this._fn.wavFree(wavPtr);
+    if (gainSpans) this._applyGain(wavBuf, gainSpans);
     return wavBuf;
   }
   //// /走 audio_query 路径合成一次 ////
 
-  //// 把模型内微调量叠加到 audio_query:音高加增量、语速乘倍率,语调与停顿直接设 [@busybee 2026-06-14] ////
-  // 在用户基值(已写入 query)之上微调,不切换声线。
+  //// 把 tone 的全局量叠加到 audio_query:只设整段首尾停顿 [@busybee 2026-06-14] ////
+  // audio_query 只有全局量的项在此;音量包络在波形层、其余逐句量由 prosody-shaper 按包络处理。
   _applyTone(query, tone) {
-    if (tone.intonationScale != null) query.intonationScale = tone.intonationScale;
-    if (tone.pitchDelta != null) query.pitchScale = (query.pitchScale || 0) + tone.pitchDelta;
-    if (tone.speedMul != null) query.speedScale = (query.speedScale || 1) * tone.speedMul;
-    if (tone.volumeMul != null) query.volumeScale = (query.volumeScale || 1) * tone.volumeMul;
     if (tone.prePhonemeLength != null) query.prePhonemeLength = tone.prePhonemeLength;
     if (tone.postPhonemeLength != null) query.postPhonemeLength = tone.postPhonemeLength;
+  }
+
+  //// 按逐句增益段对 16 位 PCM 加增益,段界用一阶平滑避免爆音 [@busybee 2026-06-14] ////
+  _applyGain(wav, spans) {
+    if (!wav || wav.length <= 44 || !spans || spans.length === 0) {
+      return wav;
+    }
+    const sampleRate = wav.readUInt32LE(24);
+    const numChannels = wav.readUInt16LE(22);
+    const bitsPerSample = wav.readUInt16LE(34);
+    if (bitsPerSample !== 16 || !sampleRate || !numChannels) {
+      return wav;
+    }
+    const frameBytes = numChannels * 2;
+    const totalFrames = Math.floor((wav.length - 44) / frameBytes);
+    const bounds = [];
+    let cum = 0;
+    for (const span of spans) {
+      cum += span.durationSec;
+      bounds.push(Math.round(cum * sampleRate));
+    }
+    // 一阶平滑:每帧把当前增益向所在段的目标增益靠拢,约 20 毫秒过渡,避免段界爆音。
+    const alpha = 1 / Math.max(1, Math.floor(sampleRate * 0.02));
+    let s = 0;
+    let g = spans[0].gain;
+    for (let i = 0; i < totalFrames; i++) {
+      while (s < spans.length - 1 && i >= bounds[s]) s += 1;
+      g += (spans[s].gain - g) * alpha;
+      for (let c = 0; c < numChannels; c++) {
+        const off = 44 + i * frameBytes + c * 2;
+        let v = Math.round(wav.readInt16LE(off) * g);
+        if (v > 32767) v = 32767;
+        else if (v < -32768) v = -32768;
+        wav.writeInt16LE(v, off);
+      }
+    }
+    return wav;
   }
   //// /把语气字段叠加到 audio_query ////
 

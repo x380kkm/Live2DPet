@@ -7,14 +7,14 @@ const assert = require('node:assert');
 const { toneFor } = require('../../src/domain/tts/tone-map');
 
 //// 已知情绪给出语气字段,愉快抬高语调、低落压低 [@busybee 2026-06-14] ////
-test('已知情绪给出语气字段,愉快抬高语调、低落压低', () => {
+test('已知情绪给出语气字段,愉快抬高起伏与音高、低落压平压低', () => {
   const happy = toneFor('happy');
-  assert.ok(happy && typeof happy.intonationScale === 'number');
-  assert.ok(happy.intonationScale > 1, '愉快应抬高语调');
-  assert.ok(happy.pitchDelta > 0, '愉快应抬高音高');
+  assert.ok(happy && typeof happy.contour === 'number');
+  assert.ok(happy.contour > 1, '愉快应放大起伏');
+  assert.ok(happy.pitchLift > 0, '愉快应抬高音高');
   const sad = toneFor('sad');
-  assert.ok(sad.intonationScale < 1, '低落应压低语调');
-  assert.ok(sad.pitchDelta < 0, '低落应压低音高');
+  assert.ok(sad.contour < 1, '低落应压平起伏');
+  assert.ok(sad.pitchLift < 0, '低落应压低音高');
 });
 
 test('情绪名大小写不敏感', () => {

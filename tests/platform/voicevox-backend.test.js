@@ -237,14 +237,13 @@ test('warmup 已初始化合成预热返回真,未初始化返回假', () => {
   assert.strictEqual(hot.warmup(), true);
 });
 
-//// 传 tone 时把语调与停顿字段写进 audio_query [@busybee 2026-06-14] ////
-test('synthesize 传 tone 时写入语调与停顿字段', () => {
+//// 传 tone 时把整段首尾停顿写进 audio_query [@busybee 2026-06-14] ////
+test('synthesize 传 tone 时写入整段首尾停顿', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
   backend.init('/voicevox', null, {});
-  backend.synthesize('text', { tone: { intonationScale: 1.4, prePhonemeLength: 0.05, postPhonemeLength: 0.1 } });
+  backend.synthesize('text', { tone: { prePhonemeLength: 0.05, postPhonemeLength: 0.1 } });
   const sent = JSON.parse(mocks.calls.lastSynthJson);
-  assert.strictEqual(sent.intonationScale, 1.4);
   assert.strictEqual(sent.prePhonemeLength, 0.05);
   assert.strictEqual(sent.postPhonemeLength, 0.1);
 });
@@ -267,15 +266,14 @@ test('setConfig 设置 toneControl 开关', () => {
   assert.strictEqual(backend.toneControl, true);
 });
 
-//// tone 的音高增量、语速与音量倍率叠加到用户基值,不覆盖 [@busybee 2026-06-14] ////
-test('synthesize tone 的音高增量、语速与音量倍率叠加到用户基值', () => {
+//// 逐句量(语速、音高、起伏)不进 _applyTone,留给 prosody-shaper 按包络处理 [@busybee 2026-06-14] ////
+test('synthesize 的 _applyTone 不写逐句量,只动全局量', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
   backend.init('/voicevox', null, {});
-  backend.setConfig({ pitchScale: 0.0, speedScale: 1.0 });
-  backend.synthesize('text', { tone: { pitchDelta: 0.03, speedMul: 1.1, volumeMul: 0.8 } });
+  backend.synthesize('text', { tone: { lengthMul: 1.2, pitchLift: 0.1, contour: 1.5, prePhonemeLength: 0.05 } });
   const sent = JSON.parse(mocks.calls.lastSynthJson);
-  assert.ok(Math.abs(sent.pitchScale - 0.03) < 1e-9, '音高应在基值上加增量');
-  assert.ok(Math.abs(sent.speedScale - 1.1) < 1e-9, '语速应在基值上乘倍率');
-  assert.ok(Math.abs(sent.volumeScale - 0.8) < 1e-9, '音量应在基值上乘倍率');
+  // 未注入塑形器时,逐句量不应落到 query 的全局字段。
+  assert.strictEqual(sent.prePhonemeLength, 0.05);
+  assert.strictEqual(sent.intonationScale, undefined);
 });

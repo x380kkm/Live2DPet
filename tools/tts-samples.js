@@ -8,6 +8,7 @@ const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
 const { toneFor } = require('../src/domain/tts/tone-map');
+const { apply } = require('../src/domain/tts/prosody-shaper');
 
 // 统一声线:四国めたん ノーマル(styleId 2)。用户实际会自己选,这里固定一条以听清模型内微调的效果。
 const VOICE = 2;
@@ -26,7 +27,7 @@ const SAMPLES = [
 const outDir = path.join(__dirname, 'samples');
 fs.mkdirSync(outDir, { recursive: true });
 
-const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
+const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null, prosodyShaper: apply });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.warmup();
 

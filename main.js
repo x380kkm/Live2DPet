@@ -102,7 +102,7 @@ function assemblePlatform() {
 
   // 语音后端:熔断器包住连续失败降级,koffi 与第三方类型只在 voicevox-backend 出现
   const circuitBreaker = new CircuitBreaker({ maxFailures: 3, retryInterval: 60000, fallback: null });
-  const speechBackend = new VoicevoxBackend({ koffi: require('koffi'), path, fs, circuitBreaker, prosodyShaper: require('./src/domain/tts/prosody-shaper').shape });
+  const speechBackend = new VoicevoxBackend({ koffi: require('koffi'), path, fs, circuitBreaker, prosodyShaper: require('./src/domain/tts/prosody-shaper').apply });
 
   // 活动窗口与网络搜索源:第三方 active-win 与 http/https 类型止于各自源文件
   const activeWindow = createActiveWindowSource({});
