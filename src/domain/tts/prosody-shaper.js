@@ -133,8 +133,9 @@ function volumeGainSpans(query, tone) {
 
 // 朗读结构常量:专业朗读的句内音高下倾、句首重置、停顿前延长,以及句末降、逗号续接、疑问升,数值据真机取证。
 const NARRATION = Object.freeze({
-  declStep: 0.04,
-  resetBoost: 0.03,
+  declStep: 0.07,
+  resetBoost: 0.06,
+  maxDecline: 0.28,
   sentencePause: 0.32,
   preLengthen: 1.12,
   questionRise: 0.18,
@@ -150,8 +151,9 @@ function applyNarration(query) {
   for (let i = 0; i < phrases.length; i++) {
     const phrase = phrases[i];
     const voiced = (phrase.moras || []).filter((m) => m.pitch > 0);
-    // 句首略高、随位置渐低,得到句内自然下倾;每到句界重置。
-    const shift = NARRATION.resetBoost - NARRATION.declStep * posInSentence;
+    // 句首略高、随位置渐低,得到句内自然下倾;下倾设上限防长句越走越低,每到句界重置。
+    const decline = Math.min(NARRATION.declStep * posInSentence, NARRATION.maxDecline);
+    const shift = NARRATION.resetBoost - decline;
     for (const mora of voiced) {
       mora.pitch = Math.max(0.1, mora.pitch + shift);
     }

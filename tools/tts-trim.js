@@ -23,6 +23,17 @@ wav.copy(out, 44, 44, 44 + pcmBytes);
 out.writeUInt32LE(36 + pcmBytes, 4);
 out.writeUInt32LE(pcmBytes, 40);
 
+// 末尾约 40 毫秒淡出,避免裁切处的突兀尾音。
+const fadeFrames = Math.min(keepFrames, Math.floor(sampleRate * 0.04));
+for (let i = 0; i < fadeFrames; i++) {
+  const frame = keepFrames - fadeFrames + i;
+  const gain = (fadeFrames - i) / fadeFrames;
+  for (let c = 0; c < numChannels; c++) {
+    const o = 44 + frame * frameBytes + c * 2;
+    out.writeInt16LE(Math.round(out.readInt16LE(o) * gain), o);
+  }
+}
+
 const dstPath = path.join(dir, dstName || 'rashomon-share.wav');
 fs.writeFileSync(dstPath, out);
 console.log(`${dstPath} ${(out.length / 1048576).toFixed(2)}MB 约 ${(pcmBytes / (sampleRate * frameBytes)).toFixed(0)} 秒`);

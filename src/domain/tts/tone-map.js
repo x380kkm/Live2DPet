@@ -20,7 +20,7 @@ const TONE_BY_EMOTION = Object.freeze({
   angry: { volBody: 0.95, volPeak: 1.15, prePhonemeLength: 0.02, postPhonemeLength: 0.03, contour: 1.3, pitchLift: 0.0, lengthMul: 0.93, baseIntensity: 0.45, envelopeSigma: 1.5, endFall: 0.08, endRise: 0.05, endLengthen: 0.95, pauseMul: 0.82 },
   sad: { volBody: 0.8, volPeak: 0.92, prePhonemeLength: 0.05, postPhonemeLength: 0.08, contour: 0.82, pitchLift: -0.02, lengthMul: 1.14, baseIntensity: 0.7, envelopeSigma: 2.0, endFall: 0.03, endRise: 0.0, endLengthen: 1.35, pauseMul: 1.12 },
   gloomy: { volBody: 0.78, volPeak: 0.9, prePhonemeLength: 0.05, postPhonemeLength: 0.1, contour: 0.75, pitchLift: -0.03, lengthMul: 1.18, baseIntensity: 0.7, envelopeSigma: 2.0, endFall: 0.04, endRise: 0.0, endLengthen: 1.4, pauseMul: 1.18 },
-  calm: { volBody: 0.88, volPeak: 0.98, prePhonemeLength: 0.04, postPhonemeLength: 0.05, contour: 0.9, pitchLift: -0.01, lengthMul: 1.05, baseIntensity: 0.6, envelopeSigma: 2.0, endFall: 0.05, endRise: 0.0, endLengthen: 1.15, pauseMul: 1.05 },
+  calm: { volBody: 0.88, volPeak: 0.98, prePhonemeLength: 0.04, postPhonemeLength: 0.05, contour: 1.2, pitchLift: 0.0, lengthMul: 1.05, baseIntensity: 0.6, envelopeSigma: 2.0, endFall: 0.05, endRise: 0.0, endLengthen: 1.15, pauseMul: 1.05 },
   shy: { volBody: 0.82, volPeak: 0.95, prePhonemeLength: 0.04, postPhonemeLength: 0.05, contour: 0.85, pitchLift: 0.0, lengthMul: 1.09, baseIntensity: 0.6, envelopeSigma: 1.8, endFall: 0.04, endRise: 0.0, endLengthen: 1.15, pauseMul: 1.05 }
 });
 
