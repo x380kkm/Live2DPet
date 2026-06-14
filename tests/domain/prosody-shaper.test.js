@@ -27,11 +27,12 @@ test('contour 放大或压平句内起伏', () => {
   assert.ok(flat.pitchStd < base.pitchStd, 'contour 小应起伏更小');
 });
 
-//// pausePad 把各句句间停顿统一 [@busybee 2026-06-14] ////
-test('pausePad 统一句间停顿', () => {
-  const q = shape(query([phrase([mora(5.5)], 0.5), phrase([mora(5.6)], 0.1)]), { pausePad: 0.2 });
-  assert.ok(Math.abs(q.accent_phrases[0].pause_mora.vowel_length - 0.2) < 1e-9);
-  assert.ok(Math.abs(q.accent_phrases[1].pause_mora.vowel_length - 0.2) < 1e-9);
+//// pauseMul 按倍率缩放句间停顿,不覆盖 [@busybee 2026-06-14] ////
+test('pauseMul 按倍率缩放句间停顿', () => {
+  const q = shape(query([phrase([mora(5.5)], 0.5), phrase([mora(5.6)], 0.2)]), { pauseMul: 0.5 });
+  // 两句都是锚点(首末),强度 1,自然停顿减半。
+  assert.ok(Math.abs(q.accent_phrases[0].pause_mora.vowel_length - 0.25) < 1e-9);
+  assert.ok(Math.abs(q.accent_phrases[1].pause_mora.vowel_length - 0.1) < 1e-9);
 });
 
 //// 陈述句末句尾降并延长,疑问句末句尾升 [@busybee 2026-06-14] ////

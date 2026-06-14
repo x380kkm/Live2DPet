@@ -6,13 +6,7 @@
 // 人声是平直占主体、情绪在关键处突出。故所有逐句参数都由同一条强度包络驱动,不单独处理:
 // 锚点句(首句、末句、疑问句)强度为 1,其余句按到最近锚点的距离做高斯衰减回落到 baseIntensity,过渡平滑。
 // 每句按各自强度把这些量从中性插值到目标:contour 句内起伏、pitchLift 整句抬音、lengthMul 句内语速、
-// pausePad 句间停顿、末句的 endFall/endRise/endLengthen。音量与整段首尾停顿是全局量,不在此处,由 _applyTone 处理。
-
-//// 线性插值 [@busybee 2026-06-14] ////
-function lerp(a, b, k) {
-  return a + (b - a) * k;
-}
-//// /线性插值 ////
+// pauseMul 句间停顿倍率、末句的 endFall/endRise/endLengthen。音量包络在波形层另算,整段首尾停顿由 _applyTone 处理。
 
 //// 算逐句的情绪强度包络:锚点句为 1,其余按到最近锚点的距离高斯衰减到 baseIntensity [@busybee 2026-06-14] ////
 // 锚点取首句、末句与各疑问句;sigma 越大过渡越宽。
@@ -99,8 +93,8 @@ function shape(query, tone) {
     if (tone.contour != null) shapeContour(phrase, 1 + (tone.contour - 1) * k);
     if (tone.pitchLift != null) applyPitchLift(phrase, tone.pitchLift * k);
     if (tone.lengthMul != null) applyLength(phrase, 1 + (tone.lengthMul - 1) * k);
-    if (phrase.pause_mora && tone.pausePad != null) {
-      phrase.pause_mora.vowel_length = lerp(phrase.pause_mora.vowel_length, tone.pausePad, k);
+    if (phrase.pause_mora && tone.pauseMul != null) {
+      phrase.pause_mora.vowel_length *= 1 + (tone.pauseMul - 1) * k;
     }
     if (index === phrases.length - 1) shapeFinal(phrase, tone, k);
   });
