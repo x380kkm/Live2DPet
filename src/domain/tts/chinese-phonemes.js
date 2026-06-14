@@ -160,6 +160,57 @@ function applyToneSandhi(items) {
 }
 //// /三声变调 ////
 
+//// 把一个停顿组内的多个 accent_phrase 合并成一个,消除词间停顿与音高重置,让连读不打断 [@busybee 2026-06-15] ////
+// VOICEVOX 把片假名按词切成多个 accent_phrase,词界会插微停顿并重置音高,中文听起来一顿一顿;
+// 这里把相邻、其间没有停顿 mora 的 phrase 并成一个,只在标点的停顿处断开,合成出来就连贯。
+function flowPhrases(query) {
+  const phrases = (query && query.accent_phrases) || [];
+  const merged = [];
+  for (const phrase of phrases) {
+    const last = merged[merged.length - 1];
+    if (last && !last.pause_mora) {
+      last.moras = last.moras.concat(phrase.moras || []);
+      last.pause_mora = phrase.pause_mora || null;
+      last.is_interrogative = last.is_interrogative || Boolean(phrase.is_interrogative);
+    } else {
+      merged.push({
+        moras: (phrase.moras || []).slice(),
+        accent: phrase.accent || 1,
+        pause_mora: phrase.pause_mora || null,
+        is_interrogative: Boolean(phrase.is_interrogative)
+      });
+    }
+  }
+  query.accent_phrases = merged;
+  return query;
+}
+//// /把一个停顿组内的多个 accent_phrase 合并成一个 ////
+
+//// 把各 mora 的时长拉成中文那种持续、连贯的样子:抻长元音、压短辅音、收紧停顿 [@busybee 2026-06-15] ////
+// 日语 mora 短促,逐拍听起来一顿一顿;中文音节更长更连。抻长元音让音持续、声调滑得开,压短辅音减少音节间空隙,
+// 标点停顿收到适中长度。config 可调 vowelFloor/vowelScale/consonantCap/pauseCap。
+function shapeFlow(query, config = {}) {
+  const vowelFloor = config.vowelFloor != null ? config.vowelFloor : 0.16;
+  const vowelScale = config.vowelScale != null ? config.vowelScale : 1.5;
+  const consonantCap = config.consonantCap != null ? config.consonantCap : 0.05;
+  const pauseCap = config.pauseCap != null ? config.pauseCap : 0.22;
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      if (mora.vowel_length != null && mora.vowel_length > 0) {
+        mora.vowel_length = Math.max(vowelFloor, mora.vowel_length * vowelScale);
+      }
+      if (mora.consonant_length != null) {
+        mora.consonant_length = Math.min(mora.consonant_length, consonantCap);
+      }
+    }
+    if (phrase.pause_mora && phrase.pause_mora.vowel_length != null) {
+      phrase.pause_mora.vowel_length = Math.min(phrase.pause_mora.vowel_length, pauseCap);
+    }
+  }
+  return query;
+}
+//// /把各 mora 的时长拉成中文那种持续、连贯的样子 ////
+
 //// 据声调与音节 mora 数算各 mora 的目标音高,相对基准音高 [@busybee 2026-06-15] ////
 // 一声高平、二声上升、三声压低微升、四声下降、轻声略低;单 mora 取代表值(调内走势靠相邻音节体现)。
 function toneContour(tone, moras, base) {
@@ -242,6 +293,8 @@ module.exports = {
   sentenceToKana,
   toneContour,
   applyTones,
+  flowPhrases,
+  shapeFlow,
   moraCount,
   INITIAL_CV,
   FINAL_KANA

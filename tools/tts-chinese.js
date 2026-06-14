@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToKana, applyTones } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToKana, applyTones, flowPhrases, shapeFlow } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 // 四国めたん ノーマル:清晰的女声,便于先判清凑音素与声调;声线可换。
@@ -34,9 +34,15 @@ backend.warmup();
 const query = backend.audioQuery(kana, VOICE);
 // 稍放慢,给四声调型与韵尾更多发音时间。
 query.speedScale = 0.92;
+const phrasesBefore = (query.accent_phrases || []).length;
+// 合并词间停顿组、抻长元音压短辅音让连读连贯,再按声调改音高。
+flowPhrases(query);
+const phrasesAfter = (query.accent_phrases || []).length;
+shapeFlow(query);
 const moraTotal = (query.accent_phrases || []).reduce((sum, ph) => sum + (ph.moras || []).length, 0);
 applyTones(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
+console.log(`accent_phrase 合并:${phrasesBefore} → ${phrasesAfter}`);
 
 const f = analyze(query);
 const file = path.join(outDir, 'chinese-nihao.wav');

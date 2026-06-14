@@ -10,7 +10,9 @@ const {
   syllableToKana,
   sentenceToKana,
   toneContour,
-  applyTones
+  applyTones,
+  flowPhrases,
+  shapeFlow
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
@@ -108,6 +110,37 @@ test('applyTones 按片假名覆盖对齐,容忍引擎拆拍', () => {
   assert.ok(Math.abs(moras[0].pitch - 6.10) < 1e-6, '吞下 ド 属第一音节一声');
   assert.ok(Math.abs(moras[1].pitch - 6.10) < 1e-6, '吞下 ゥ 仍属第一音节,未串到第二音节');
   assert.ok(Math.abs(moras[2].pitch - 6.12) < 1e-6, 'ニ 属第二音节四声');
+});
+
+//// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@busybee 2026-06-15] ////
+test('flowPhrases 合并无停顿相邻 phrase', () => {
+  const query = {
+    accent_phrases: [
+      { moras: [{ text: 'ニ', pitch: 5.8 }], accent: 1, pause_mora: null },
+      { moras: [{ text: 'ハ', pitch: 5.8 }], accent: 1, pause_mora: { vowel_length: 0.3 } },
+      { moras: [{ text: 'オ', pitch: 5.8 }], accent: 1, pause_mora: null }
+    ]
+  };
+  flowPhrases(query);
+  // 前两个间无停顿合并;第二个后有停顿,与第三个断开
+  assert.strictEqual(query.accent_phrases.length, 2);
+  assert.deepStrictEqual(query.accent_phrases[0].moras.map((m) => m.text), ['ニ', 'ハ']);
+  assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['オ']);
+});
+
+//// 时长整形:抻长元音、压短辅音、收紧停顿 [@busybee 2026-06-15] ////
+test('shapeFlow 抻长元音压短辅音收紧停顿', () => {
+  const query = {
+    accent_phrases: [{
+      moras: [{ text: 'ニ', consonant_length: 0.10, vowel_length: 0.10, pitch: 5.8 }],
+      pause_mora: { vowel_length: 0.40 }
+    }]
+  };
+  shapeFlow(query, { vowelFloor: 0.16, vowelScale: 1.5, consonantCap: 0.05, pauseCap: 0.22 });
+  const mora = query.accent_phrases[0].moras[0];
+  assert.strictEqual(mora.vowel_length, 0.16); // max(0.16, 0.10*1.5=0.15)
+  assert.strictEqual(mora.consonant_length, 0.05); // min(0.10, 0.05)
+  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.22); // min(0.40, 0.22)
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////
