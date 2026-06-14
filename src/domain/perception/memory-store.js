@@ -3,7 +3,7 @@
 // 短期与中期记忆:经 storage 仓储做时间分层查询与写入。
 // 不变量:生命周期由 pet 显式 load 与 flush 驱动,记忆不自行落盘。
 //
-// 依赖经构造注入:repository 提供 get/put/queryByTime;now 注入时钟便于测试。
+// 依赖经构造注入:repository 提供 get/put/queryByTime;now 为注入时钟。
 // 记忆条目形如 { situation, title, timestamp };短期是本会话内存缓冲,中期是仓储里的时间分层集合。
 // load 把仓储里的中期记忆读进内存,append 只写内存缓冲,recall 合并两段按时间窗筛,
 // flush 把内存缓冲并入仓储并按保留期淘汰过旧条目。仓储键经构造给定,默认 perception-memory。

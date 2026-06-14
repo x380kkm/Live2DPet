@@ -3,12 +3,9 @@
 // 展示与交互类进程间通道的处理器:气泡推送、上下文菜单、开发者工具、角色数据。
 // 产出按通道名索引的处理器表,供 ipc-router 注册。
 //
-// 迁移自 src/main/window-manager.js(show-pet-chat、close-chat-bubble、resize-chat-bubble、
-// update-pet-character、get-character-data)与 src/main/utility-ipc.js(show-pet-context-menu、open-dev-tools)。
-// 去掉对全局 ctx 的依赖,窗口经构造注入的取值函数取得;原先各处 ctx.window.webContents.send,
-// 现在经窗口工厂句柄的 send 转发,裸 webContents 不出本层。对话气泡是浮在桌宠上方的独立窗口,
-// 由构造注入的 bubble 控制器(deps.bubble:show/resize/hide)驱动;show-pet-chat、close-chat-bubble、
-// resize-chat-bubble 三路通道都转交该控制器,本层不直接持有气泡窗口。
+// 窗口经构造注入的取值函数取得,经窗口工厂句柄的 send 转发,裸 webContents 不出本层。
+// 对话气泡是浮在桌宠上方的独立窗口,由构造注入的 bubble 控制器(deps.bubble:show/resize/hide)驱动;
+// show-pet-chat、close-chat-bubble、resize-chat-bubble 三路通道都转交该控制器,本层不直接持有气泡窗口。
 //
 // 构造注入的协作者都只是窄接口,第三方类型(electron 的 Menu、webContents)留在 platform 工厂:
 //   getPetWindow      返回宠物窗口句柄或 null,句柄由窗口工厂产出,带 send/setSize/openDevTools
@@ -35,7 +32,7 @@ const RENDER_CHANNEL = {
 function createUiHandlers(deps) {
   const { getPetWindow, getSettingsWindow, createSettingsWindow, menuPopup, isAlive, mt } = deps;
   const translate = mt || ((key) => key);
-  // 气泡控制器:显示发言、改尺寸、隐藏都驱动独立气泡窗口;缺省给无害空实现便于测试单独验其他通道。
+  // 气泡控制器:显示发言、改尺寸、隐藏都驱动独立气泡窗口;缺省给无害空实现。
   const bubble = deps.bubble || { show() {}, resize() {}, hide() {} };
 
   // 角色数据为本层持有的可变快照,更新通道合并补丁,读取通道返回快照。

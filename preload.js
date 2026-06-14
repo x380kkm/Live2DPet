@@ -57,7 +57,7 @@ function makeEventSubscribers() {
 //// /把单向推送通道收成订阅句柄 ////
 
 //// 按能力域分级暴露:无害控制与读写直放,屏幕、外发、文件三域为重能力单列 [@busybee 2026-06-13] ////
-// 重能力域与无害控制域分桶暴露,而非过去那张约 70 通道扁平等权表;渲染侧按域取能力。
+// 重能力域与无害控制域分桶暴露;渲染侧按域取能力。
 contextBridge.exposeInMainWorld('petBridge', {
   ui: groupOf(D.ui),
   config: groupOf(D.config),

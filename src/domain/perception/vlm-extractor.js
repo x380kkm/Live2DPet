@@ -5,7 +5,7 @@
 //
 // 依赖经构造注入:llmClient 做无关供应商的补全调用;buffer 是关键帧来源;
 // prompts 给定选帧与抽态势的系统提示词(由调用方按语言解析,本模块不内联成品措辞);
-// now 注入时钟便于测试退避。选帧与抽态势各有独立的退避区间,失败后退避翻倍到上限。
+// now 为注入时钟。选帧与抽态势各有独立的退避区间,失败后退避翻倍到上限。
 
 const { StepId } = require('../../shared/step-catalog');
 
@@ -126,7 +126,7 @@ class VlmExtractor {
         ]
       });
       const situation = result.text ? result.text.trim().slice(0, this.situationMaxLen) : '';
-      // 成功后退避翻倍到上限,降低主动抽取频率。
+      // 成功后退避翻倍到上限。
       this._situationInterval = Math.min(this._situationInterval * 2, this.situationMaxIntervalMs);
       this._lastSituationAt = now;
       return situation || null;

@@ -1,7 +1,6 @@
 // audience: internal
 // # model-handlers
 // 模型文件夹扫描、参数映射建议、文件选择与导入,产出按通道名索引的处理器表供 ipc-router 注册。
-// 迁移自 src/main/model-import.js,去掉对全局 ctx 的依赖,文件存储改异步、经构造注入。
 //
 // 构造注入的协作者都只是窄接口,第三方类型(dialog、fs、path)留在装配处:
 //   picker   弹选择框,异步:pickDirectory({title})/pickFile({title,filters}) 返回 { canceled, paths }

@@ -3,8 +3,7 @@
 // 把网络搜索(DuckDuckGo HTML 抓取与自定义 JSON 端点)包成自有的查询接口。
 // 不变量:第三方 http、https 与 URL 解析类型不越过本文件;查询产物折成 { success, results|error } 平直数据。
 //
-// 迁移自 src/main/enhance-ipc.js 的 web-search 处理器:原先 http 抓取与 DDG 解析内嵌在 ipcMain.handle。
-// 现在抽到平台侧封掉网络类型,处理器只经能力网关调本接口。
+// 本接口封掉网络类型,处理器只经能力网关调它。
 //
 // 依赖经构造注入:http、https 为 Node 网络模块;userAgent 为外发请求的 UA 标识。
 

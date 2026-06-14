@@ -5,7 +5,7 @@
 //
 // 依赖经构造注入:deps.llmClient 给定有界 LLM 客户端(只用其 complete),deps.eventBus 给定事件总线。
 // scope 由调用方供内容:scope.messages 是结构化提示词消息,本模块只搭结构不含成品措辞与人格文本。
-// 取消语义借自 message-session:每次 reactTo 自增调用号,后发的调用作废先前在途的,只有最新一次发布产物。
+// 取消语义:每次 reactTo 自增调用号,后发的调用作废先前在途的,只有最新一次发布产物。
 // 产出向总线发布 { type: 'ReactionProduced', state, text };作废或空文本不发布。
 
 const { StepId } = require('../../shared/step-catalog');

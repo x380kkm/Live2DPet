@@ -2,7 +2,7 @@
 // # mod-frontend
 // mod 前端宿主窗口的渲染脚本:订阅主进程的挂载消息,把 mod 前端承载进窗口,并把交互事件回流给主进程。
 // 不变量:只经 petBridge 暴露的窄接口收发,不直接碰 ipcRenderer;承载与沙箱细节收在 mod-mounter 内。
-// 交互事件回流到意图在里程碑八·5 接通主进程一侧;通道未接通时 emit 为无害空操作。
+// 通道未接通时 emit 为无害空操作。
 
 import { mountMod } from './mod/mod-mounter.js';
 

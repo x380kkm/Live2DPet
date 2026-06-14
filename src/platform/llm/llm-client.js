@@ -28,7 +28,7 @@ class LlmClient {
 
     this.fetch = deps.fetch;
     this.cleanResponse = deps.cleanResponse;
-    // 退避等待可注入,便于测试时跳过真实计时。
+    // 退避等待可注入。
     this.sleep = deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 

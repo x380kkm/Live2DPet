@@ -5,7 +5,6 @@
 //
 // 依赖经构造注入:toneProvider() 返回下一句话的情绪标签字符串;退而取 scope.nextEmotion。
 // labelTemplate 含占位符 {0},渲染时替换为情绪标签,缺省直接给标签。
-// 迁移自旧 desktop-pet-system.sendRequest 的 nextEmotionBuffer 语气提示块(:664-668)。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
@@ -43,7 +42,7 @@ class ToneHintSource extends ContextSource {
   }
   //// /取下一句话预定情绪代入标签模板 ////
 
-  //// 取下一句话情绪标签:优先注入的取数函数,退而取作用域字段;非非空字符串返回 null [@busybee 2026-06-13] ////
+  //// 取下一句话情绪标签:优先注入的取数函数,退而取作用域字段;不是非空字符串时返回 null [@busybee 2026-06-13] ////
   _nextEmotion(scope) {
     let value = null;
     if (typeof this.toneProvider === 'function') {

@@ -35,7 +35,7 @@ function defaultAgeLadder() {
 class KeyframeBuffer {
   //// 构造注入降采样函数、时钟、层级表与按龄档,装配各层的帧数组 [@busybee 2026-06-13] ////
   constructor(deps = {}, config = {}) {
-    // downsample(image, maxDim) 产出降采样后的帧数据;缺省恒等,便于无图像环境测试。
+    // downsample(image, maxDim) 产出降采样后的帧数据;缺省恒等。
     this.downsample = deps.downsample || ((image) => image);
     this.now = deps.now || (() => Date.now());
 

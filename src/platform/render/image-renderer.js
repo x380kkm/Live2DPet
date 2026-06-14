@@ -88,7 +88,7 @@ export class ImageRenderer extends RenderAdapter {
   }
 
   //// 外部告知说话状态变化,空闲与说话帧据此切换 [@busybee 2026-06-13] ////
-  // 取代旧实现里对 window.electronAPI 的全局订阅,改为由调用方显式喂入。
+  // 说话状态由调用方显式喂入。
   setTalking(isTalking) {
     this.isTalking = isTalking;
     if (!this.currentEmotion) this._updateDisplay();
@@ -96,7 +96,7 @@ export class ImageRenderer extends RenderAdapter {
 
   //// 设置口型开合度:分帧口型为后置增强,当前不动帧 [@busybee 2026-06-13] ////
   setMouth(openness) {
-    // 现阶段保持现有静图切换行为,口型分帧待后置增强接入。
+    // 图片模式不写口型。
   }
 
   //// 命中测试:图片模式无交互区,恒返回空 [@busybee 2026-06-13] ////

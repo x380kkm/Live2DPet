@@ -6,7 +6,7 @@
 
 const { Utterance } = require('./utterance');
 
-//// 表达一次发言取消状态的显式令牌,替代全局静态自增计数器 [@busybee 2026-06-13] ////
+//// 表达一次发言取消状态的显式令牌 [@busybee 2026-06-13] ////
 class CancelToken {
   constructor() {
     this.cancelled = false;

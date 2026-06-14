@@ -4,7 +4,6 @@
 // 不变量:id 取意图引用名 situationDigest;只读态势文本不内联人格;无态势返回 null 由组装器跳过。
 //
 // 依赖经构造注入:extractor 暴露 keyframes() 返回最新在前的关键帧集,每帧含 situation 文本。
-// 迁移自 PerceptionSource._latestSituation 与旧 desktop-pet-system 的 VLM 态势注入。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

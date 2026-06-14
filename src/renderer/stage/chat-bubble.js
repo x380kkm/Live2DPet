@@ -83,7 +83,7 @@ export class ChatBubble {
       return { width: this.budget.min.width, height: this.budget.min.height };
     }
     const rect = el.getBoundingClientRect();
-    // 旧源经验留白:宽加 50、高加 60 给气泡边框
+    // 宽加 50、高加 60 留给气泡边框
     return { width: Math.ceil(rect.width) + 50, height: Math.ceil(rect.height) + 60 };
   }
 }

@@ -10,7 +10,7 @@ const TriggerWhen = {
   ModEvent: 'mod-event',
 };
 
-//// 产物形态取值:用某个模板,或未来当场生成临时 mod [@busybee 2026-06-13] ////
+//// 产物形态取值:用某个模板,或当场生成临时 mod [@busybee 2026-06-13] ////
 const ProductKind = {
   UseTemplate: 'use-template',
   GenerateTempMod: 'generate-temp-mod',
@@ -26,7 +26,7 @@ class Intent {
     this.contextSourceRefs = [];
     // 只引结构样例,语气样例按角色解析
     this.fewShotRefs = [];
-    // 产物声明:使用某个模板,或未来当场生成临时 mod
+    // 产物声明:使用某个模板,或当场生成临时 mod
     this.product = null;
     // 来源标识:出厂内置或某个 mod 的 id,供发现可追溯
     this.origin = null;

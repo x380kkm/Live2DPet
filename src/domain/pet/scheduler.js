@@ -2,7 +2,6 @@
 // # scheduler
 // 主循环调度器:按可配间隔周期性驱动一轮角色编排——采感知、取候选、选意图、跑意图,并按需喂情绪。
 // 不变量:不持窗口句柄、不碰第三方类型;计时与时钟经构造注入,start/stop 干净不残留定时器。
-// 迁移自 desktop-pet-system.js 的 startDetection/stopDetection/tick 检测循环与 chatGapMs 发言间隔约束。
 //
 // 依赖经构造注入:
 //   perception   感知采集源,capture() 返回一帧 { image, title, ... } 或 null,屏蔽截屏与窗口取用细节
@@ -10,10 +9,10 @@
 //   registry     IntentRegistry,candidates(scope) 列出当前信号能触发的候选意图
 //   pet          PetOrchestrator,selectIntent(candidates, scope) 选一个、run(intent, scope) 跑出回应
 //   emotionState 可选 EmotionState,每拍喂 tick、产出回应时喂 reply,到阈值由其自行发事件
-//   clock        注入时钟,now() 返回毫秒时间戳,便于测试发言间隔
-//   timer        注入计时接口,setInterval/clearInterval 与全局同形,便于测试驱动循环
+//   clock        注入时钟,now() 返回毫秒时间戳
+//   timer        注入计时接口,setInterval/clearInterval 与全局同形
 
-// 调度间隔下限:与旧检测循环一致,最小 10 秒,防止过密驱动模型。
+// 调度间隔下限:最小 10 秒,防止过密驱动模型。
 const MIN_INTERVAL_MS = 10000;
 
 class PetScheduler {

@@ -4,16 +4,11 @@
 // 不变量:外发(open-external、web-search)与文件(增强数据读写)为重能力,逐次经 capability-gateway 门控;
 // 通道名只来自 channel-registry;配置变更不再点对点 send,改为经 event-bus 发布;裸字符串不出库。
 //
-// 迁移自 src/main/utility-ipc.js 与 src/main/enhance-ipc.js:
-// 原先各通道直接 ipcMain.handle,save-config 内部 ctx.petWindow.webContents.send 通知热重载,
-// open-external 与 web-search 直接执行,增强数据直接 fs 读写。
-// 现在配置变更经总线发布,外发与文件能力经网关门控,网络与落盘细节落在平台侧的源里。
-//
 // 依赖经构造注入:router 为 ipc-router,gateway 为 capability-gateway,bus 为 event-bus,
 // configStore 给出配置读写,appInfo 给出应用路径,enhanceStore 给出增强数据读写,
 // logSink 接收渲染侧日志,scope 为门控作用域标识。
 
-//// 配置保存后对外发布的领域事件类型:订阅方据此热重载,替代点对点 send [@busybee 2026-06-13] ////
+//// 配置保存后对外发布的领域事件类型:订阅方据此热重载 [@busybee 2026-06-13] ////
 const CONFIG_SAVED = 'ConfigSaved';
 
 //// 装配协作者并把工具通道注册到 ipc-router [@busybee 2026-06-13] ////

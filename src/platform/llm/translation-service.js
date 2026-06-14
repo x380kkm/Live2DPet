@@ -6,7 +6,7 @@
 // 构造注入:llmClient 提供 complete(request) -> { text },deps 可选给定 cacheMaxSize。
 // 译文按原文键缓存,缓存满则淘汰最早写入的一条;禁用、无客户端、调用失败时原样返回输入。
 
-// 翻译用的少样本提示:固定一对中译日示例,引导模型只输出译文且不夹带英文字母
+// 翻译用的少样本提示:中译日的少样本示例对
 const TRANSLATE_SYSTEM_PROMPT =
   'あなたは翻訳機です。入力文を自然な日本語の完全な文に翻訳してください。' +
   '英単語はカタカナに変換（例: YouTube→ユーチューブ、Discord→ディスコード）。' +
@@ -61,7 +61,7 @@ class TranslationService {
   //// 经 llm 客户端发起一次翻译补全,清理译文中的标记字符与多余空白 [@busybee 2026-06-13] ////
   async _requestTranslation(text) {
     const response = await this.llmClient.complete({
-      // 翻译步:交模型路由按 translate 步配置(默认温度 0.3),温度与 token 由配置而非此处硬编码
+      // 翻译步:交模型路由按 translate 步配置(默认温度 0.3),温度与 token 由配置
       step: StepId.Translate,
       messages: [
         { role: 'system', content: TRANSLATE_SYSTEM_PROMPT },

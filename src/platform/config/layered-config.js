@@ -15,7 +15,7 @@ const KEY_FLOOR = {
   apiKey: 'global',
   baseURL: 'global',
   modelName: 'global',
-  // 大类与步骤两层模型配置整表:机器级设置,与上面三个旧式接入键同锁全局。
+  // 大类与步骤两层模型配置整表:机器级设置,锁全局。
   modelConfig: 'global',
   uiLanguage: 'global',
   enabledMods: 'global',

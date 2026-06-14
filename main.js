@@ -120,7 +120,7 @@ function assemblePlatform() {
 
 //// 用全局层配置造步骤模型路由,按大类与步骤两层选模型,供应商细节止于 llm-client [@busybee 2026-06-13] ////
 // 路由与 LlmClient 同接口,直接顶替原来的单客户端注入点;makeClient 按解析出的配置造对应预设的客户端。
-// 有 modelConfig 用两层配置,否则退回旧式单模型;fetch 与文本清理经 deps 注入,业务侧不见供应商 SDK。
+// 有 modelConfig 用两层配置,否则退回单模型;fetch 与文本清理经 deps 注入,业务侧不见供应商 SDK。
 function assembleModelRouter(global) {
   const stepModelConfig = new StepModelConfig(buildStepModelConfig(global));
   const makeClient = (cfg) => new LlmClient(
@@ -211,9 +211,9 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
   const sourceRegistry = makeSourceRegistry(contextSources);
   const pipeline = new RequestPipeline({ sources: sourceRegistry, llmClient, promptComposer });
 
-  // mod 生成器:生成期一次性造前端与行为,禁写人格与成品措辞;注入编排器供北极星当场生成临时 mod
+  // mod 生成器:生成期一次性造前端与行为,禁写人格与成品措辞;注入编排器,供其当场生成临时 mod
   const modGenerator = new ModGenerator({ llm: llmClient });
-  // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层;带 mod 生成器走北极星路
+  // pet 编排器:选意图、跑管线、把产物经事件总线发给表现层;带 mod 生成器,可当场生成临时 mod
   const pet = new PetOrchestrator({ pipeline, llmClient, eventBus, modGenerator });
 
   // 交互路由:mod 交互事件经总线进来,据事件名触发声明消费它的意图,不经截图循环
@@ -240,7 +240,7 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
 //// 装配八个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
 // situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies/layoutInfo/
 // petPosition 接 providers 里的取数函数;成品措辞由 languageState 在装配期按当前语言注入。
-// toneHint 暂无下一句情绪的数据源,provider 留空时其 render 返回 null,先接好类型,数据源后续补。
+// toneHint 暂无下一句情绪的数据源,provider 留空时其 render 返回 null。
 function assembleContextSources(deps) {
   const { vlmExtractor, memoryStore, providers = {}, languageState } = deps;
   const mt = (key) => (languageState ? languageState.mt(key) : key);
@@ -323,7 +323,6 @@ const TITLE_MAX_LEN = 30;
 //// 装配感知运行态:给调度器一个 capture() 取帧,并维护六个上下文源的取数缓存 [@busybee 2026-06-13] ////
 // 上下文源的 render 是同步的,而活动窗口、空闲秒数、开窗列表都需异步取;故在每拍异步的 capture()
 // 里刷新这些缓存,provider 同步读缓存。capture 截主屏产 base64 JPEG 帧,并据当前活动窗口累计焦点秒数。
-// 迁移自 desktop-pet-system 的 focusTick 焦点累计与 shouldSkipApp/_shortenTitle。
 function makePerceptionRuntime(deps) {
   const { screenSource, activeWindow, getPetBounds } = deps;
 
@@ -417,7 +416,7 @@ const PET_WINDOW_SIZE = 300;
 // 反重复源保留的最近发言条数上限。
 const RECENT_REPLIES_KEEP = 8;
 
-//// 判一个应用名是否略过:命中略过片段即不计入焦点与布局,迁移自 desktop-pet-system [@busybee 2026-06-13] ////
+//// 判一个应用名是否略过:命中略过片段即不计入焦点与布局 [@busybee 2026-06-13] ////
 function shouldSkipApp(appName) {
   if (!appName) {
     return true;
@@ -427,7 +426,7 @@ function shouldSkipApp(appName) {
 }
 //// /判一个应用名是否略过 ////
 
-//// 把窗口标题压短:剥常见浏览器与编辑器后缀再截断,迁移自 desktop-pet-system [@busybee 2026-06-13] ////
+//// 把窗口标题压短:剥常见浏览器与编辑器后缀再截断 [@busybee 2026-06-13] ////
 function shortenTitle(title) {
   if (!title) {
     return '';
@@ -502,7 +501,7 @@ function registerRemainingIpc(handlers) {
 // runtime 持有窗口句柄等可变状态;返回按通道名索引的无害 UI 控制处理器。
 function makeWindowHandlers(runtime) {
   return {
-    // 启动宠物:建窗、把设置窗口收起、开启感知调度循环(旧版同样在启动时隐藏设置)
+    // 启动宠物:建窗、把设置窗口收起、开启感知调度循环
     'create-pet-window': () => {
       ensurePetWindow(runtime);
       if (runtime.bubbleController) runtime.bubbleController.ensure();
@@ -591,7 +590,7 @@ const BUBBLE_INIT_WIDTH = 260;
 const BUBBLE_INIT_HEIGHT = 90;
 
 //// 建独立对话气泡窗口加载 pet-chat-bubble.html:透明无边、置顶、不抢焦点、初始隐藏 [@busybee 2026-06-14] ////
-// 气泡改回独立窗口浮在桌宠上方(旧版同款),而非舞台内浮层;随桌宠启动而建、随关闭而销毁。
+// 气泡是独立窗口,浮在桌宠上方;随桌宠启动而建、随关闭而销毁。
 function ensureChatBubbleWindow(runtime) {
   if (windowFactory.isAlive(runtime.chatBubbleWindow)) { return runtime.chatBubbleWindow; }
   runtime.chatBubbleWindow = windowFactory.createWindow({
@@ -689,8 +688,8 @@ function ensureModFrontendWindow(runtime) {
 //// /建独立 mod 前端窗口 ////
 
 //// 造 mod 前端控制器:把 mod 前端窗口的建窗、挂载、改尺寸、隐藏收成几个动作,定位与就绪排队只此一处 [@busybee 2026-06-14] ////
-// mod 前端浮在桌宠正上方、水平居中(与气泡同位,同一时刻至多一个占主导由主进程仲裁保证,见里程碑八·3);
-// 渲染未就绪时把最新一次挂载存住,等 ready-to-show 再补发。挂载内容的真正渲染(纯数据档与 iframe 沙箱档)在里程碑八·4 接。
+// mod 前端浮在桌宠正上方、水平居中(与气泡同位,同一时刻至多一个占主导由主进程仲裁保证);
+// 渲染未就绪时把最新一次挂载存住,等 ready-to-show 再补发。挂载内容(纯数据模板或 iframe 沙箱前端)由 mod 承载器渲染。
 function makeModFrontendController(runtime) {
   let ready = false;
   let pending = null;
@@ -744,7 +743,7 @@ function makeModFrontendController(runtime) {
 }
 //// /造 mod 前端控制器 ////
 
-//// 把生成器产出的前端规格转成 mod 承载器认的沙箱档:运行期生成即执行的前端一律沙箱化 [@busybee 2026-06-14] ////
+//// 把生成器产出的前端规格转成 mod 承载器认的沙箱形态:运行期生成即执行的前端一律沙箱化 [@busybee 2026-06-14] ////
 // 生成器产出 { html, css, js };承载器认 { kind:'sandboxed', srcdoc }。已是沙箱形状则原样返回。
 function generatedFrontendToSandbox(spec) {
   if (!spec) return { kind: 'sandboxed', srcdoc: '' };
@@ -753,7 +752,7 @@ function generatedFrontendToSandbox(spec) {
   const js = spec.js ? `<script>${spec.js}<\/script>` : '';
   return { kind: 'sandboxed', srcdoc: `${css}${spec.html || ''}${js}` };
 }
-//// /把生成器产出的前端规格转成沙箱档 ////
+//// /把生成器产出的前端规格转成沙箱形态 ////
 
 //// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
 // 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
@@ -767,10 +766,10 @@ function runCommand(cmd, args, options) {
 }
 //// /包 child_process.execFile 成 runCommand ////
 
-// 当前界面语言的显式载体:替代旧 i18n-helper 读全局缓存的隐式做法,语言据全局配置在就绪期设定。
+// 当前界面语言的显式载体,语言据全局配置在就绪期设定。
 const languageState = new LanguageState({ table: I18N });
 
-//// 取一个翻译串:据当前语言查表,未命中逐级回退,迁移自 i18n-helper [@busybee 2026-06-13] ////
+//// 取一个翻译串:据当前语言查表,未命中逐级回退 [@busybee 2026-06-13] ////
 function mt(key) {
   return languageState.mt(key);
 }
@@ -828,7 +827,7 @@ app.whenReady().then(async () => {
   platform.eventBus.subscribe('ReactionProduced', (event) => {
     platform.eventBus.publish({ type: 'UtteranceProduced', intentId: 'state-reaction', text: event.text, emotion: null, modEvents: [] });
   });
-  // 北极星:编排器当场生成临时 mod 后请求挂载;运行期生成即执行的前端一律走沙箱档,经 mod 前端窗口承载
+  // 编排器当场生成临时 mod 后请求挂载;运行期生成即执行的前端一律走 iframe 沙箱,经 mod 前端窗口承载
   platform.eventBus.subscribe('ModMountRequested', (event) => {
     if (runtime.modFrontendController) {
       runtime.modFrontendController.mount({
@@ -839,7 +838,7 @@ app.whenReady().then(async () => {
     }
   });
   // 气泡控制器:发言产物与气泡相关 IPC 都经它驱动独立气泡窗口,定位逻辑只此一处
-  // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处(里程碑八·3)
+  // 表达区仲裁:气泡窗口与 mod 前端窗口同一时刻至多一个占主导,显示一个即收起另一个,协调只此一处
   runtime.expressionArbiter = createExpressionArbiter({
     hide: {
       bubble: () => { if (windowFactory.isAlive(runtime.chatBubbleWindow)) runtime.chatBubbleWindow.hide(); },
@@ -848,7 +847,7 @@ app.whenReady().then(async () => {
   });
   runtime.bubbleController = makeBubbleController(runtime);
   subscribeRenderForwarders(platform.eventBus, () => petWindowRaw(runtime), runtime.bubbleController);
-  // mod 前端控制器:mod 前端作为独立窗口,挂载与定位经它驱动(里程碑八·2);挂载内容在后续里程碑接
+  // mod 前端控制器:mod 前端作为独立窗口,挂载与定位经它驱动;挂载内容由 mod 承载器渲染
   runtime.modFrontendController = makeModFrontendController(runtime);
 
   // 发言产物喂反重复源:每条刚说出的话记入近期回复缓存
@@ -896,7 +895,6 @@ app.whenReady().then(async () => {
   ]);
 
   // 桌宠窗口不在启动时显示:设置窗口先出现作为启动器,用户点「启动宠物」才经 create-pet-window 建窗。
-  // 沿用旧版前端行为(src/main/window-manager.js 的 create-pet-window 按需建窗、启动时隐藏设置)。
 
   // 主循环调度器:按间隔反复采感知、取候选、选意图、跑意图,并按需喂情绪;经感知运行态与领域层注入。
   // 只装配不启动:截图感知循环随宠物启动而开、随宠物关闭而停,不在无宠物时空跑。
@@ -912,8 +910,7 @@ app.whenReady().then(async () => {
     { intervalMs: SCHEDULER_INTERVAL_MS, chatGapMs: SCHEDULER_INTERVAL_MS }
   );
 
-  // 自动启动桌宠:默认关闭(沿用「点启动宠物才显示」);设 LIVE2DPET_AUTOLAUNCH=1 时启动即建桌宠与气泡窗并开调度,
-  // 供想要开机即显示的用户,以及无头截图验证用。
+  // 自动启动桌宠:默认关闭;设 LIVE2DPET_AUTOLAUNCH=1 时启动即建桌宠与气泡窗并开调度。
   if (process.env.LIVE2DPET_AUTOLAUNCH === '1') {
     ensurePetWindow(runtime);
     runtime.bubbleController.ensure();

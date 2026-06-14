@@ -5,10 +5,10 @@
 //
 // 三类样例与各自用途:
 // 结构样例(全局共享):{ name, slots:[槽名...], turns:[{ role, template }] }。template 只含骨架与 {{槽名}} 占位,
-//   字面文本不得带成品措辞;对应决策 4 的「结构样例不含成品措辞」层,供 mod 与意图的结构示范。
+//   字面文本不得带成品措辞,供 mod 与意图的结构示范。
 // 语气样例(按角色):{ name, characterId, fillers:{ 槽名: 文本 } },只供给槽位填充,不带轮次结构。
 // 场景台词样例(按角色):{ name, characterId, scenes:[{ scene, lines:[成品台词...] }] }。这是台词生成的语气示范,
-//   按决策 34 与 37,成品台词是 few-shot 的内容主体、必须保留,故此类样例豁免「不含成品措辞」这条;
+//   成品台词是 few-shot 的内容主体、必须保留,故此类样例豁免「不含成品措辞」这条;
 //   成品台词属用户掌控的人设数据,本库只定格式与渲染,不产出内容。模型据此模仿文风但不照抄(指令在 prompt-composer)。
 // compose 把结构骨架的槽位用语气填充与调用方槽位填满;composeSceneTurns 把场景台词渲染成示例轮次。
 
@@ -86,7 +86,7 @@ function assertToneSample(sample) {
 }
 
 //// 校验一条场景台词样例:绑定角色、每个场景含描述与至少一条成品台词 [@busybee 2026-06-13] ////
-// 与结构样例相反,本类样例必须携带成品台词(决策 34/37 的明确豁免),故不查成品措辞。
+// 与结构样例相反,本类样例必须携带成品台词(明确豁免),故不查成品措辞。
 function assertSceneSample(sample) {
   if (!sample || typeof sample.name !== 'string' || sample.name.length === 0) {
     throw new Error('场景台词样例缺少 name');

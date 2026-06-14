@@ -1,8 +1,7 @@
-/**
- * CryptoUtils — API key encryption/decryption for config persistence.
- * Uses AES-256-GCM with machine-derived key via PBKDF2.
- * Backward compatible: plaintext values pass through decrypt() unchanged.
- */
+// audience: internal
+// # crypto-utils
+// 用 AES-256-GCM 加解密 API 密钥,供配置持久化使用;密钥由机器信息经 PBKDF2 派生。
+// 向后兼容:明文值经 decrypt() 原样透传。
 const crypto = require('crypto');
 const os = require('os');
 

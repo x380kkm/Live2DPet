@@ -4,7 +4,7 @@
 // 不变量:id 取意图引用名 focusInfo;只读焦点计数不内联人格;无焦点返回 null 由组装器跳过。
 //
 // 依赖经构造注入:focusProvider() 返回窗口键到累计秒数的映射;shortenTitle(title) 把窗口标题压短,
-// 缺省恒等。迁移自旧 desktop-pet-system.buildDynamicContext 的窗口使用统计块(:220-228)。
+// 缺省恒等。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

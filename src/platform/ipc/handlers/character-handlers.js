@@ -1,7 +1,6 @@
 // audience: internal
 // # character-handlers
 // 角色卡的增删改查、导入与内置卡迁移,产出按通道名索引的处理器表供 ipc-router 注册。
-// 迁移自 src/main/character-manager.js,去掉对全局 ctx 的依赖,文件存储改异步、经构造注入。
 //
 // 构造注入的协作者都只是窄接口,第三方类型(fs、dialog、crypto)留在装配处:
 //   cardStore   角色卡文件存储,异步:get(id)/put(id,data)/remove(id)/exists(id)/listIds()

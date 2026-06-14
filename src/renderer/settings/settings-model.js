@@ -38,9 +38,7 @@ export const VVM_CHARACTERS = {
   'n0.vvm': 'VOICEVOX Nemo (女声1-6, 男声1-3)'
 };
 
-// AI 步骤目录在渲染侧的镜像:与 src/shared/step-catalog.js 对应,供模型配置面板枚举步骤。
-// 渲染侧无打包器、无法直引 CommonJS 的 shared 模块,故按 VVM_CHARACTERS 同样的方式在此镜像;
-// tests/renderer/model-config-panel 用交叉校验防止与 shared 目录漂移。
+// AI 步骤目录在渲染侧的镜像:与 src/shared/step-catalog.js 镜像,供模型配置面板枚举步骤。
 export const AI_CATEGORIES = ['vlm', 'llm', 'translate'];
 export const MODEL_PRESETS = ['openai-chat', 'claude', 'openai-responses'];
 export const AI_STEP_CATALOG = [

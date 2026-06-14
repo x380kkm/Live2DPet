@@ -4,7 +4,7 @@
 // 不变量:配置只经 storage 仓储落盘,本文件不直接碰文件系统。
 
 // 加密字段路径只声明一处:全部用点分路径定位到一层配置内的字符串值。
-// 含旧式单接入的 apiKey 与翻译接入,以及两层模型配置里三个大类各自的接入密钥。
+// 含单接入的 apiKey 与翻译接入,以及两层模型配置里三个大类各自的接入密钥。
 const ENCRYPTED_FIELDS = [
   'apiKey', 'translation.apiKey', 'enhance.search.customApiKey',
   'modelConfig.categories.vlm.apiKey',
@@ -49,7 +49,7 @@ class ConfigStore {
   //// 构造注入仓储与加解密函数,第三方类型不进本层 [@busybee 2026-06-13] ////
   constructor(repository, options = {}) {
     this.repository = repository;
-    // 加解密由调用方注入,默认两者透传,使无密钥环境也能读写。
+    // 加解密由调用方注入,默认两者透传。
     this.encrypt = options.encrypt || ((v) => v);
     this.decrypt = options.decrypt || ((v) => v);
   }
@@ -58,7 +58,7 @@ class ConfigStore {
   async read(layer, scopeId) {
     const stored = await this.repository.get(storageKey(layer, scopeId));
     if (stored == null) return null;
-    // 拷贝一份再解密,避免改动仓储交回的引用。
+    // 先深拷贝再就地解密。
     const value = JSON.parse(JSON.stringify(stored));
     this._decryptFields(value);
     return value;

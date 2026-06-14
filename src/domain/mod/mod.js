@@ -5,8 +5,7 @@
 //
 // Mod 是纯数据模板:frontendSpec 描述前端长什么样、emits 声明它会产出哪些交互事件名、
 // intents 是随它一起被发现注入的意图声明、hostApi 是它要求宿主提供的方法名清单。
-// ModRuntime 把一个 mod 挂到舞台上,前端通过 emit 产出交互事件经注入的发布器送上事件总线;
-// 取代旧 desktop-pet-system 里窗口直发命中、核心 _buildHitContext 缓冲并拼装提示词的硬编码路径。
+// ModRuntime 把一个 mod 挂到舞台上,前端通过 emit 产出交互事件经注入的发布器送上事件总线。
 
 const { InteractionEvent, isInteractionEvent } = require('./interaction-event');
 

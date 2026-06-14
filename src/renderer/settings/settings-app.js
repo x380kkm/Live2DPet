@@ -122,7 +122,7 @@ export class SettingsApp {
     el.className = `status ${type}`;
     if (type !== 'info') {
       const handle = setTimeout(() => { el.className = 'status'; }, 5000);
-      // Node 定时器在测试里会拖住事件循环,unref 让其不阻塞退出;浏览器无此方法故跳过。
+      // 有 unref 则调用使定时器不阻塞退出,无则跳过。
       if (handle && typeof handle.unref === 'function') handle.unref();
     }
   }

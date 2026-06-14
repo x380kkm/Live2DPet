@@ -1,6 +1,6 @@
 // audience: internal
 // # capability-gateway
-// 分级能力网关:截屏、外发、文件等重能力逐能力门控,替代扁平 electronAPI。
+// 分级能力网关:截屏、外发、文件等重能力逐能力门控。
 // 不变量:重能力每次调用都经本网关集中拦截、按作用域校验、逐次确认且可撤销。
 
 const registry = require('./channel-registry');
@@ -30,7 +30,7 @@ function isGated(capabilityId) {
   return GATED_DOMAINS.has(registry.capabilityDomainOf(capabilityId));
 }
 
-//// 在入口装配协作者,替代抓全局;未给的项保留默认 [@busybee 2026-06-13] ////
+//// 在入口装配协作者;未给的项保留默认 [@busybee 2026-06-13] ////
 function configure(injected) {
   deps = { ...deps, ...injected };
 }

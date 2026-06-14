@@ -5,7 +5,6 @@
 //
 // 依赖经构造注入:windowsProvider() 返回窗口条目数组,每条形如 { title, owner:{name}, bounds:{width,height} };
 // shouldSkipApp(name) 判窗口是否略过,缺省全收;shortenTitle(title) 把窗口标题压短,缺省恒等。
-// 迁移自旧 desktop-pet-system.sendRequest 的桌面布局摘要块(:608-632)。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

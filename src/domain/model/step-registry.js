@@ -4,7 +4,7 @@
 // 不变量:步骤在加载或注册期被发现注入,不做运行时深反射扫描;同一 id 后注册者覆盖先注册者。
 //
 // 与 intent-registry 同构:构造期发现注入、Map 按 id 去重、list 可枚举。
-// mod 将来注册自己的 AI 步骤时走 discoverFromMods,与意图的反射注入式注册一致。
+// mod 注册自己的 AI 步骤时走 discoverFromMods,与意图的反射注入式注册一致。
 
 const { Category } = require('../../shared/step-catalog');
 

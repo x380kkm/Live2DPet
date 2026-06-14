@@ -1,6 +1,6 @@
-/**
- * Validators — Input validation utilities for IPC handlers.
- */
+// audience: internal
+// # validators
+// IPC 处理器的输入校验工具,校验 UUID、URL 与路径。
 const path = require('path');
 
 function isValidUUID(str) {

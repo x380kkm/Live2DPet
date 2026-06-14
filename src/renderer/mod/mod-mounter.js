@@ -4,7 +4,7 @@
 // 不变量:沙箱 iframe 只给 allow-scripts、不给 allow-same-origin,内部文档 origin 为 null,拿不到父窗口的 window、document 与 petBridge;
 //          来自沙箱的交互事件只放行 frontendSpec 声明的 emits 白名单内的事件名,白名单外的消息一律丢弃。
 
-//// 判断一份前端规格是否为可执行沙箱档:kind 为 sandboxed [@busybee 2026-06-14] ////
+//// 判断一份前端规格是否为可执行档:kind 为 sandboxed [@busybee 2026-06-14] ////
 export function isSandboxed(spec) {
   return !!spec && spec.kind === 'sandboxed';
 }
@@ -65,7 +65,7 @@ export function allowedInteraction(data, emits) {
 
 //// 把一个 mod 挂到承载根:纯数据直渲、可执行走沙箱并桥接消息;返回卸载函数 [@busybee 2026-06-14] ////
 // payload 形如 { modId, frontendSpec, emits };deps:{ emit(name,payload), view(window) }。
-// 沙箱档监听 message,只接受来自该 iframe 的、白名单内的交互事件转 emit,其余消息丢弃;卸载函数摘除监听。
+// 可执行档监听 message,只接受来自该 iframe 的、白名单内的交互事件转 emit,其余消息丢弃;卸载函数摘除监听。
 export function mountMod(root, payload, deps) {
   const doc = root.ownerDocument;
   const data = payload || {};

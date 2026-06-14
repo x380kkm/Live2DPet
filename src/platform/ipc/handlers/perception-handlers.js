@@ -4,9 +4,6 @@
 // 不变量:截屏与列窗口为隐私重能力,每次调用都先经 capability-gateway 门控再委托执行;
 // 本文件不写裸通道字符串,通道名只来自 channel-registry;active-win 第三方类型经注入不在此 require。
 //
-// 迁移自 src/main/screen-capture.js:原先各通道直接 ipcMain.handle 并裸调 desktopCapturer。
-// 现在 screen-source 封掉原生类型,本文件把重能力收口到网关,把无害的空闲秒数直接登记。
-//
 // 依赖经构造注入:router 为 ipc-router,gateway 为 capability-gateway,screenSource 为屏幕源,
 // activeWindow 为活动窗口查询器(封 active-win),scope 为门控作用域标识。
 

@@ -1,7 +1,7 @@
 // audience: internal
 // # audio-handlers
 // 预合成默认音频片段的生成与加载处理器:开机问候等固定短语在此预先合成落盘、按需读回。
-// 迁移自旧 src/main/default-audio-ipc.js;合成走 speechBackend,落盘走注入的目录与 fs,短语列表持久化经 configStore。
+// 合成走 speechBackend,落盘走注入的目录与 fs,短语列表持久化经 configStore。
 // 不变量:本文件不写裸通道名(经 ipc-router 校验),不直接判定打包态路径,默认音频目录由 resolveDefaultAudioDir 注入。
 // 构造注入:router(ipc-router)、speechBackend(逐短语合成)、configStore(持久化短语列表)、resolveDefaultAudioDir(算落盘目录)、fs、path 从外部传入。
 

@@ -7,7 +7,7 @@
 //   结构引用 { structure, tone?, slots? }(或字符串即结构名):先取全局结构骨架,再取本角色语气样例,
 //     经 bank.compose 在插槽处注入语气,产出样例轮次;语气跨角色不可见,缺该语气时只留空骨架。
 //   场景台词引用 { sceneSet, options? }:取本角色的场景台词样例,经 bank.composeSceneTurns 渲染成示例轮次,
-//     其轮次携带成品台词(决策 34/37 的语气示范主体),供模型模仿文风但不照抄(指令在 prompt-composer)。
+//     其轮次携带成品台词(语气示范主体),供模型模仿文风但不照抄(指令在 prompt-composer)。
 
 class FewShotResolver {
   //// 构造注入 few-shot 银行,解析器自身不持有样例 [@busybee 2026-06-13] ////

@@ -4,7 +4,7 @@
 // 不变量:感知器不直接拼提示词,产物以命名上下文源经注册表登记;采集节奏与角色反应链相互独立。
 //
 // 依赖经构造注入:extractor 给出最近态势摘要;memoryStore 给出近窗记忆;
-// now 注入时钟便于测试时间窗。render 把态势与记忆折成一份 ContextFragment 纯数据,
+// now 为注入时钟。render 把态势与记忆折成一份 ContextFragment 纯数据,
 // 无内容时返回 null 由组装器跳过;estimateTokens 据字符数粗估,组装器按预算裁剪用。
 
 //// 粗估字符串的 token 数:按约四字符一 token 取上整 [@busybee 2026-06-13] ////

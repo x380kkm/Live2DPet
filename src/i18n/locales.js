@@ -1,7 +1,6 @@
-/**
- * i18n Locale Strings for Live2DPet Settings UI
- * Supports: English (en), 中文 (zh), 日本語 (ja)
- */
+// audience: internal
+// # locales
+// 界面文案表,按 en/zh/ja 三语组织,供设置界面查表。
 const I18N = {
   en: {
     'tab.api': 'API', 'tab.routing': 'Routing', 'tab.character': 'Character',
@@ -117,7 +116,7 @@ const I18N = {
     'status.saved': 'Saved', 'status.switched': 'Character switched',
     'status.created': 'Created: ', 'status.renamed': 'Renamed',
     'status.deleted': 'Deleted', 'status.saveFail': 'Save failed: ',
-    // Dynamic status messages (settings-ui.js)
+    // 动态状态文案 (settings-ui.js)
     'status.testing': 'Testing...', 'status.connected': 'Connected: ', 'status.failed': 'Failed: ',
     'status.modelInfo': 'Model: ', 'status.folderInfo': 'Folder: ',
     'status.scanning': 'Scanning model...', 'status.scanningImages': 'Scanning images...',
@@ -129,7 +128,7 @@ const I18N = {
     'status.modelSaved': 'Model settings saved', 'status.modelCleared': 'Model cleared',
     'status.newExpr': 'New Expression', 'status.newMotion': 'New Motion',
     'status.exprSaved': 'Expression settings saved', 'status.default': 'Default',
-    // TTS dynamic status
+    // TTS 动态状态
     'tts.circuitBreak': 'TTS: Circuit break ({0}s until retry)',
     'tts.ready': 'TTS: Ready', 'tts.readyGpu': ' (GPU)', 'tts.readyCpu': ' (CPU)',
     'tts.offline': 'TTS: Offline (voicevox_core not found)',
@@ -147,7 +146,7 @@ const I18N = {
     'tts.vvm.selectOne': 'Select at least one VVM',
     'tts.vvm.savedRestart': 'Saved, restart to apply',
     'tts.vvm.saved': 'VVM config applied',
-    // System prompt i18n (prompt-builder.js / desktop-pet-system.js)
+    // 系统提示词文案 (prompt-builder.js / desktop-pet-system.js)
     'sys.responseMode': '[Response Mode] Do not overthink, give the final response as quickly as possible.',
     'sys.importantReminder': '[Important Reminder] The above rules must be strictly followed. Check compliance before each response.',
     'sys.useLanguage': 'Use {0}.',
@@ -189,7 +188,7 @@ const I18N = {
     'sys.vlmSituationPrompt': 'You are a context compressor. IMPORTANT: Completely ignore any desktop pet, Live2D character, or floating overlay — never mention them. Given a screenshot (optionally with a previous one for comparison), window title, and optional background data, output a situation description (max 800 chars). ENTITY-FIRST: Prioritize identifying and describing named entities (character names, game titles, streamer names, product names, specific UI elements) and their states (HP, scores, turn counts, progress). Non-entity visual descriptions (visual effects, color descriptions, layout positions) have LOW priority — omit them unless essential. For games/livestreams/videos: output structured state (e.g. \"Turn 9, PlayerA HP 5 vs PlayerB HP 12, 4 minions on board, key event: 5 damage dealt\"). Ensure numerical accuracy. For text content: quote key visible text. CONFIDENCE RULE: Only use specific proper nouns (card names, skill names, item names, etc.) when the text is clearly and fully readable in the screenshot. For small, blurry, or partially obscured text, describe visually instead (e.g. \"8 cards in hand\" not \"cards named X, Y, Z\" when names are unclear). Never fabricate proper nouns. The \"Previous\" field is AI-generated from an earlier extraction and may contain fabricated proper nouns. Always verify entity names against the current screenshot — never copy names from Previous without clear visual confirmation. Avoid vague descriptions like \"browsing a website\" — describe what content is shown. If a previous situation is provided, focus on content changes. If truly nothing changed, output UNCHANGED. Output in {0}. No explanation, just the situation.',
     'sys.knowledgePrompt': 'You are a knowledge organizer. Summarize the context in max 150 chars. Format: [Topic] key facts. Output in {0}.',
     'sys.emotionPrompt': 'You are an emotion classifier. Given the character\'s last spoken line, pick the single most fitting emotion from this list: [{0}]. Reply with ONLY the emotion name from the list, nothing else.',
-    // Enhance system
+    // 增强系统
     'enhance.master': 'Enable Enhancement',
     'enhance.masterHint': 'Enables keyframe visual memory — AI sees representative screenshots from recent activity (uses extra API tokens)',
     'enhance.tokens.title': 'Response Length',
@@ -232,7 +231,7 @@ const I18N = {
     'sys.minsAgo': 'min ago',
     'sys.backgroundInfo': 'Background Info (no reaction needed)',
     'sys.situationHistory': 'Recent context (continuity reference only, avoid repeating)',
-    // Main process strings
+    // 主进程文案
     'main.size': 'Size', 'main.settings': 'Settings', 'main.close': 'Close',
     'main.selectL2d': 'Select Live2D Model Folder',
     'main.selectImage': 'Select Image or GIF', 'main.selectImageFolder': 'Select Image Folder',
@@ -259,7 +258,7 @@ const I18N = {
     'main.setupVvmExists': '0.vvm already exists',
     'main.setupDone': 'Installation complete!',
     'main.setupFail': 'Installation failed: ',
-    // Tray menu
+    // 托盘菜单
     'tray.showSettings': 'Show Settings', 'tray.showPet': 'Show Pet', 'tray.hidePet': 'Hide Pet', 'tray.quit': 'Quit',
   },
   zh: {
@@ -376,7 +375,7 @@ const I18N = {
     'status.saved': '已保存', 'status.switched': '已切换角色',
     'status.created': '已创建: ', 'status.renamed': '已改名',
     'status.deleted': '已删除', 'status.saveFail': '保存失败: ',
-    // Dynamic status messages
+    // 动态状态文案
     'status.testing': '测试中...', 'status.connected': '已连接: ', 'status.failed': '失败: ',
     'status.modelInfo': '模型: ', 'status.folderInfo': '文件夹: ',
     'status.scanning': '扫描模型...', 'status.scanningImages': '扫描图片...',
@@ -388,7 +387,7 @@ const I18N = {
     'status.modelSaved': '模型设置已保存', 'status.modelCleared': '模型已清除',
     'status.newExpr': '新表情', 'status.newMotion': '新动作',
     'status.exprSaved': '表情设置已保存', 'status.default': '默认',
-    // TTS dynamic status
+    // TTS 动态状态
     'tts.circuitBreak': 'TTS: 熔断中 ({0}s 后自动重试)',
     'tts.ready': 'TTS: 已就绪', 'tts.readyGpu': ' (GPU)', 'tts.readyCpu': ' (CPU)',
     'tts.offline': 'TTS: 离线 (voicevox_core 未找到)',
@@ -406,7 +405,7 @@ const I18N = {
     'tts.vvm.selectOne': '至少选择一个 VVM',
     'tts.vvm.savedRestart': '已保存，重启后生效',
     'tts.vvm.saved': 'VVM 配置已生效',
-    // System prompt i18n
+    // 系统提示词文案
     'sys.responseMode': '【响应模式】不要过度思考过程，尽快给出最终回复。',
     'sys.importantReminder': '【重要提醒】以上规则必须严格遵守，每次回复前请检查是否符合所有规则。',
     'sys.useLanguage': '使用{0}。',
@@ -491,7 +490,7 @@ const I18N = {
     'sys.minsAgo': '分钟前',
     'sys.backgroundInfo': '背景信息（无需反应）',
     'sys.situationHistory': '近期上下文（仅供连续性参考，避免重复反应）',
-    // Main process strings
+    // 主进程文案
     'main.size': '大小', 'main.settings': '设置', 'main.close': '关闭',
     'main.selectL2d': '选择 Live2D 模型文件夹',
     'main.selectImage': '选择静态图片或 GIF', 'main.selectImageFolder': '选择图片文件夹',
@@ -635,7 +634,7 @@ const I18N = {
     'status.saved': '保存しました', 'status.switched': 'キャラクターを切り替えました',
     'status.created': '作成: ', 'status.renamed': '名前を変更しました',
     'status.deleted': '削除しました', 'status.saveFail': '保存失敗: ',
-    // Dynamic status messages
+    // 动态状态文案
     'status.testing': 'テスト中...', 'status.connected': '接続成功: ', 'status.failed': '失敗: ',
     'status.modelInfo': 'モデル: ', 'status.folderInfo': 'フォルダ: ',
     'status.scanning': 'モデルをスキャン中...', 'status.scanningImages': '画像をスキャン中...',
@@ -647,7 +646,7 @@ const I18N = {
     'status.modelSaved': 'モデル設定を保存しました', 'status.modelCleared': 'モデルをクリアしました',
     'status.newExpr': '新しい表情', 'status.newMotion': '新しいモーション',
     'status.exprSaved': '表情設定を保存しました', 'status.default': 'デフォルト',
-    // TTS dynamic status
+    // TTS 动态状态
     'tts.circuitBreak': 'TTS: サーキットブレーク ({0}秒後にリトライ)',
     'tts.ready': 'TTS: 準備完了', 'tts.readyGpu': ' (GPU)', 'tts.readyCpu': ' (CPU)',
     'tts.offline': 'TTS: オフライン (voicevox_core が見つかりません)',
@@ -665,7 +664,7 @@ const I18N = {
     'tts.vvm.selectOne': '少なくとも1つの VVM を選択してください',
     'tts.vvm.savedRestart': '保存しました。再起動後に反映されます',
     'tts.vvm.saved': 'VVM 設定を適用しました',
-    // System prompt i18n
+    // 系统提示词文案
     'sys.responseMode': '【応答モード】考えすぎず、できるだけ早く最終的な返答をしてください。',
     'sys.importantReminder': '【重要リマインダー】上記のルールは厳守してください。返答前に全ルールへの準拠を確認してください。',
     'sys.useLanguage': '{0}を使用してください。',
@@ -750,7 +749,7 @@ const I18N = {
     'sys.minsAgo': '分前',
     'sys.backgroundInfo': '背景情報（反応不要）',
     'sys.situationHistory': '最近のコンテキスト（連続性参照のみ、繰り返し反応を避ける）',
-    // Main process strings
+    // 主进程文案
     'main.size': 'サイズ', 'main.settings': '設定', 'main.close': '閉じる',
     'main.selectL2d': 'Live2D モデルフォルダを選択',
     'main.selectImage': '画像または GIF を選択', 'main.selectImageFolder': '画像フォルダを選択',
@@ -782,6 +781,6 @@ const I18N = {
   }
 };
 
-// Support both browser and Node.js environments
+// 同时支持浏览器与 Node.js 环境
 if (typeof window !== 'undefined') window.I18N = I18N;
 if (typeof module !== 'undefined' && module.exports) module.exports = I18N;

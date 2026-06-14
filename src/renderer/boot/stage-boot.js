@@ -28,7 +28,7 @@ const BOUNDS_REFRESH_TICKS = 10;
 // 手势阈值:指针任一轴位移超过 movePx 像素才算拖动,否则在 clickMs 内抬起算一次轻点。拖动判定与轻点判定共用,避免散落。
 const GESTURE_CONFIG = { movePx: 5, clickMs: 700 };
 
-// 轻点回弹动画时长(毫秒):与 pet-window.css 的 pet-poke 动画一致,到时移除类便于下次再触发。
+// 轻点回弹动画时长(毫秒):与 pet-window.css 的 pet-poke 动画一致,到时移除类。
 const POKE_DURATION_MS = 400;
 
 //// 把模型配置解析成「用哪种渲染适配加已定模型目录」的纯数据,不触 DOM [@busybee 2026-06-13] ////
@@ -124,7 +124,7 @@ function clampUnit(value) {
 }
 
 //// 按模型计划造真实渲染适配:live2d 起 PIXI 与 Cubism、image 接图片元素、none 给空适配 [@busybee 2026-06-13] ////
-// env 注入浏览器侧全局便于测试替换:{ PIXI, Live2DModel, doc, fetchJson }。
+// env 注入浏览器侧全局:{ PIXI, Live2DModel, doc, fetchJson }。
 //   PIXI         libs/pixi.min.js 暴露的全局 PIXI
 //   Live2DModel  libs/cubism4.min.js 挂在 PIXI.live2d.Live2DModel 上的模型类
 //   doc          document,用于取画布与图片元素
@@ -223,8 +223,8 @@ function modelFileUrl(modelDir, modelJsonFile) {
 
 //// 把模型 contain 进整个画布并居中,完整不裁、不留空白带 [@busybee 2026-06-14] ////
 // 用 pixiApp.screen 的 CSS 像素尺寸而非 renderer.width:后者在高分屏按 devicePixelRatio 放大(如 1.75 倍),
-// 会把模型缩放与定位都按设备像素算,导致模型放大且偏出窗口被裁。与旧版用 window.innerWidth 同口径。
-// 按「整宽」与「整高」都放得下的较小比例等比缩放(contain),保证模型完整可见且尽量占满窗口;气泡改由独立窗口承载,故此处不再为气泡留带。
+// 会把模型缩放与定位都按设备像素算,导致模型放大且偏出窗口被裁。
+// 按「整宽」与「整高」都放得下的较小比例等比缩放(contain),保证模型完整可见且尽量占满窗口。
 function fitModel(model, pixiApp) {
   const screen = pixiApp.screen || { width: pixiApp.renderer.width, height: pixiApp.renderer.height };
   const w = screen.width;
@@ -267,7 +267,7 @@ function buildCharacterStage(doc, sandboxHost) {
 //// 由起点窗口位置、起点与当前光标的屏幕坐标算出拖动后的窗口位置 [@busybee 2026-06-14] ////
 // 实测确证:Electron 渲染进程的 MouseEvent.screenX/screenY 与主进程 screen.getCursorScreenPoint() 数值相等,
 // 两者同为 DIP 逻辑像素(并非物理像素),与窗口 getBounds/setPosition 口径一致。故光标位移一比一叠加到起点窗口位置即可,
-// 不做任何 devicePixelRatio 换算——曾误按物理像素除以 dpr,导致窗口只走光标位移的几分之一而落后飘移。
+// 不做任何 devicePixelRatio 换算。
 export function dragTargetPosition(startBounds, startCursor, currentCursor) {
   return {
     x: Math.round(startBounds.x + (currentCursor.x - startCursor.x)),
@@ -277,7 +277,7 @@ export function dragTargetPosition(startBounds, startCursor, currentCursor) {
 //// /由起点窗口位置与光标屏幕坐标算出拖动后的窗口位置 ////
 
 //// 给舞台元素加一次轻点回弹:加 poked 类触发 CSS 动画,到时移除以便再次触发 [@busybee 2026-06-14] ////
-// element 为承载模型画面的舞台元素(#pet-container);view 提供 setTimeout,便于测试替换。
+// element 为承载模型画面的舞台元素(#pet-container);view 提供 setTimeout。
 // 先移除再读一次布局强制回流,使连续轻点也能从头重放动画,而非因类已在而无动作。
 export function applyPokeEffect(element, view, durationMs = POKE_DURATION_MS) {
   if (!element || !element.classList) return;
@@ -290,7 +290,7 @@ export function applyPokeEffect(element, view, durationMs = POKE_DURATION_MS) {
 //// /给舞台元素加一次轻点回弹 ////
 
 //// 在舞台上挂 JS 拖动与轻点:按下记锚点,位移过阈才改窗口位置;落控件不拖,松手按手势分派拖动或轻点 [@busybee 2026-06-14] ////
-// 旧版前端用 set-window-position 拖动整窗;新架构画布铺满窗口、又是无边框,CSS app-region 拖动被画布盖住而失效,故用 JS 接管。
+// 在舞台上用 JS 监听拖动并改窗口位置。
 // 坐标全程换算到 DIP(见 dragTargetPosition)消除高分屏飘移;位移未过阈前不动窗口,避免轻点时的微小抖动把窗口带偏。
 // 真正拖动时移动只记最新光标,由 requestAnimationFrame 每帧最多发一次 setWindowPosition,避免 mousemove 高频刷 IPC 造成卡顿。
 // callbacks.onMoved 在拖动松手后调用,供调用方刷新头部跟踪用的窗口位置缓存;callbacks.onTap 在原地轻点抬起时调用,触发非语义回弹反馈。
@@ -363,7 +363,7 @@ function setupWindowDrag(doc, narrowApi, callbacks = {}) {
 //   stage                      角色表现层,缺省按 doc 现造一个装配好协作者的 CharacterStage
 //   doc                        承载舞台的文档,缺省取浏览器全局 document,供 stage 装配取容器
 //   sandboxHost                mod 沙箱宿主,注入给 mod 槽,缺省为 null,启动期不被调用
-//   timers                     setInterval/clearInterval,便于测试替换
+//   timers                     setInterval/clearInterval
 // 返回 { dispose } 供宿主页卸载时停跟踪、释放适配。
 export async function bootStage(narrowApi, deps = {}) {
   const createRenderAdapter = deps.createRenderAdapter;

@@ -2,7 +2,7 @@
 // # step-model-config
 // 步骤模型配置解析:按大类与步骤两层就近覆盖,解析出某步该用的模型与调用参数。
 // 不变量:模型身份(预设、端点、密钥、模型名)默认跟随大类、可经步骤开关单独覆盖;
-// 行为参数(温度、最大 token 等)以步骤为先,故路由始终能保持 0 温度而不受大类温度牵连。
+// 行为参数(温度、最大 token 等)以步骤为先。
 //
 // 配置形如 { categories: { vlm|llm|translate: {...} }, steps: { 步骤 id: {...} }, systemInjection? }。
 // 大类项含模型身份与可选行为默认;步骤项含 followCategory 开关与可选覆盖。
@@ -59,7 +59,7 @@ class StepModelConfig {
         ? cat[field]
         : firstDefined(step[field], cat[field]);
     }
-    // 行为参数:步骤覆盖 盖过 大类 盖过 出厂默认,使路由等步骤的固有温度不被大类设置牵连。
+    // 行为参数:步骤覆盖 盖过 大类 盖过 出厂默认。
     for (const field of BEHAVIOR_FIELDS) {
       resolved[field] = firstDefined(step[field], cat[field], defaults[field]);
     }

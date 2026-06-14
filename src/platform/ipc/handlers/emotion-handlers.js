@@ -4,9 +4,6 @@
 // 不变量:转发改为经 event-bus 发布、订阅,不再点对点 webContents.send;
 // 通道名只来自 channel-registry;窗口句柄不进领域侧,死窗口由总线侧统一过滤后剔除。
 //
-// 迁移自 src/main/emotion-ipc.js:原先各通道收到调用即直接 ctx.petWindow.webContents.send。
-// 现在通道处理器只把信号发布成领域事件;一处订阅把事件转发到目标窗口,发布方与窗口解耦。
-//
 // 依赖经构造注入:router 为 ipc-router,bus 为 event-bus,
 // petWindow、settingsWindow 为取目标窗口的取值函数(返回当前窗口或 null)。
 

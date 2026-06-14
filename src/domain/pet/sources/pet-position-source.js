@@ -5,7 +5,6 @@
 //
 // 依赖经构造注入:boundsProvider() 返回宠物窗口边界 { x, y, width, height }。
 // labelTemplate 含占位符 {x}{y}{w}{h},渲染时分别替换为坐标与尺寸,缺省给紧凑回退串。
-// 迁移自旧 desktop-pet-system.sendRequest 的宠物窗口位置块(:646-656)。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

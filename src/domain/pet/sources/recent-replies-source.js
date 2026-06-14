@@ -4,8 +4,7 @@
 // 不变量:id 取意图引用名 recentReplies;只读回复文本不内联人格;无可检模式返回 null 由组装器跳过。
 //
 // 依赖经构造注入:recentRepliesProvider() 返回最近的回复文本数组(新旧顺序不限);
-// labels 给各模式与提示外壳的结构化措辞,缺省给中性占位。迁移自旧 desktop-pet-system 的
-// buildDynamicContext 反重复块与 _detectRepetition(:230-292)。
+// labels 给各模式与提示外壳的结构化措辞,缺省给中性占位。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

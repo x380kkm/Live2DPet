@@ -4,7 +4,7 @@
 // 不变量:id 取意图引用名 idleInfo;只读空闲秒数不内联人格;不足阈值返回 null 由组装器跳过。
 //
 // 依赖经构造注入:idleProvider() 返回当前空闲秒数;缺该依赖时退而取 scope.idleSeconds。
-// labelTemplate 含占位符 {0},渲染时替换为秒数。迁移自旧 desktop-pet-system.sendRequest 的空闲块(:634-643)。
+// labelTemplate 含占位符 {0},渲染时替换为秒数。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

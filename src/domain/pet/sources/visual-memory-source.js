@@ -4,7 +4,7 @@
 // 不变量:id 取意图引用名 visualMemory;只读记忆态势文本不内联人格;无记忆返回 null 由组装器跳过。
 //
 // 依赖经构造注入:memoryStore 暴露 recall({from,to,limit}) 返回最新在前的记忆条目,每条含 situation 文本;
-// now 注入时钟便于测试回看窗。迁移自 PerceptionSource._recentMemory 与旧 getKeyframesForMainAI 的关键帧上下文。
+// now 为注入时钟。
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 

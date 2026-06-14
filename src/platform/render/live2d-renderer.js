@@ -9,7 +9,7 @@ import { RenderAdapter, resolveAction, clampOpenness } from './model-renderer.js
 const DEFAULT_MOUTH_PARAM = 'ParamMouthOpenY';
 
 // 头部跟踪增益:把钳在 -1 到 1 的跟踪坐标放大成各角度参数的取值范围。
-// 迁移自旧 model-adapter 的 _applyTracking;角度按度数偏转,眼球按归一化原值。
+// 角度按度数偏转,眼球按归一化原值。
 const TRACK_GAIN = { angleX: 30, angleY: -30, angleZ: -5, eyeBallX: 1, eyeBallY: -1 };
 
 export class Live2dRenderer extends RenderAdapter {

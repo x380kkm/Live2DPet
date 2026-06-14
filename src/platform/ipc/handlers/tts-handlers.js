@@ -1,7 +1,7 @@
 // audience: internal
 // # tts-handlers
 // TTS 与 VOICEVOX 安装相关进程间通道的处理器:合成、状态、配置、模型列举与安装下载。
-// 迁移自旧 src/main/tts-ipc.js;分句与拼接已沉到 tts-orchestrator,后端细节在 voicevox-backend,安装下载在 voicevox-installer。
+// 分句与拼接已沉到 tts-orchestrator,后端细节在 voicevox-backend,安装下载在 voicevox-installer。
 // 不变量:本文件不写裸通道名(经 ipc-router 校验),不直接碰 FFI、文件系统路径字面量与官方资源地址。
 // 构造注入:router(ipc-router)、speechBackend(文本进音频出)、orchestrator(分句拼接)、translate(可选译者)、configStore(配置持久化)、installer(安装下载)、resolveVoicevoxDir(算资源根)、relaunch(重启应用)、notifyProgress(上报安装进度)从外部传入。
 
