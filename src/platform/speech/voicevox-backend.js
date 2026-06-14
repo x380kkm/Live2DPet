@@ -35,6 +35,10 @@ class VoicevoxBackend extends SpeechBackend {
     this.pitchScale = 0.0;
     this.volumeScale = 1.0;
     this.isGpu = false;
+
+    // 合成结果缓存:键为文本与影响输出的参数,只存成功的 WAV,按最近使用上限淘汰。
+    this._cache = new Map();
+    this._cacheLimit = 128;
   }
 
   //// 加载 DLL、起 ONNX 运行时与合成器、加载语音模型,准备好后端 [@busybee 2026-06-13] ////
@@ -167,14 +171,24 @@ class VoicevoxBackend extends SpeechBackend {
     const pitchScale = opts.pitchScale != null ? opts.pitchScale : this.pitchScale;
     const volumeScale = opts.volumeScale != null ? opts.volumeScale : this.volumeScale;
 
+    const cacheKey = `${text}|${sid}|${speedScale}|${pitchScale}|${volumeScale}`;
+    const hit = this._cacheGet(cacheKey);
+    if (hit) return hit;
+
     const run = () => this._synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale);
-    if (this.circuitBreaker) return this.circuitBreaker.execute(run);
-    try {
-      return run();
-    } catch (err) {
-      console.error('[VoicevoxBackend] 合成失败:', err.message);
-      return null;
+    let wav;
+    if (this.circuitBreaker) {
+      wav = this.circuitBreaker.execute(run);
+    } else {
+      try {
+        wav = run();
+      } catch (err) {
+        console.error('[VoicevoxBackend] 合成失败:', err.message);
+        return null;
+      }
     }
+    if (wav) this._cachePut(cacheKey, wav);
+    return wav;
   }
 
   //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
@@ -210,6 +224,30 @@ class VoicevoxBackend extends SpeechBackend {
     return wavBuf;
   }
   //// /走 audio_query 路径合成一次 ////
+
+  //// 取缓存的合成结果,命中则移到最近使用端 [@busybee 2026-06-14] ////
+  _cacheGet(key) {
+    const hit = this._cache.get(key);
+    if (!hit) return null;
+    this._cache.delete(key);
+    this._cache.set(key, hit);
+    return hit;
+  }
+
+  //// 存一条合成结果,超过上限淘汰最久未用的 [@busybee 2026-06-14] ////
+  _cachePut(key, wav) {
+    this._cache.set(key, wav);
+    if (this._cache.size > this._cacheLimit) {
+      const oldest = this._cache.keys().next().value;
+      this._cache.delete(oldest);
+    }
+  }
+
+  //// 用一句极短文本合成一次预热模型,消除首句的冷启动延迟 [@busybee 2026-06-14] ////
+  warmup() {
+    if (!this.initialized) return false;
+    return Boolean(this.synthesize('あ'));
+  }
 
   //// 设置默认风格与速度音高音量参数 [@busybee 2026-06-13] ////
   setConfig({ styleId, speedScale, pitchScale, volumeScale } = {}) {
@@ -267,6 +305,7 @@ class VoicevoxBackend extends SpeechBackend {
       this._fn.deleteOpenJtalk(this.openJtalk);
       this.openJtalk = null;
     }
+    this._cache.clear();
     this.initialized = false;
     this.modelLoaded = false;
   }

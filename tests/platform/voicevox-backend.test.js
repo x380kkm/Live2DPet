@@ -200,3 +200,39 @@ test('getVersion 返回版本号', () => {
   backend.init('/voicevox', null, {});
   assert.strictEqual(backend.getVersion(), '0.16.3');
 });
+
+//// 同文本同参数第二次合成命中缓存,不再调 FFI [@busybee 2026-06-14] ////
+test('synthesize 命中缓存时不重复调 FFI', () => {
+  let queryCalls = 0;
+  const mocks = makeMocks({ fn: { createAudioQuery: (s, t, sid, out) => { queryCalls++; out[0] = 'queryPtr'; return 0; } } });
+  const backend = new VoicevoxBackend(mocks);
+  backend.init('/voicevox', null, {});
+  const first = backend.synthesize('こんにちは', { styleId: 3 });
+  const second = backend.synthesize('こんにちは', { styleId: 3 });
+  assert.deepStrictEqual(first, second);
+  assert.strictEqual(queryCalls, 1, '第二次同文本同参数应命中缓存');
+  backend.synthesize('こんにちは', { styleId: 9 });
+  assert.strictEqual(queryCalls, 2, '参数不同不命中缓存,重新合成');
+});
+
+//// dispose 清空合成缓存,避免换模型后取到旧音色 [@busybee 2026-06-14] ////
+test('dispose 后缓存清空', () => {
+  let queryCalls = 0;
+  const mocks = makeMocks({ fn: { createAudioQuery: (s, t, sid, out) => { queryCalls++; out[0] = 'queryPtr'; return 0; } } });
+  const backend = new VoicevoxBackend(mocks);
+  backend.init('/voicevox', null, {});
+  backend.synthesize('text', {});
+  backend.dispose();
+  backend.init('/voicevox', null, {});
+  backend.synthesize('text', {});
+  assert.strictEqual(queryCalls, 2, 'dispose 清空缓存,重建后重新合成');
+});
+
+//// warmup 据初始化状态返回真假 [@busybee 2026-06-14] ////
+test('warmup 已初始化合成预热返回真,未初始化返回假', () => {
+  const cold = new VoicevoxBackend(makeMocks());
+  assert.strictEqual(cold.warmup(), false);
+  const hot = new VoicevoxBackend(makeMocks());
+  hot.init('/voicevox', null, {});
+  assert.strictEqual(hot.warmup(), true);
+});

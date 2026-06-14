@@ -27,7 +27,7 @@ function validateWav(buf) {
 }
 //// /校验 WAV 头并据字节率算时长 ////
 
-//// 初始化指定加速模式的后端,合成一句日语,校验落盘并打印结果 [@busybee 2026-06-14] ////
+//// 初始化指定加速模式的后端,预热、合成、再合成验缓存,校验落盘并打印结果 [@busybee 2026-06-14] ////
 function main() {
   const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
   const ok = backend.init(VOICEVOX_DIR, ['0.vvm'], { gpuMode: WANT_GPU });
@@ -36,23 +36,33 @@ function main() {
     process.exit(2);
   }
   const version = backend.getVersion();
-  const t0 = process.hrtime.bigint();
+
+  const warmT0 = process.hrtime.bigint();
+  backend.warmup();
+  const warmupMs = Number(process.hrtime.bigint() - warmT0) / 1e6;
+
+  const firstT0 = process.hrtime.bigint();
   const wav = backend.synthesize(TEXT);
-  const elapsedMs = Number(process.hrtime.bigint() - t0) / 1e6;
+  const firstMs = Number(process.hrtime.bigint() - firstT0) / 1e6;
   if (!wav) {
     console.log(`[tts-smoke ${MODE}] 合成返回空`);
     backend.dispose();
     process.exit(3);
   }
+
+  const cacheT0 = process.hrtime.bigint();
+  const wav2 = backend.synthesize(TEXT);
+  const cacheMs = Number(process.hrtime.bigint() - cacheT0) / 1e6;
+  const cacheHit = wav2 === wav;
+
   const durationMs = validateWav(wav);
-  const outPath = path.join(__dirname, `tts-smoke-${MODE}.wav`);
-  fs.writeFileSync(outPath, wav);
-  console.log(`[tts-smoke ${MODE}] core=${version} 请求GPU=${WANT_GPU} 实际GPU=${backend.isGpu} WAV=${wav.length}字节 音频时长=${durationMs.toFixed(0)}ms 合成耗时=${elapsedMs.toFixed(0)}ms`);
+  fs.writeFileSync(path.join(__dirname, `tts-smoke-${MODE}.wav`), wav);
+  console.log(`[tts-smoke ${MODE}] core=${version} 请求GPU=${WANT_GPU} 实际GPU=${backend.isGpu} WAV=${wav.length}字节 音频时长=${durationMs.toFixed(0)}ms 预热=${warmupMs.toFixed(0)}ms 首句=${firstMs.toFixed(0)}ms 二次=${cacheMs.toFixed(1)}ms 命中缓存=${cacheHit}`);
   if (WANT_GPU && !backend.isGpu) {
     console.log(`[tts-smoke ${MODE}] 注意:DirectML onnx 缺失已回退 CPU;装上 voicevox_onnxruntime-win-x64-dml-1.17.3 才能真用 GPU`);
   }
   backend.dispose();
 }
-//// /初始化指定加速模式的后端,合成一句日语,校验落盘并打印结果 ////
+//// /初始化指定加速模式的后端,预热、合成、再合成验缓存,校验落盘并打印结果 ////
 
 main();

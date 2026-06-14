@@ -1126,7 +1126,8 @@ function initSpeechBackend(platform) {
       console.log('[main] voicevox_core 未找到,语音禁用');
       return;
     }
-    platform.speechBackend.init(dir, ['0.vvm', '8.vvm'], { gpuMode: false });
+    const ok = platform.speechBackend.init(dir, ['0.vvm', '8.vvm'], { gpuMode: false });
+    if (ok) platform.speechBackend.warmup();
   });
 }
 //// /在不阻塞就绪的前提下初始化语音后端 ////
