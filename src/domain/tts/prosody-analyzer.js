@@ -21,18 +21,24 @@ function analyze(query) {
   const phrases = (query && query.accent_phrases) || [];
   const pitches = [];
   const pauses = [];
+  const phraseStds = [];
   let rawDur = 0;
   let moraCount = 0;
   let lastVoicedPitch = 0;
 
   for (const phrase of phrases) {
+    const phrasePitches = [];
     for (const m of phrase.moras || []) {
       moraCount += 1;
       rawDur += (m.consonant_length || 0) + (m.vowel_length || 0);
       if (m.pitch > 0) {
         pitches.push(m.pitch);
         lastVoicedPitch = m.pitch;
+        phrasePitches.push(m.pitch);
       }
+    }
+    if (phrasePitches.length >= 2) {
+      phraseStds.push(stdDev(phrasePitches, mean(phrasePitches)));
     }
     if (phrase.pause_mora && phrase.pause_mora.vowel_length) {
       pauses.push(phrase.pause_mora.vowel_length);
@@ -58,7 +64,11 @@ function analyze(query) {
     finalDelta: pitches.length ? lastVoicedPitch - pitchMean : 0,
     pauseCount: pauses.length,
     pauseTotalSec: pauses.reduce((a, b) => a + b, 0),
-    pauseMeanSec: mean(pauses)
+    pauseMeanSec: mean(pauses),
+    // 逐句音高起伏的落差:大表示中段平直、锚点突出的非均匀结构。
+    phraseStdMax: phraseStds.length ? Math.max(...phraseStds) : 0,
+    phraseStdMin: phraseStds.length ? Math.min(...phraseStds) : 0,
+    phraseStdSpread: phraseStds.length ? Math.max(...phraseStds) - Math.min(...phraseStds) : 0
   };
 }
 //// /从 audio_query 量出韵律特征 ////

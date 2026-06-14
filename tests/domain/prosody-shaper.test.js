@@ -52,3 +52,17 @@ test('无 tone 时不改 query', () => {
   shape(q, null);
   assert.strictEqual(JSON.stringify(q), before);
 });
+
+//// 情绪按包络集中在锚点,中段保持平直 [@busybee 2026-06-14] ////
+test('情绪按包络集中在锚点,中段更平直', () => {
+  const moras = () => [mora(5.2), mora(6.0), mora(5.4)];
+  const q = query([phrase(moras()), phrase(moras()), phrase(moras()), phrase(moras()), phrase(moras())]);
+  shape(q, { contour: 1.6, baseIntensity: 0.2, envelopeSigma: 1.0 });
+  const std = (ph) => {
+    const pv = ph.moras.filter((m) => m.pitch > 0).map((m) => m.pitch);
+    const m = pv.reduce((a, b) => a + b, 0) / pv.length;
+    return Math.sqrt(pv.reduce((s, x) => s + (x - m) * (x - m), 0) / pv.length);
+  };
+  assert.ok(std(q.accent_phrases[4]) > std(q.accent_phrases[2]), '末句锚点应比中段更起伏');
+  assert.ok(std(q.accent_phrases[0]) > std(q.accent_phrases[2]), '首句锚点应比中段更起伏');
+});

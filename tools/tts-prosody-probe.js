@@ -26,7 +26,7 @@ function applyScalar(query, tone) {
 const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 
-const fmt = (f) => `时长=${f.durationSec.toFixed(2)}s 语速=${f.rateMoraPerSec.toFixed(1)}音节/s 音高均=${f.pitchMean.toFixed(2)} 起伏=${f.pitchStd.toFixed(3)} 句尾Δ=${f.finalDelta.toFixed(2)} 停顿=${f.pauseCount}个/${f.pauseTotalSec.toFixed(2)}s`;
+const fmt = (f) => `时长=${f.durationSec.toFixed(2)}s 语速=${f.rateMoraPerSec.toFixed(1)}音节/s 音高均=${f.pitchMean.toFixed(2)} 起伏=${f.pitchStd.toFixed(3)} 逐句落差=${f.phraseStdSpread.toFixed(3)} 句尾Δ=${f.finalDelta.toFixed(2)} 停顿=${f.pauseCount}个/${f.pauseTotalSec.toFixed(2)}s`;
 
 for (const emotion of [null, 'happy', 'excited', 'sad', 'calm', 'surprised']) {
   const tone = emotion ? toneFor(emotion) : null;
