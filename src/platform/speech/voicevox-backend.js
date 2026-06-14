@@ -229,9 +229,12 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /走 audio_query 路径合成一次 ////
 
-  //// 把语气字段叠加到 audio_query:只写传入的字段,其余保持后端默认 [@busybee 2026-06-14] ////
+  //// 把模型内微调量叠加到 audio_query:音高加增量、语速乘倍率,语调与停顿直接设 [@busybee 2026-06-14] ////
+  // 在用户基值(已写入 query)之上微调,不切换声线。
   _applyTone(query, tone) {
     if (tone.intonationScale != null) query.intonationScale = tone.intonationScale;
+    if (tone.pitchDelta != null) query.pitchScale = (query.pitchScale || 0) + tone.pitchDelta;
+    if (tone.speedMul != null) query.speedScale = (query.speedScale || 1) * tone.speedMul;
     if (tone.prePhonemeLength != null) query.prePhonemeLength = tone.prePhonemeLength;
     if (tone.postPhonemeLength != null) query.postPhonemeLength = tone.postPhonemeLength;
   }

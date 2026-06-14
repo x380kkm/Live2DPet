@@ -11,8 +11,10 @@ test('已知情绪给出语气字段,愉快抬高语调、低落压低', () => {
   const happy = toneFor('happy');
   assert.ok(happy && typeof happy.intonationScale === 'number');
   assert.ok(happy.intonationScale > 1, '愉快应抬高语调');
+  assert.ok(happy.pitchDelta > 0, '愉快应抬高音高');
   const sad = toneFor('sad');
   assert.ok(sad.intonationScale < 1, '低落应压低语调');
+  assert.ok(sad.pitchDelta < 0, '低落应压低音高');
 });
 
 test('情绪名大小写不敏感', () => {
