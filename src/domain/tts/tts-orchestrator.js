@@ -5,6 +5,7 @@
 // 构造注入:speechBackend(文本进音频出)与可选 maxChunkLen(分句上限)从外部传入,本文件不直接抓全局。
 
 const { Utterance } = require('../speech/utterance');
+const { synthBreath } = require('./breath');
 
 // 分句的默认最大长度,超过才分,短句合并到此长度上限
 const DEFAULT_MAX_CHUNK_LEN = 80;
@@ -38,7 +39,13 @@ class TtsOrchestrator {
     }
     if (wavBuffers.length === 0) return utterance;
 
-    const combined = concatWavBuffers(wavBuffers);
+    // 断句处插气音:仅在多块且单声道时,在块间插一段轻吸气声,顺带补出断句停顿。
+    let separator = null;
+    if (options.breath && wavBuffers.length > 1 && wavBuffers[0].readUInt16LE(WAV_NUM_CHANNELS_OFFSET) === 1) {
+      const sampleRate = wavBuffers[0].readUInt32LE(WAV_SAMPLE_RATE_OFFSET);
+      separator = synthBreath(sampleRate, options.breath === true ? {} : options.breath);
+    }
+    const combined = concatWavBuffers(wavBuffers, separator);
     const durationMs = wavDurationMs(combined);
     utterance.audioAlignment = Utterance.alignTo(combined, durationMs);
     return utterance;
@@ -76,7 +83,7 @@ class TtsOrchestrator {
 }
 
 //// 把同格式的多个 WAV 缓冲合成一个:去头、并 PCM、重写头 [@busybee 2026-06-13] ////
-function concatWavBuffers(buffers) {
+function concatWavBuffers(buffers, separator) {
   if (buffers.length === 0) return null;
   if (buffers.length === 1) return buffers[0];
 
@@ -88,7 +95,11 @@ function concatWavBuffers(buffers) {
   const blockAlign = numChannels * (bitsPerSample / 8);
   const byteRate = sampleRate * blockAlign;
 
-  const pcmParts = buffers.map((b) => b.slice(WAV_HEADER_BYTES));
+  const pcmParts = [];
+  buffers.forEach((b, i) => {
+    if (i > 0 && separator && separator.length) pcmParts.push(separator);
+    pcmParts.push(b.slice(WAV_HEADER_BYTES));
+  });
   const totalPcmLen = pcmParts.reduce((sum, p) => sum + p.length, 0);
 
   const out = Buffer.alloc(WAV_HEADER_BYTES + totalPcmLen);

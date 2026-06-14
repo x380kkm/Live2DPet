@@ -90,6 +90,19 @@ test('concatWavBuffers merges PCM and rewrites the data length', () => {
   assert.strictEqual(out.readUInt32LE(4), 36 + 20);
 });
 
+//// 给分隔 PCM 时插在各段之间,用于断句气音 [@busybee 2026-06-14] ////
+test('concatWavBuffers inserts a separator PCM between chunks', () => {
+  const a = makeWav({ pcmLen: 8 });
+  const b = makeWav({ pcmLen: 12 });
+  const separator = Buffer.alloc(6, 0xcd);
+  const out = concatWavBuffers([a, b], separator);
+  // 头 + a 的 8 + 分隔 6 + b 的 12 = 26 字节 PCM
+  assert.strictEqual(out.readUInt32LE(40), 8 + 6 + 12);
+  assert.strictEqual(out.length, WAV_HEADER_BYTES + 26);
+  // 分隔出现在 a 之后:偏移 44+8 处为 0xcd
+  assert.strictEqual(out[WAV_HEADER_BYTES + 8], 0xcd);
+});
+
 //// 按 WAV 头字节率把 PCM 字节数换算成毫秒 [@busybee 2026-06-13] ////
 test('wavDurationMs derives milliseconds from byte rate and PCM length', () => {
   // 24000 采样率、单声道、16 位:字节率 48000;PCM 48000 字节恰好一秒

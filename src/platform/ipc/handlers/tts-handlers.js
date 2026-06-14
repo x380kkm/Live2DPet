@@ -23,7 +23,7 @@ async function synthesize(deps, text) {
   const utterance = Utterance.of(jaText);
   // 语气控制开着且有当前情绪时,按情绪叠加 audio_query 语气字段;否则不叠加。
   const tone = (speechBackend.toneControl && currentEmotion) ? toneFor(currentEmotion()) : null;
-  orchestrator.synthesize(utterance, tone ? { tone } : {});
+  orchestrator.synthesize(utterance, tone ? { tone, breath: true } : {});
   if (!utterance.hasAudio()) return { success: false, error: 'synthesis failed' };
 
   return { success: true, wav: utterance.audioAlignment.audio.toString('base64'), jaText };
