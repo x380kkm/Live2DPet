@@ -1,5 +1,5 @@
 // audience: internal
-// # idleInfo-source
+// # idle-info-source
 // 空闲上下文源:把距上次键鼠输入的空闲秒数折成一行命名片段,只在超过阈值时给出。
 // 不变量:id 取意图引用名 idleInfo;只读空闲秒数不内联人格;不足阈值返回 null 由组装器跳过。
 //

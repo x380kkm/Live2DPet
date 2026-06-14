@@ -1,5 +1,5 @@
 // audience: internal
-// # petPosition-source
+// # pet-position-source
 // 宠物位置上下文源:把宠物窗口在屏幕上的坐标与尺寸代入标签模板折成一行,助模型在截图里认出自己。
 // 不变量:id 取意图引用名 petPosition;只读窗口边界不内联人格;无边界返回 null 由组装器跳过。
 //

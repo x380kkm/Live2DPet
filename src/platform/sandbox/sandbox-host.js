@@ -1,5 +1,5 @@
 // audience: internal
-// # sandbox
+// # sandbox-host
 // 沙箱边界的公共接口:可执行 mod 前端跑在 iframe sandbox,坏 mod 不连累全局。
 // 不变量:沙箱内拿不到 electronAPI;消息只放行白名单内的 api 调用,经 sandbox-bridge 收窄。
 

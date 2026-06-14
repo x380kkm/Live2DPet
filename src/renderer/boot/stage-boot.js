@@ -100,8 +100,8 @@ export function movementExceeds(start, current, movePx) {
   return Math.abs(current.x - start.x) > movePx || Math.abs(current.y - start.y) > movePx;
 }
 
-//// 把旧式 (group, index) 动作信号反查成配置里的语义动作名 [@busybee 2026-06-13] ////
-// 旧 IPC 仍按底层 group 与 index 发动作,新接口只认语义名;在组合根把旧词汇翻成新名。
+//// 把 (group, index) 动作信号反查成配置里的语义动作名 [@busybee 2026-06-13] ////
+// play-motion 通道按底层 group 与 index 发动作,渲染适配只认语义名;在组合根据配置把 group 与 index 翻成语义名。
 // 配置 motionEmotions 形如 [{name, group, index}];查不到返回空,调用方据此跳过。
 export function actionNameForMotion(modelConfig, group, index) {
   const table = (modelConfig && modelConfig.motionEmotions) || [];

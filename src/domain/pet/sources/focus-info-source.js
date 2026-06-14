@@ -1,5 +1,5 @@
 // audience: internal
-// # focusInfo-source
+// # focus-info-source
 // 窗口焦点上下文源:把各窗口累计停留秒数按时长排前若干名,折成一行命名片段。
 // 不变量:id 取意图引用名 focusInfo;只读焦点计数不内联人格;无焦点返回 null 由组装器跳过。
 //

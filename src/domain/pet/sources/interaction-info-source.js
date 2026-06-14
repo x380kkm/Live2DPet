@@ -1,5 +1,5 @@
 // audience: internal
-// # interactionInfo-source
+// # interaction-info-source
 // 交互信息上下文源:把作用域里当下这次交互(点击、触摸、拖拽等)折成一行,让模型据此对身体交互作出回应。
 // 不变量:id 取意图引用名 interactionInfo;只描述发生了什么交互,不写角色文风与成品措辞;无交互返回 null 由组装器跳过。
 //

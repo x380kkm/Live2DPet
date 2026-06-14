@@ -1,5 +1,5 @@
 // audience: internal
-// # toneHint-source
+// # tone-hint-source
 // 语气提示上下文源:把下一句话预定的情绪代入标签模板折成一行,引导模型让语气自然反映该情绪。
 // 不变量:id 取意图引用名 toneHint;只读情绪标签不内联人格;无预定情绪返回 null 由组装器跳过。
 //

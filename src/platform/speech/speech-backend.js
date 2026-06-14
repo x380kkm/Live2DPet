@@ -1,5 +1,5 @@
 // audience: internal
-// # speech
+// # speech-backend
 // 语音后端适配层的公共接口:SpeechBackend 文本进、音频出,后端可替换。
 // 不变量:对外不暴露任何具体合成引擎的类型;VOICEVOX 的 FFI 内存、目录结构、版本号与 WAV 格式只在 voicevox-backend 一处。
 

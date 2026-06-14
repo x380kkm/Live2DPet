@@ -1,5 +1,5 @@
 // audience: internal
-// # layoutInfo-source
+// # layout-info-source
 // 桌面布局上下文源:把当前打开的窗口按尺寸过滤后折成「标题 [宽x高]」逗号串,给模型静态布局参考。
 // 不变量:id 取意图引用名 layoutInfo;只读窗口列表不内联人格;窗口不足下限返回 null 由组装器跳过。
 //

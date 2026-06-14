@@ -1,5 +1,5 @@
 // audience: internal
-// # render
+// # model-renderer
 // 渲染适配层的公共接口:RenderAdapter 用语义化方法屏蔽底层渲染库差异。
 // 不变量:对外只暴露语义动作名,PIXI 与 Cubism 私有字段访问全部收在 live2d-renderer 一处,不外泄;
 // Live2D 实现与图片实现共用本接口。

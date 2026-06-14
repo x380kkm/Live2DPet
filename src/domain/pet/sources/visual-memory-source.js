@@ -1,5 +1,5 @@
 // audience: internal
-// # visualMemory-source
+// # visual-memory-source
 // 视觉记忆上下文源:把近窗内已落盘的关键帧态势折成几行命名片段,给模型中期视觉记忆。
 // 不变量:id 取意图引用名 visualMemory;只读记忆态势文本不内联人格;无记忆返回 null 由组装器跳过。
 //

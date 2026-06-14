@@ -1,5 +1,5 @@
 // audience: internal
-// # situationDigest-source
+// # situation-digest-source
 // 态势摘要上下文源:把感知抽取器选出的最新关键帧的桌面态势折成一行命名片段。
 // 不变量:id 取意图引用名 situationDigest;只读态势文本不内联人格;无态势返回 null 由组装器跳过。
 //

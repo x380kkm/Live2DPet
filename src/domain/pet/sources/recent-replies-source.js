@@ -1,5 +1,5 @@
 // audience: internal
-// # recentReplies-source
+// # recent-replies-source
 // 近期回复上下文源:从最近若干条回复里检出重复的句式模式,折成一行反重复提示片段。
 // 不变量:id 取意图引用名 recentReplies;只读回复文本不内联人格;无可检模式返回 null 由组装器跳过。
 //
