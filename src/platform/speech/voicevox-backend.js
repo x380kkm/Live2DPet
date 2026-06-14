@@ -241,6 +241,7 @@ class VoicevoxBackend extends SpeechBackend {
     if (tone.intonationScale != null) query.intonationScale = tone.intonationScale;
     if (tone.pitchDelta != null) query.pitchScale = (query.pitchScale || 0) + tone.pitchDelta;
     if (tone.speedMul != null) query.speedScale = (query.speedScale || 1) * tone.speedMul;
+    if (tone.volumeMul != null) query.volumeScale = (query.volumeScale || 1) * tone.volumeMul;
     if (tone.prePhonemeLength != null) query.prePhonemeLength = tone.prePhonemeLength;
     if (tone.postPhonemeLength != null) query.postPhonemeLength = tone.postPhonemeLength;
   }

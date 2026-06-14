@@ -267,14 +267,15 @@ test('setConfig 设置 toneControl 开关', () => {
   assert.strictEqual(backend.toneControl, true);
 });
 
-//// tone 的音高增量与语速倍率叠加到用户基值,不覆盖 [@busybee 2026-06-14] ////
-test('synthesize tone 的音高增量与语速倍率叠加到用户基值', () => {
+//// tone 的音高增量、语速与音量倍率叠加到用户基值,不覆盖 [@busybee 2026-06-14] ////
+test('synthesize tone 的音高增量、语速与音量倍率叠加到用户基值', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
   backend.init('/voicevox', null, {});
   backend.setConfig({ pitchScale: 0.0, speedScale: 1.0 });
-  backend.synthesize('text', { tone: { pitchDelta: 0.03, speedMul: 1.1 } });
+  backend.synthesize('text', { tone: { pitchDelta: 0.03, speedMul: 1.1, volumeMul: 0.8 } });
   const sent = JSON.parse(mocks.calls.lastSynthJson);
   assert.ok(Math.abs(sent.pitchScale - 0.03) < 1e-9, '音高应在基值上加增量');
   assert.ok(Math.abs(sent.speedScale - 1.1) < 1e-9, '语速应在基值上乘倍率');
+  assert.ok(Math.abs(sent.volumeScale - 0.8) < 1e-9, '音量应在基值上乘倍率');
 });
