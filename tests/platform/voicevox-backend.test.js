@@ -194,6 +194,16 @@ test('dispose 释放句柄', () => {
   assert.strictEqual(backend.synthesizer, null);
 });
 
+//// 从给定 query 直接合成,产出 WAV 缓冲 [@busybee 2026-06-14] ////
+test('synthesizeQuery 从给定 query 直接合成 WAV', () => {
+  const mocks = makeMocks();
+  const backend = new VoicevoxBackend(mocks);
+  backend.init('/voicevox', null, {});
+  const wav = backend.synthesizeQuery({ accent_phrases: [], speedScale: 1 }, 0);
+  assert.ok(Buffer.isBuffer(wav));
+  assert.deepStrictEqual(wav, Buffer.from([1, 2, 3, 4]));
+});
+
 //// 报告 VOICEVOX Core 版本号 [@busybee 2026-06-13] ////
 test('getVersion 返回版本号', () => {
   const backend = new VoicevoxBackend(makeMocks());

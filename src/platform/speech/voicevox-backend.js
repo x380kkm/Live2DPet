@@ -211,6 +211,23 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /为文本创建并解析 audio_query ////
 
+  //// 从一份(可能已被改过的)audio_query 直接合成 WAV,供参数探索与查表渲染用 [@busybee 2026-06-14] ////
+  // 不走缓存与增益,失败返回 null;调用方自负 query 的合法性。
+  synthesizeQuery(query, sid) {
+    if (!this.initialized) return null;
+    const wavLenOut = [0];
+    const wavOut = [null];
+    const synthOpts = this._fn.makeDefaultSynthesisOptions();
+    const rc = this._fn.synthesis(this.synthesizer, JSON.stringify(query), sid, synthOpts, wavLenOut, wavOut);
+    if (rc !== VOICEVOX_RESULT_OK) {
+      return null;
+    }
+    const wavBuf = Buffer.from(this.koffi.decode(wavOut[0], 'uint8', wavLenOut[0]));
+    this._fn.wavFree(wavOut[0]);
+    return wavBuf;
+  }
+  //// /从一份 audio_query 直接合成 WAV ////
+
   //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
   _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {
     const koffi = this.koffi;
