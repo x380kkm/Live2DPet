@@ -13,7 +13,8 @@ const {
   applyMandarinTones,
   flowPhrases,
   shapeChineseRhythm,
-  splitFinalAspiratedStop
+  splitFinalAspiratedStop,
+  normalizeSyllableDurations
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
@@ -213,6 +214,37 @@ test('splitFinalAspiratedStop 切出句末送气字', () => {
   const single = { accent_phrases: [{ moras: [{ text: 'タ' }, { text: 'ン' }], accent: 1, pause_mora: null }] };
   splitFinalAspiratedStop(single, [{ kana: 'タン', aspirated: true }]);
   assert.strictEqual(single.accent_phrases.length, 1, '单字已在短语首不切');
+});
+
+//// 双向拉平:短音节拉长、长音节收短,向全句平均靠拢;句末再额外拉长;只动元音不动辅音 [@busybee 2026-06-15] ////
+test('normalizeSyllableDurations 双向拉平音节时长', () => {
+  // 三音节:短 シ(总 0.10)、长 グア(总 0.25)、末 マ;短的拉长、长的收短,都向均值靠
+  const plan = [{ kana: 'シ' }, { kana: 'グア' }, { kana: 'マ' }];
+  const query = {
+    accent_phrases: [{
+      moras: [
+        { text: 'シ', consonant_length: 0.06, vowel_length: 0.04 },
+        { text: 'グ', consonant_length: 0.05, vowel_length: 0.10 },
+        { text: 'ア', consonant_length: 0, vowel_length: 0.10 },
+        { text: 'マ', consonant_length: 0.04, vowel_length: 0.10 }
+      ]
+    }]
+  };
+  normalizeSyllableDurations(query, plan, { finalBoost: 1.0, normalizeMaxScale: 2.0 });
+  const m = query.accent_phrases[0].moras;
+  const dGua = m[1].consonant_length + m[1].vowel_length + m[2].consonant_length + m[2].vowel_length;
+  assert.ok(m[0].vowel_length > 0.04, '短音节 シ 被拉长');
+  assert.ok(dGua < 0.25, '长音节 グア 被收短');
+  assert.strictEqual(m[0].consonant_length, 0.06, '辅音时长不变');
+  // 句末气声尾:normalizeStrength=0 关掉拉平,只看 finalBoost 把末音节额外拉长
+  const q2 = { accent_phrases: [{ moras: [
+    { text: 'ニ', consonant_length: 0.04, vowel_length: 0.12 },
+    { text: 'マ', consonant_length: 0.04, vowel_length: 0.12 }
+  ] }] };
+  normalizeSyllableDurations(q2, [{ kana: 'ニ' }, { kana: 'マ' }], { finalBoost: 1.5, normalizeStrength: 0 });
+  const mm = q2.accent_phrases[0].moras;
+  assert.ok(mm[1].vowel_length > mm[0].vowel_length, '句末音节被额外拉长');
+  assert.strictEqual(mm[0].vowel_length, 0.12, '非句末音节在 strength=0 时不变');
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////

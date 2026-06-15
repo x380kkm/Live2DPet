@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm, splitFinalAspiratedStop, CHINESE_QUERY_DEFAULTS } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyChineseProsody, CHINESE_QUERY_DEFAULTS } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -38,12 +38,10 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQueryFromKana(kana, VOICE);
-// 套用实听定下的中文合成推荐参数(语速 1.2 连读、音量 1.25、收句首尾留白)。
+// 套用实听定下的中文合成推荐参数(语速 1.1 连读、音量 1.25、收句首尾留白)。
 Object.assign(query, CHINESE_QUERY_DEFAULTS);
-// 先铺四声音高(默认落差 spread=0.7,识别率与不突兀的实测最优点);再合并组内短语、收紧标点停顿让组内连读;最后把句末送气字切到短语首送气。
-applyMandarinTones(query, plan);
-shapeChineseRhythm(query);
-splitFinalAspiratedStop(query, plan);
+// 整条中文韵律:铺四声、连读收停顿、拉平音节时长匀节奏、句末送气字落到短语首。
+applyChineseProsody(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);

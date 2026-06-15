@@ -147,21 +147,36 @@ function isPunctuation(token) {
   return /^[，,。.、!?！？；;：:]+$/.test(token);
 }
 
-//// 把一组元素等长切成至多 max 个一份的若干份:短于 max 不切 [@busybee 2026-06-15] ////
-function chunkEvenly(items, max) {
-  const total = items.length;
-  if (total <= max) {
+//// 把一个停顿组按词边界打包成至多 max 个音节的子短语:词整体不拆、短组不切 [@busybee 2026-06-15] ////
+// 太长的停顿组不重新锚定会飘、识别率骤降;机械按固定音节切又会从词中切断。这里只在词与词之间断,既重新锚定又不拆词。
+// wordStart[i] 为真表示第 i 个音节是一个词的开头;无词信息时调用方传全真,退化为按音节数的等长切。
+function chunkAtWords(items, wordStart, max) {
+  if (items.length <= max) {
     return [items];
   }
-  const count = Math.ceil(total / max);
-  const size = Math.ceil(total / count);
-  const out = [];
-  for (let i = 0; i < total; i += size) {
-    out.push(items.slice(i, i + size));
+  const words = [];
+  for (let i = 0; i < items.length; i += 1) {
+    if (i === 0 || wordStart[i]) {
+      words.push([items[i]]);
+    } else {
+      words[words.length - 1].push(items[i]);
+    }
   }
-  return out;
+  const chunks = [];
+  let current = [];
+  for (const word of words) {
+    if (current.length && current.length + word.length > max) {
+      chunks.push(current);
+      current = [];
+    }
+    current = current.concat(word);
+  }
+  if (current.length) {
+    chunks.push(current);
+  }
+  return chunks;
 }
-//// /把一组元素等长切成若干份 ////
+//// /把一个停顿组按词边界打包成至多 max 个音节的子短语 ////
 
 // 零声母纯元音音节的片假名:这几个独立成 mora 的纯元音(如「物」ウ、「一」イ)没有声母作起音,易黏进前一鼻音听成一个字。
 const BARE_VOWEL_KANA = new Set(['ア', 'イ', 'ウ', 'エ', 'オ']);
@@ -188,9 +203,10 @@ function splitBareVowel(sub) {
 }
 //// /把一个子短语再按零声母纯元音切开 ////
 
-//// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按等长切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
-// 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
-// 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
+//// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按词边界切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
+// 长停顿组按词边界切成至多 maxPhrase 个音节的子短语重新锚定(不切会飘、识别率骤降;机械按固定音节切又拆词);
+// 词边界由 options.wordStart(与 tokens 对齐的真值数组)给出,缺省时每音节自成词、退化为等长切。再把零声母纯元音音节各自切出来给独立起音。
+// 先三声变调(默认关),再据声调置重音核让引擎按重音生成自然时长(不补长音,AquesTalk 不收 ー)。返回 { kana, plan }。
 function sentenceToAccentKana(tokens, options = {}) {
   const items = tokens.map((token) => (isPunctuation(token) ? { punct: token } : { parsed: parsePinyin(token) }));
   // 三声变调默认关:变调会把「你好」的「你」读成上扬的二声、听感像「尼」;需要时传 sandhi:true 打开。
@@ -198,18 +214,25 @@ function sentenceToAccentKana(tokens, options = {}) {
     applyToneSandhi(items);
   }
 
-  // 每短语最多几个音节:太长的停顿组会飘、听不清,切成等长子短语重新锚定(子短语间用 / 无停顿)。
-  const maxPhrase = options.maxPhrase || 4;
+  // 每子短语最多几个音节:只有很长的停顿组(超过约十个音节)才会被引擎压得发飘,故阈值取 8——
+  // 正常长度的句子整组连读(实听最自然),仅超长句按词边界切开重新锚定。
+  const maxPhrase = options.maxPhrase || 8;
+  const wordStart = options.wordStart || null;
   const plan = [];
   const groups = [];
+  const groupWordStarts = [];
   let current = [];
+  let currentWordStart = [];
   // 标记每个停顿组的首音节,供 applyMandarinTones 在组内做语调下倾、并在停顿处重置。
   let groupStart = true;
-  for (const item of items) {
+  for (let i = 0; i < items.length; i += 1) {
+    const item = items[i];
     if (item.punct) {
       if (current.length) {
         groups.push(current);
+        groupWordStarts.push(currentWordStart);
         current = [];
+        currentWordStart = [];
       }
       groupStart = true;
       continue;
@@ -220,17 +243,19 @@ function sentenceToAccentKana(tokens, options = {}) {
       continue;
     }
     current.push(syllable.kana);
+    currentWordStart.push(wordStart ? Boolean(wordStart[i]) : true);
     plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial) });
     groupStart = false;
   }
   if (current.length) {
     groups.push(current);
+    groupWordStarts.push(currentWordStart);
   }
 
-  // 每个停顿组按等长切成子短语(短组不切),再把零声母纯元音音节各自切出来(给「物」这类独立起音);
-  // 子短语间用 / 无停顿、组间用 、停顿;实际四声听感由 applyMandarinTones 铺音高、节奏由 shapeChineseRhythm 整时长决定。
+  // 每个停顿组按词边界切成 ≤maxPhrase 的子短语(子短语间 / 无停顿),再把零声母纯元音音节各自切出来(给「物」独立起音);
+  // 组间用 、停顿;实际四声听感由 applyMandarinTones 铺音高、节奏由 shapeChineseRhythm 整时长决定。
   const kana = groups
-    .map((group) => chunkEvenly(group, maxPhrase)
+    .map((group, gi) => chunkAtWords(group, groupWordStarts[gi], maxPhrase)
       .flatMap((sub) => splitBareVowel(sub))
       .map((piece) => piece.join('') + "'")
       .join('/'))
@@ -412,6 +437,82 @@ function splitFinalAspiratedStop(query, plan) {
 }
 //// /把句末的送气塞音字单独切成一个无停顿短语 ////
 
+//// 把各音节时长双向拉平(短字拉长、长字收短)向全句平均靠拢、匀化节奏,句末音节再额外拉长收个气声尾 [@busybee 2026-06-15] ////
+// 普通话近音节等时,日语引擎按 mora 给时长忽长忽短:短字(去 チュ、书 シュ、最 ズイ)被压短咬不清,长字(图书馆的 馆 グアン)又拖慢。
+// 这里逐音节算总时长,只缩放元音向全句平均靠拢(strength=1 完全拉平、=0 不动):短字拉长、长字收短,整句节奏匀。
+// 缩放倍率夹在 [0.6, maxScale],下限 0.6 限制长字最多收到六成、上限放宽到 2 让被压得很短的字也能拉够;末音节再乘 finalBoost 收个气声尾。
+// 只动元音、不动辅音(辅音是擦音、塞音的关键,改了会咬糊)。须在 applyMandarinTones 之后调用。
+function normalizeSyllableDurations(query, plan, config = {}) {
+  const strength = config.normalizeStrength != null ? config.normalizeStrength : 1.0;
+  const maxScale = config.normalizeMaxScale != null ? config.normalizeMaxScale : 2.0;
+  const finalBoost = config.finalBoost != null ? config.finalBoost : 1.3;
+  const moras = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      moras.push(mora);
+    }
+  }
+  const groups = [];
+  let index = 0;
+  for (const syllable of plan) {
+    const target = (syllable.kana || '').length;
+    const group = [];
+    let covered = 0;
+    while (index < moras.length && covered < target) {
+      const mora = moras[index];
+      index += 1;
+      covered += (mora.text || '').length || 1;
+      group.push(mora);
+    }
+    groups.push(group);
+  }
+  const durOf = (group) => group.reduce((sum, m) => sum + (m.consonant_length || 0) + (m.vowel_length || 0), 0);
+  const durations = groups.map(durOf);
+  const voiced = durations.filter((d) => d > 0);
+  if (!voiced.length) {
+    return query;
+  }
+  const mean = voiced.reduce((sum, d) => sum + d, 0) / voiced.length;
+  for (let i = 0; i < groups.length; i += 1) {
+    const group = groups[i];
+    const duration = durations[i];
+    if (duration <= 0) {
+      continue;
+    }
+    const consonant = group.reduce((sum, m) => sum + (m.consonant_length || 0), 0);
+    const vowel = group.reduce((sum, m) => sum + (m.vowel_length || 0), 0);
+    if (vowel <= 0) {
+      continue;
+    }
+    // 双向向全句平均靠拢:blended 是按 strength 朝均值挪后的目标总时长,再算只动元音达到它所需的倍率,夹在 [0.6, maxScale]。
+    const blended = duration + strength * (mean - duration);
+    let scale = Math.max(0.6, Math.min(maxScale, (blended - consonant) / vowel));
+    // 句末音节再额外乘 finalBoost,拉出一点收尾的气声。
+    if (i === groups.length - 1) {
+      scale *= finalBoost;
+    }
+    for (const mora of group) {
+      if (mora.vowel_length > 0) {
+        mora.vowel_length *= scale;
+      }
+    }
+  }
+  return query;
+}
+//// /把各音节时长向全句平均拉平、句末轻微拉长 ////
+
+//// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平音节时长、句末送气字落到短语首 [@busybee 2026-06-15] ////
+// 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高,再合并组内短语收停顿,再拉平各音节时长匀节奏,最后把句末送气字切到短语首送气。
+// query 需已铺好 CHINESE_QUERY_DEFAULTS 的语速音量等;config 透传给各步(toneStrength、spread、normalizeStrength、finalBoost 等)。
+function applyChineseProsody(query, plan, config = {}) {
+  applyMandarinTones(query, plan, config);
+  shapeChineseRhythm(query, config);
+  normalizeSyllableDurations(query, plan, config);
+  splitFinalAspiratedStop(query, plan);
+  return query;
+}
+//// /把一份 audio_query 按中文韵律整形 ////
+
 module.exports = {
   parsePinyin,
   isPunctuation,
@@ -422,6 +523,8 @@ module.exports = {
   flowPhrases,
   shapeChineseRhythm,
   splitFinalAspiratedStop,
+  normalizeSyllableDurations,
+  applyChineseProsody,
   moraCount,
   CHINESE_QUERY_DEFAULTS,
   INITIAL_CV,
