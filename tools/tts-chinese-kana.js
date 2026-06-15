@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, emphasizeFricativeH } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -30,8 +30,14 @@ backend.warmup();
 
 const query = backend.audioQueryFromKana(kana, VOICE);
 query.speedScale = 1.0;
+// 提音量、收句首句尾留白,让整体更响更干脆,句尾不拖。
+query.volumeScale = 1.25;
+query.prePhonemeLength = 0.08;
+query.postPhonemeLength = 0.1;
 // 在重音核路线的自然时长上铺完整四声音高,把四声都做分明。
 applyMandarinTones(query, plan);
+// 拉长 ハ 行辅音,逼近普通话 h 的较强擦音(好、很 这类)。
+emphasizeFricativeH(query);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);

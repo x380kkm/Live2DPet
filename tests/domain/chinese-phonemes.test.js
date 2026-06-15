@@ -13,6 +13,7 @@ const {
   accentIndex,
   placeAccent,
   mandarinTone,
+  emphasizeFricativeH,
   toneContour,
   applyTones,
   flowPhrases,
@@ -198,6 +199,22 @@ test('shapeFlow 抻长元音压短辅音收紧停顿', () => {
   assert.strictEqual(mora.vowel_length, 0.16); // max(0.16, 0.10*1.5=0.15)
   assert.strictEqual(mora.consonant_length, 0.05); // min(0.10, 0.05)
   assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.22); // min(0.40, 0.22)
+});
+
+//// 只拉长 ハ 行辅音,逼近普通话 h 的较强擦音,不碰其他声母 [@busybee 2026-06-15] ////
+test('emphasizeFricativeH 只加长 ハ 行辅音', () => {
+  const query = {
+    accent_phrases: [{
+      moras: [
+        { text: 'ハ', consonant_length: 0.06, vowel_length: 0.1, pitch: 5.3 },
+        { text: 'ガ', consonant_length: 0.06, vowel_length: 0.1, pitch: 6.0 }
+      ]
+    }]
+  };
+  emphasizeFricativeH(query, 1.8, 0.10);
+  const [ha, ga] = query.accent_phrases[0].moras;
+  assert.ok(ha.consonant_length >= 0.10 && ha.consonant_length > 0.06, 'ハ 行辅音被拉长');
+  assert.strictEqual(ga.consonant_length, 0.06, '非 ハ 行声母不动');
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////

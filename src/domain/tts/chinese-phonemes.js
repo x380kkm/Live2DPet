@@ -210,6 +210,22 @@ function sentenceToAccentKana(tokens, options = {}) {
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
 
+// ハ 行片假名:中文声母 h 落在这几个 mora 上。
+const H_MORAS = new Set(['ハ', 'ヒ', 'フ', 'ヘ', 'ホ']);
+
+//// 拉长 ハ 行辅音,逼近普通话声母 h 的较强软腭擦音(日语只有更轻的 h,长一点更像) [@busybee 2026-06-15] ////
+function emphasizeFricativeH(query, factor = 1.8, floor = 0.10) {
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      if (H_MORAS.has(mora.text) && mora.consonant_length != null) {
+        mora.consonant_length = Math.max(floor, mora.consonant_length * factor);
+      }
+    }
+  }
+  return query;
+}
+//// /拉长 ハ 行辅音 ////
+
 //// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
 // 一声 55 高平、二声 35 升、三声 21 低(连读半三声)、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
 function mandarinTone(tone, moras, base) {
@@ -414,6 +430,7 @@ module.exports = {
   placeAccent,
   mandarinTone,
   applyMandarinTones,
+  emphasizeFricativeH,
   toneContour,
   applyTones,
   flowPhrases,
