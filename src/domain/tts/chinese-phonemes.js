@@ -414,6 +414,7 @@ function splitFinalAspiratedStop(query, plan) {
 
 module.exports = {
   parsePinyin,
+  isPunctuation,
   syllableToKana,
   sentenceToAccentKana,
   mandarinTone,
