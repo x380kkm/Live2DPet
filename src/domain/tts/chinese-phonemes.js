@@ -147,30 +147,6 @@ function isPunctuation(token) {
   return /^[，,。.、!?！？；;：:]+$/.test(token);
 }
 
-//// 把一串拼音与标点 token 拼成片假名串与声调计划 [@busybee 2026-06-15] ////
-// 先按三声变调改声调(相邻两个三声,前一个读二声;标点断开不变调),再据变调后的声调拼假名(含长音)与计划。
-function sentenceToKana(tokens) {
-  const items = tokens.map((token) => (isPunctuation(token) ? { punct: token } : { parsed: parsePinyin(token) }));
-  applyToneSandhi(items);
-
-  let kana = '';
-  const plan = [];
-  for (const item of items) {
-    if (item.punct) {
-      kana += /[。.！？!?]/.test(item.punct) ? '。' : '、';
-      continue;
-    }
-    const syllable = syllableToKana(item.parsed);
-    if (!syllable.ok || syllable.moras === 0) {
-      continue;
-    }
-    kana += syllable.kana;
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
-  }
-  return { kana, plan };
-}
-//// /把一串拼音与标点 token 拼成片假名串与声调计划 ////
-
 //// 把一组元素等长切成至多 max 个一份的若干份:短于 max 不切 [@busybee 2026-06-15] ////
 function chunkEvenly(items, max) {
   const total = items.length;
@@ -436,80 +412,12 @@ function splitFinalAspiratedStop(query, plan) {
 }
 //// /把句末的送气塞音字单独切成一个无停顿短语 ////
 
-//// 据声调与音节 mora 数算各 mora 的音高微调量(相对 0 的增量,不替换引擎的自然音高) [@busybee 2026-06-15] ////
-// 只给一个轻微偏置:一声略抬、二声尾升、三声压低、四声尾降、轻声略低。增量小,保留 VOICEVOX 自然起伏,听感更自然。
-// 单 mora 取代表增量(调内走势难展开,靠相邻音节体现);多 mora 用线性走势。
-function toneContour(tone, moras) {
-  const out = [];
-  const fill = (value) => { for (let i = 0; i < moras; i++) out.push(value); };
-  const ramp = (lo, hi) => {
-    for (let i = 0; i < moras; i++) {
-      out.push(lo + (hi - lo) * (i / (moras - 1)));
-    }
-  };
-  if (moras === 1) {
-    const single = { 1: 0.12, 2: 0.14, 3: -0.18, 4: 0.10, 5: -0.05 };
-    out.push(single[tone] !== undefined ? single[tone] : 0);
-    return out;
-  }
-  if (tone === 1) {
-    fill(0.12);
-  } else if (tone === 2) {
-    ramp(-0.04, 0.18);
-  } else if (tone === 3) {
-    ramp(-0.20, -0.08);
-  } else if (tone === 4) {
-    ramp(0.16, -0.18);
-  } else {
-    fill(-0.05);
-  }
-  return out;
-}
-//// /据声调与音节 mora 数算各 mora 的音高微调量 ////
-
-//// 按声调计划给 query 各 mora 的音高叠一个轻微偏置,保留引擎自然起伏 [@busybee 2026-06-15] ////
-// 把全句 mora 铺平;按计划逐音节吞 mora,直到吞下的 mora 文本覆盖该音节的片假名,据实际吞到的 mora 数算微调量;
-// 只在引擎给的音高上加增量(不替换),strength 缩放偏置强度,只改有声 mora,结果夹在合法区间。
-function applyTones(query, plan, options = {}) {
-  const strength = options.strength != null ? options.strength : 1.0;
-  const moras = [];
-  for (const phrase of (query.accent_phrases || [])) {
-    for (const mora of (phrase.moras || [])) {
-      moras.push(mora);
-    }
-  }
-
-  let index = 0;
-  for (const syllable of plan) {
-    const target = (syllable.kana || '').length;
-    const group = [];
-    let covered = 0;
-    while (index < moras.length && covered < target) {
-      const mora = moras[index];
-      index += 1;
-      covered += (mora.text || '').length || 1;
-      group.push(mora);
-    }
-    const deltas = toneContour(syllable.tone, group.length);
-    for (let i = 0; i < group.length; i += 1) {
-      if (group[i].pitch > 0 && deltas[i] !== undefined) {
-        group[i].pitch = Math.max(4.8, Math.min(6.6, group[i].pitch + deltas[i] * strength));
-      }
-    }
-  }
-  return query;
-}
-//// /按声调计划把 query 各 mora 的音高改成对应调型 ////
-
 module.exports = {
   parsePinyin,
   syllableToKana,
-  sentenceToKana,
   sentenceToAccentKana,
   mandarinTone,
   applyMandarinTones,
-  toneContour,
-  applyTones,
   flowPhrases,
   shapeChineseRhythm,
   splitFinalAspiratedStop,

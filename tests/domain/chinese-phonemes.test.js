@@ -8,12 +8,9 @@ const assert = require('node:assert');
 const {
   parsePinyin,
   syllableToKana,
-  sentenceToKana,
   sentenceToAccentKana,
   mandarinTone,
   applyMandarinTones,
-  toneContour,
-  applyTones,
   flowPhrases,
   shapeChineseRhythm,
   splitFinalAspiratedStop
@@ -68,16 +65,6 @@ test('syllableToKana 未知韵母回 ok:false', () => {
   const out = syllableToKana({ initial: 'b', final: 'zzz' });
   assert.strictEqual(out.ok, false);
   assert.strictEqual(out.kana, '');
-});
-
-//// 整句拼接成片假名串与声调计划,三声变调、长音、标点转日文逗号句号 [@busybee 2026-06-15] ////
-test('sentenceToKana 拼整句、三声变调与长音', () => {
-  // ni3 hao3 相邻两三声,前一个变二声;ni 单元音补长音、轻声 ma 不补
-  const { kana, plan } = sentenceToKana(['ni3', 'hao3', '，', 'ma5', '。']);
-  assert.strictEqual(kana, 'ニーハオ、マ。');
-  assert.strictEqual(plan.length, 3);
-  assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3, 5]);
-  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニー', 'ハオ', 'マ']);
 });
 
 //// 整句拼成 AquesTalk 带重音片假名与声调计划:停顿组并成一个短语连读、组间 、停顿,不带长音ー [@busybee 2026-06-15] ////
@@ -143,60 +130,14 @@ test('applyMandarinTones 与自然音高按 toneStrength 混合', () => {
   assert.ok(Math.abs(blended - (5.6 + target) / 2) < 1e-6, '0.5 是二者中点');
 });
 
-//// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
-test('sentenceToKana 三声变调不跨标点', () => {
+//// 三声变调不跨标点,标点断开则重置(显式开 sandhi 时) [@busybee 2026-06-15] ////
+test('sentenceToAccentKana 三声变调不跨标点', () => {
   // 两个三声被逗号隔开,不变调
-  const { plan } = sentenceToKana(['hao3', '，', 'ni3']);
+  const { plan } = sentenceToAccentKana(['hao3', '，', 'ni3'], { sandhi: true });
   assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3]);
   // 连续三个三声变成 二 二 三
-  const { plan: p3 } = sentenceToKana(['wo3', 'hen3', 'hao3']);
+  const { plan: p3 } = sentenceToAccentKana(['wo3', 'hen3', 'hao3'], { sandhi: true });
   assert.deepStrictEqual(p3.map((p) => p.tone), [2, 2, 3]);
-});
-
-//// 四声微调量是相对 0 的轻微偏置:一声略抬、四声尾降、二声尾升、三声压低 [@busybee 2026-06-15] ////
-test('toneContour 各声调微调走势', () => {
-  const t1 = toneContour(1, 2);
-  assert.ok(t1.every((d) => Math.abs(d - 0.12) < 1e-9), '一声略抬且平');
-
-  const t4 = toneContour(4, 3);
-  assert.ok(t4[0] > t4[2], '四声多音偏置应由高到低');
-
-  const t2 = toneContour(2, 3);
-  assert.ok(t2[0] < t2[2], '二声多音偏置应由低到高');
-
-  assert.deepStrictEqual(toneContour(3, 1), [-0.18], '三声单音压低');
-  // 偏置量都很轻微(绝对值不超过 0.25)
-  assert.ok([t1, t4, t2].flat().every((d) => Math.abs(d) <= 0.25));
-});
-
-//// 按 mora 文本覆盖对齐,只在引擎音高上叠轻微偏置,容忍引擎拆拍 [@busybee 2026-06-15] ////
-test('applyTones 叠偏置且按片假名覆盖对齐', () => {
-  // 计划:du(一声)+ ni(四声);query 把 ドゥ 拆成 ド+ゥ 两拍,引擎音高 5.8
-  const plan = [{ kana: 'ドゥ', tone: 1 }, { kana: 'ニ', tone: 4 }];
-  const query = {
-    accent_phrases: [{
-      moras: [
-        { text: 'ド', pitch: 5.8 },
-        { text: 'ゥ', pitch: 5.8 },
-        { text: 'ニ', pitch: 5.8 }
-      ]
-    }]
-  };
-  applyTones(query, plan);
-  const moras = query.accent_phrases[0].moras;
-  // 一声两拍各叠 +0.12;四声单拍叠 +0.10
-  assert.ok(Math.abs(moras[0].pitch - 5.92) < 1e-6, '吞下 ド 属第一音节,叠一声偏置');
-  assert.ok(Math.abs(moras[1].pitch - 5.92) < 1e-6, '吞下 ゥ 仍属第一音节,未串到第二音节');
-  assert.ok(Math.abs(moras[2].pitch - 5.90) < 1e-6, 'ニ 属第二音节,叠四声偏置');
-});
-
-//// strength 缩放偏置强度 [@busybee 2026-06-15] ////
-test('applyTones strength 缩放偏置', () => {
-  const plan = [{ kana: 'ニ', tone: 1 }];
-  const query = { accent_phrases: [{ moras: [{ text: 'ニ', pitch: 5.8 }] }] };
-  applyTones(query, plan, { strength: 0.5 });
-  // 一声单拍偏置 +0.12,半强度即 +0.06
-  assert.ok(Math.abs(query.accent_phrases[0].moras[0].pitch - 5.86) < 1e-6);
 });
 
 //// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@busybee 2026-06-15] ////
@@ -275,9 +216,9 @@ test('splitFinalAspiratedStop 切出句末送气字', () => {
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////
-test('applyTones 跳过无声 mora', () => {
-  const plan = [{ kana: 'シ', tone: 1 }];
+test('applyMandarinTones 跳过无声 mora', () => {
+  const plan = [{ kana: 'シ', tone: 1, groupStart: true }];
   const query = { accent_phrases: [{ moras: [{ text: 'シ', pitch: 0 }] }] };
-  applyTones(query, plan);
+  applyMandarinTones(query, plan);
   assert.strictEqual(query.accent_phrases[0].moras[0].pitch, 0);
 });
