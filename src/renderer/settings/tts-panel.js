@@ -5,7 +5,7 @@
 
 import { availableVvmState, resolveStyleSelection, VVM_CHARACTERS } from './settings-model.js';
 
-//// 装配 TTS 面板:载入状态、绑定滑块与各保存按钮 [@busybee 2026-06-13] ////
+//// 装配 TTS 面板:载入状态、绑定滑块与各保存按钮 [@x380kkm 2026-06-13] ////
 export function mountTtsPanel(ctx) {
   const { doc } = ctx;
   // 说话人元数据缓存,样式联动下拉据此构建。
@@ -30,13 +30,13 @@ export function mountTtsPanel(ctx) {
   loadVvm(ctx);
 }
 
-//// 给可能不存在的按钮绑定点击,缺失则跳过 [@busybee 2026-06-13] ////
+//// 给可能不存在的按钮绑定点击,缺失则跳过 [@x380kkm 2026-06-13] ////
 function bindOptional(doc, id, handler) {
   const button = doc.getElementById(id);
   if (button) button.addEventListener('click', handler);
 }
 
-//// 载入引擎状态:就绪、熔断倒计时或离线,并据状态填充说话人与配置 [@busybee 2026-06-13] ////
+//// 载入引擎状态:就绪、熔断倒计时或离线,并据状态填充说话人与配置 [@x380kkm 2026-06-13] ////
 async function loadStatus(ctx, state) {
   const { doc, gateway, t } = ctx;
   if (!gateway.tts.status) return;
@@ -66,7 +66,7 @@ async function loadStatus(ctx, state) {
   await applySavedTtsConfig(ctx, state);
 }
 
-//// 把保存过的 tts 配置还原到面板控件 [@busybee 2026-06-13] ////
+//// 把保存过的 tts 配置还原到面板控件 [@x380kkm 2026-06-13] ////
 async function applySavedTtsConfig(ctx, state) {
   const { doc, gateway } = ctx;
   const config = await gateway.config.load();
@@ -84,14 +84,14 @@ async function applySavedTtsConfig(ctx, state) {
   if (toneCheckbox) toneCheckbox.checked = tts.toneControl || false;
 }
 
-//// 设置一个滑块的值与其旁标 [@busybee 2026-06-13] ////
+//// 设置一个滑块的值与其旁标 [@x380kkm 2026-06-13] ////
 function setSliderValue(doc, id, value, fallback) {
   const resolved = value != null ? value : fallback;
   doc.getElementById(id).value = resolved;
   doc.getElementById(`${id}-val`).textContent = resolved;
 }
 
-//// 用说话人元数据填充说话人下拉,联动样式下拉 [@busybee 2026-06-13] ////
+//// 用说话人元数据填充说话人下拉,联动样式下拉 [@x380kkm 2026-06-13] ////
 function populateSpeakers(ctx, state) {
   const { doc } = ctx;
   const speakerSelect = doc.getElementById('tts-speaker');
@@ -106,7 +106,7 @@ function populateSpeakers(ctx, state) {
   if (state.metas.length > 0) populateStyles(ctx, state, 0);
 }
 
-//// 用某说话人的样式列表填充样式下拉 [@busybee 2026-06-13] ////
+//// 用某说话人的样式列表填充样式下拉 [@x380kkm 2026-06-13] ////
 function populateStyles(ctx, state, speakerIndex) {
   const { doc } = ctx;
   const styleSelect = doc.getElementById('tts-style-id');
@@ -121,7 +121,7 @@ function populateStyles(ctx, state, speakerIndex) {
   });
 }
 
-//// 按 styleId 在元数据里定位说话人并选中对应样式 [@busybee 2026-06-13] ////
+//// 按 styleId 在元数据里定位说话人并选中对应样式 [@x380kkm 2026-06-13] ////
 function selectStyle(ctx, state, styleId) {
   const { doc } = ctx;
   const { speakerIndex, styleId: resolvedId } = resolveStyleSelection(state.metas, styleId);
@@ -131,7 +131,7 @@ function selectStyle(ctx, state, styleId) {
   doc.getElementById('tts-style-id').value = resolvedId;
 }
 
-//// 保存说话人样式与三项参数,以及音频模式与 GPU 开关 [@busybee 2026-06-13] ////
+//// 保存说话人样式与三项参数,以及音频模式与 GPU 开关 [@x380kkm 2026-06-13] ////
 async function saveTts(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
   const ttsConfig = {
@@ -157,7 +157,7 @@ async function saveTts(ctx) {
   showStatus('tts-save-status', t('status.saved'), 'success');
 }
 
-//// 合成测试文本并播放,展示译出的日文 [@busybee 2026-06-13] ////
+//// 合成测试文本并播放,展示译出的日文 [@x380kkm 2026-06-13] ////
 async function testTts(ctx) {
   const { doc, gateway, t, showStatus, playWav } = ctx;
   const text = doc.getElementById('tts-test-text').value.trim();
@@ -172,7 +172,7 @@ async function testTts(ctx) {
   }
 }
 
-//// 重启引擎并刷新状态 [@busybee 2026-06-13] ////
+//// 重启引擎并刷新状态 [@x380kkm 2026-06-13] ////
 async function restartTts(ctx, state) {
   const { doc, gateway, t } = ctx;
   const statusEl = doc.getElementById('tts-status');
@@ -187,7 +187,7 @@ async function restartTts(ctx, state) {
   }
 }
 
-//// 一键安装 VOICEVOX,装毕自动重启引擎 [@busybee 2026-06-13] ////
+//// 一键安装 VOICEVOX,装毕自动重启引擎 [@x380kkm 2026-06-13] ////
 async function setupVoicevox(ctx, state) {
   const { doc, gateway, t } = ctx;
   const button = doc.getElementById('btn-setup-voicevox');
@@ -214,7 +214,7 @@ async function setupVoicevox(ctx, state) {
   }
 }
 
-//// 由短语列表与当前样式批量生成默认音声 [@busybee 2026-06-13] ////
+//// 由短语列表与当前样式批量生成默认音声 [@x380kkm 2026-06-13] ////
 async function generateDefaultAudio(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
   const phrases = doc.getElementById('default-audio-phrases').value
@@ -235,7 +235,7 @@ async function generateDefaultAudio(ctx) {
   }
 }
 
-//// 把保存过的默认短语载入文本域 [@busybee 2026-06-13] ////
+//// 把保存过的默认短语载入文本域 [@x380kkm 2026-06-13] ////
 async function loadDefaultPhrases(ctx) {
   const { doc, gateway } = ctx;
   const config = await gateway.config.load();
@@ -244,7 +244,7 @@ async function loadDefaultPhrases(ctx) {
   if (phrases && textarea) textarea.value = phrases.join('\n');
 }
 
-//// 按磁盘可用与已载列表渲染 VVM 勾选项,缺失项给下载按钮 [@busybee 2026-06-13] ////
+//// 按磁盘可用与已载列表渲染 VVM 勾选项,缺失项给下载按钮 [@x380kkm 2026-06-13] ////
 async function loadVvm(ctx) {
   const { doc, gateway, t } = ctx;
   if (!gateway.tts.availableVvms) return;
@@ -268,7 +268,7 @@ async function loadVvm(ctx) {
   });
 }
 
-//// 下载一个 VVM,毕则加入配置、重渲染并重启引擎 [@busybee 2026-06-13] ////
+//// 下载一个 VVM,毕则加入配置、重渲染并重启引擎 [@x380kkm 2026-06-13] ////
 async function downloadVvm(ctx, event, button) {
   const { gateway, t, showStatus } = ctx;
   event.preventDefault();
@@ -292,7 +292,7 @@ async function downloadVvm(ctx, event, button) {
   }
 }
 
-//// 保存勾选的 VVM 列表并重启应用以生效 [@busybee 2026-06-13] ////
+//// 保存勾选的 VVM 列表并重启应用以生效 [@x380kkm 2026-06-13] ////
 async function saveVvm(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
   const checked = doc.querySelectorAll('#vvm-checkboxes input[type=checkbox]:checked');

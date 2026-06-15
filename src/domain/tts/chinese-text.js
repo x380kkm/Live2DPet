@@ -12,7 +12,7 @@ const { isPunctuation, sentenceToAccentKana } = require('./chinese-phonemes');
 // 一个 token 是不是汉字转出的带声调拼音:字母串后必带一位声调数字(0 到 5),据此与残留的拉丁字母、符号区分。
 const TONED_PINYIN = /^([a-zü]+)([0-5])$/i;
 
-//// 把任意中文文本转成 { tokens, wordStart }:拼音与标点 token,以及每个 token 是否为一个词的开头 [@busybee 2026-06-15] ////
+//// 把任意中文文本转成 { tokens, wordStart }:拼音与标点 token,以及每个 token 是否为一个词的开头 [@x380kkm 2026-06-15] ////
 // pinyin-pro 以 nonZh:'consonant' 把非汉字逐字符单列、汉字拼音必带声调数字(轻声记 0,这里统一成 5);
 // segment 给出按词切分,据各词起始字符位置标出词边界;两者都对齐到逐字符,据字符下标对应。
 function textToTokens(text) {
@@ -46,6 +46,12 @@ function textToTokens(text) {
       wordStart.push(true);
       continue;
     }
+    // 斜杠是 LLM 在自然短语边界插入的断句记号,保留下来在凑音素层驱动句内半半停顿(展示气泡前由上层去掉)。
+    if (tok === '/') {
+      tokens.push('/');
+      wordStart.push(true);
+      continue;
+    }
     const matched = TONED_PINYIN.exec(tok);
     if (matched) {
       const tone = matched[2] === '0' ? '5' : matched[2];
@@ -58,13 +64,13 @@ function textToTokens(text) {
 }
 //// /把任意中文文本转成 { tokens, wordStart } ////
 
-//// 把任意中文文本转成拼音与标点 token 序列(丢词边界,仅取 token) [@busybee 2026-06-15] ////
+//// 把任意中文文本转成拼音与标点 token 序列(丢词边界,仅取 token) [@x380kkm 2026-06-15] ////
 function textToPinyinTokens(text) {
   return textToTokens(text).tokens;
 }
 //// /把任意中文文本转成拼音与标点 token 序列 ////
 
-//// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@busybee 2026-06-15] ////
+//// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@x380kkm 2026-06-15] ////
 // 默认开三声连读变调:两个三声相连,前一个变二声(你好念 ní hǎo)。pinyin-pro 已处理一、不的变调,这里只补三声。
 function textToAccentKana(text, options = {}) {
   const { tokens, wordStart } = textToTokens(text);

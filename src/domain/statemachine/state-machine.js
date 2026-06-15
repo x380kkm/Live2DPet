@@ -10,7 +10,7 @@
 // { type: 'StateReaction', state, from, input } 供反应侧映射,本模块自身不调 LLM、不碰渲染。
 
 class StateMachine {
-  //// 从纯数据定义与注入的总线建立有界状态机 [@busybee 2026-06-13] ////
+  //// 从纯数据定义与注入的总线建立有界状态机 [@x380kkm 2026-06-13] ////
   constructor(definition, deps) {
     // 转移表只读:运行期按表查目标态,表外输入即越界。
     this._transitions = definition.transitions || {};
@@ -26,7 +26,7 @@ class StateMachine {
     return this._current;
   }
 
-  //// 按输入查表转移,落地后发布状态事件并触发进入处理器,无定义则不动 [@busybee 2026-06-13] ////
+  //// 按输入查表转移,落地后发布状态事件并触发进入处理器,无定义则不动 [@x380kkm 2026-06-13] ////
   transition(input) {
     const outgoing = this._transitions[this._current];
     const next = outgoing ? outgoing[input] : undefined;
@@ -47,7 +47,7 @@ class StateMachine {
   }
   //// /按输入查表转移,落地后发布状态事件并触发进入处理器,无定义则不动 ////
 
-  //// 为某状态登记进入处理器,返回注销函数 [@busybee 2026-06-13] ////
+  //// 为某状态登记进入处理器,返回注销函数 [@x380kkm 2026-06-13] ////
   onEnter(state, handler) {
     let handlers = this._enterHandlers.get(state);
     if (!handlers) {
@@ -58,7 +58,7 @@ class StateMachine {
     return () => this._removeEnterHandler(state, handler);
   }
 
-  //// 依次调用某状态的全部进入处理器 [@busybee 2026-06-13] ////
+  //// 依次调用某状态的全部进入处理器 [@x380kkm 2026-06-13] ////
   _runEnterHandlers(state, context) {
     const handlers = this._enterHandlers.get(state);
     if (!handlers) {
@@ -70,7 +70,7 @@ class StateMachine {
     }
   }
 
-  //// 从某状态的进入处理器列表移除一个处理器 [@busybee 2026-06-13] ////
+  //// 从某状态的进入处理器列表移除一个处理器 [@x380kkm 2026-06-13] ////
   _removeEnterHandler(state, handler) {
     const handlers = this._enterHandlers.get(state);
     if (!handlers) {

@@ -11,12 +11,12 @@
 //   listWindows()              取当前窗口快照数组
 
 class AutomationController {
-  //// 构造注入一组能力函数 [@busybee 2026-06-14] ////
+  //// 构造注入一组能力函数 [@x380kkm 2026-06-14] ////
   constructor(caps = {}) {
     this.caps = caps;
   }
 
-  //// 处理一条命令:派发到对应能力,异常收敛成错误结果 [@busybee 2026-06-14] ////
+  //// 处理一条命令:派发到对应能力,异常收敛成错误结果 [@x380kkm 2026-06-14] ////
   // command 形如 { id, op, args };返回 { id, ok, result } 或 { id, ok:false, error }。
   async handle(command) {
     const id = command && command.id != null ? command.id : null;
@@ -30,7 +30,7 @@ class AutomationController {
   }
   //// /处理一条命令 ////
 
-  //// 按操作名派发到对应能力 [@busybee 2026-06-14] ////
+  //// 按操作名派发到对应能力 [@x380kkm 2026-06-14] ////
   async _dispatch(op, args) {
     switch (op) {
       case 'ping':
@@ -55,7 +55,7 @@ class AutomationController {
   }
   //// /按操作名派发 ////
 
-  //// 取一个已注入的能力函数,缺失即抛错 [@busybee 2026-06-14] ////
+  //// 取一个已注入的能力函数,缺失即抛错 [@x380kkm 2026-06-14] ////
   _cap(name) {
     const fn = this.caps[name];
     if (typeof fn !== 'function') {

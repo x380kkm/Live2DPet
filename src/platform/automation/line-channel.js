@@ -5,7 +5,7 @@
 //        逐行处理串行成链,保证回应顺序与命令顺序一致。
 
 class LineChannel {
-  //// 构造注入输入输出流与命令处理器 [@busybee 2026-06-14] ////
+  //// 构造注入输入输出流与命令处理器 [@x380kkm 2026-06-14] ////
   // handle(command) 返回一份结果对象;input 为可读流,output 为可写流(套接字时两者同一对象)。
   constructor({ input, output, handle } = {}) {
     this.input = input;
@@ -19,7 +19,7 @@ class LineChannel {
     this._tail = Promise.resolve();
   }
 
-  //// 开始监听输入,重复启动无副作用 [@busybee 2026-06-14] ////
+  //// 开始监听输入,重复启动无副作用 [@x380kkm 2026-06-14] ////
   start() {
     if (this._started || !this.input) {
       return;
@@ -36,7 +36,7 @@ class LineChannel {
   }
   //// /开始监听输入 ////
 
-  //// 停止监听,重复停止无副作用 [@busybee 2026-06-14] ////
+  //// 停止监听,重复停止无副作用 [@x380kkm 2026-06-14] ////
   stop() {
     if (!this._started) {
       return;
@@ -48,7 +48,7 @@ class LineChannel {
     this._onData = null;
   }
 
-  //// 把一个对象作为一行 JSON 写到输出流 [@busybee 2026-06-14] ////
+  //// 把一个对象作为一行 JSON 写到输出流 [@x380kkm 2026-06-14] ////
   send(obj) {
     if (!this.output || typeof this.output.write !== 'function') {
       return;
@@ -56,7 +56,7 @@ class LineChannel {
     this.output.write(JSON.stringify(obj) + '\n');
   }
 
-  //// 累积输入、按换行切分、逐行串行交解析处理 [@busybee 2026-06-14] ////
+  //// 累积输入、按换行切分、逐行串行交解析处理 [@x380kkm 2026-06-14] ////
   _ingest(text) {
     this._buffer += text;
     let nl;
@@ -69,7 +69,7 @@ class LineChannel {
     }
   }
 
-  //// 解析一行命令交处理器,解析失败回错误行 [@busybee 2026-06-14] ////
+  //// 解析一行命令交处理器,解析失败回错误行 [@x380kkm 2026-06-14] ////
   async _processLine(line) {
     let command;
     try {

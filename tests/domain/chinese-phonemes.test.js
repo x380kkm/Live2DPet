@@ -14,11 +14,16 @@ const {
   flowPhrases,
   shapeChineseRhythm,
   splitFinalAspiratedStop,
+  sizePhrasePauses,
   normalizeSyllableDurations,
-  drawToneContours
+  shortenElongationPad,
+  extendPrePausal,
+  sustainFinalNeutral,
+  drawToneContours,
+  chineseVoicePitch
 } = require('../../src/domain/tts/chinese-phonemes');
 
-//// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
+//// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@x380kkm 2026-06-15] ////
 test('parsePinyin 拆声母韵母声调', () => {
   assert.deepStrictEqual(parsePinyin('hao3'), { initial: 'h', final: 'ao', tone: 3, body: 'hao' });
   assert.deepStrictEqual(parsePinyin('shi4'), { initial: 'sh', final: 'i', tone: 4, body: 'shi' });
@@ -28,7 +33,7 @@ test('parsePinyin 拆声母韵母声调', () => {
   assert.strictEqual(parsePinyin('ju2').tone, 2);
 });
 
-//// 音节拼成片假名:声母拼到韵母首元音上,单元音补长音、轻声不补 [@busybee 2026-06-15] ////
+//// 音节拼成片假名:声母拼到韵母首元音上,单元音补长音、轻声不补 [@x380kkm 2026-06-15] ////
 test('syllableToKana 拼出近似片假名并补长音', () => {
   const k = (raw) => syllableToKana(parsePinyin(raw)).kana;
   // 单元音韵母补长音ー
@@ -48,13 +53,13 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   assert.strictEqual(k('zi4'), 'ズィー');
   assert.strictEqual(k('ci4'), 'ツィー');
   assert.strictEqual(k('si4'), 'スィー');
-  // ü 韵母:声母拼到 ü 列(单元音 ü 默认路线补长音ー);去 qù→チュー、学 xué→シュエ、女 nǚ→ニュー、月 yuè→ユエ
-  assert.strictEqual(k('qu4'), 'チュー');
+  // ü 韵母拼成 ユイ(ュ 后补前元音 イ 把音色前移、免得听成 chu),本就两拍、不再另补;去 qù→チュイ、学 xué→シュエ、女 nǚ→ニュイ、月 yuè→ユエ
+  assert.strictEqual(k('qu4'), 'チュイ');
   assert.strictEqual(k('xue2'), 'シュエ');
-  assert.strictEqual(k('nv3'), 'ニュー');
+  assert.strictEqual(k('nv3'), 'ニュイ');
   assert.strictEqual(k('yue4'), 'ユエ');
-  // 轻声不补长音
-  assert.strictEqual(k('de5'), 'ドゥ');
+  // 轻声不补拍;e[ɤ] 韵母拼成 ウア 滑音(本就两拍):的 de→ドゥア、么 ma 仍单拍
+  assert.strictEqual(k('de5'), 'ドゥア');
   assert.strictEqual(k('ma5'), 'マ');
   // wu 用 ヴ 给一个起音,免得纯元音 ウ 黏进前一字(宠物听成葱);默认路线单元音补长音:物 wù→ヴー
   assert.strictEqual(k('wu4'), 'ヴー');
@@ -62,25 +67,25 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   assert.strictEqual(syllableToKana(parsePinyin('wu4'), { elongate: false }).kana, 'ヴ');
 });
 
-//// 未知韵母跳过,不拼出也不抛 [@busybee 2026-06-15] ////
+//// 未知韵母跳过,不拼出也不抛 [@x380kkm 2026-06-15] ////
 test('syllableToKana 未知韵母回 ok:false', () => {
   const out = syllableToKana({ initial: 'b', final: 'zzz' });
   assert.strictEqual(out.ok, false);
   assert.strictEqual(out.kana, '');
 });
 
-//// 整句拼成 AquesTalk 带重音片假名与声调计划:停顿组并成一个短语连读、组间 、停顿,不带长音ー [@busybee 2026-06-15] ////
+//// 整句拼成 AquesTalk 带重音片假名与声调计划:停顿组并成一个短语连读、组间 、停顿,不带长音ー [@x380kkm 2026-06-15] ////
 test('sentenceToAccentKana 按停顿组并短语拼带重音片假名与计划', () => {
-  // 默认不变调、不补拍(补拍拉低识别率):ni→ニ、hao→ハオ、ma→マ
+  // 默认不变调、默认补拍(单元音补一拍,以听感为准):ni→ニイ、hao→ハオ、ma→マ(轻声不补)
   const { kana, plan } = sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5', '。']);
   // 你好并成一个短语(重音核置末仅供解析),逗号处断成另一组
-  assert.strictEqual(kana, "ニハオ'、マ'");
-  assert.ok(!kana.includes('ー'), '不含长音ー(AquesTalk 不收)');
+  assert.strictEqual(kana, "ニイハオ'、マ'");
+  assert.ok(!kana.includes('ー'), '不含长音ー(AquesTalk 不收,补拍改用重复元音)');
   assert.ok(!kana.includes('/'), '组内不再切短语');
   assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3, 5]);
-  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニ', 'ハオ', 'マ']);
-  // 显式开补拍则单元音补一拍(ニ→ニイ)
-  assert.strictEqual(sentenceToAccentKana(['ni3'], { elongate: true }).kana, "ニイ'");
+  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニイ', 'ハオ', 'マ']);
+  // 显式关补拍则单元音不补(ニ)
+  assert.strictEqual(sentenceToAccentKana(['ni3'], { elongate: false }).kana, "ニ'");
   // 显式开变调时,前一个三声读二声
   assert.deepStrictEqual(sentenceToAccentKana(['ni3', 'hao3'], { sandhi: true }).plan.map((p) => p.tone), [2, 3]);
   // 停顿组首音节标 groupStart,逗号后重置
@@ -90,7 +95,7 @@ test('sentenceToAccentKana 按停顿组并短语拼带重音片假名与计划',
   );
 });
 
-//// 普通话四声目标音高:一声高平、二声升、三声低、四声降 [@busybee 2026-06-15] ////
+//// 普通话四声目标音高:一声高平、二声升、三声低、四声降 [@x380kkm 2026-06-15] ////
 test('mandarinTone 四声调值走势', () => {
   const base = 5.75;
   const t1 = mandarinTone(1, 2, base);
@@ -121,7 +126,7 @@ test('mandarinTone 四声调值走势', () => {
   assert.ok(neutral < base && neutral > mandarinTone(3, 1, base)[0], '轻声居于三声低位与基准之间');
 });
 
-//// 四声音高与引擎自然音高按 toneStrength 混合,不完全替换 [@busybee 2026-06-15] ////
+//// 四声音高与引擎自然音高按 toneStrength 混合,不完全替换 [@x380kkm 2026-06-15] ////
 test('applyMandarinTones 与自然音高按 toneStrength 混合', () => {
   const plan = [{ kana: 'ガ', tone: 1, groupStart: true }];
   // 完全按四声(强度 1):一声单拍铺到 HI,高于自然音高 5.6
@@ -137,7 +142,7 @@ test('applyMandarinTones 与自然音高按 toneStrength 混合', () => {
   assert.ok(Math.abs(blended - (5.6 + target) / 2) < 1e-6, '0.5 是二者中点');
 });
 
-//// 三声变调不跨标点,标点断开则重置(显式开 sandhi 时) [@busybee 2026-06-15] ////
+//// 三声变调不跨标点,标点断开则重置(显式开 sandhi 时) [@x380kkm 2026-06-15] ////
 test('sentenceToAccentKana 三声变调不跨标点', () => {
   // 两个三声被逗号隔开,不变调
   const { plan } = sentenceToAccentKana(['hao3', '，', 'ni3'], { sandhi: true });
@@ -147,7 +152,7 @@ test('sentenceToAccentKana 三声变调不跨标点', () => {
   assert.deepStrictEqual(p3.map((p) => p.tone), [3, 2, 3]);
 });
 
-//// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@busybee 2026-06-15] ////
+//// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@x380kkm 2026-06-15] ////
 test('flowPhrases 合并无停顿相邻 phrase', () => {
   const query = {
     accent_phrases: [
@@ -163,7 +168,7 @@ test('flowPhrases 合并无停顿相邻 phrase', () => {
   assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['オ']);
 });
 
-//// 单独纯元音 phrase(零声母字「物」ウ)不并入前一个,保住独立起音 [@busybee 2026-06-15] ////
+//// 单独纯元音 phrase(零声母字「物」ウ)不并入前一个,保住独立起音 [@x380kkm 2026-06-15] ////
 test('flowPhrases 不合并纯元音 phrase', () => {
   const query = {
     accent_phrases: [
@@ -177,7 +182,7 @@ test('flowPhrases 不合并纯元音 phrase', () => {
   assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['ウ']);
 });
 
-//// 节奏整形:合并停顿组内的相邻短语让组内连读、收紧标点停顿,不动元辅音时长 [@busybee 2026-06-15] ////
+//// 节奏整形:合并停顿组内的相邻短语让组内连读、收紧标点停顿,不动元辅音时长 [@x380kkm 2026-06-15] ////
 test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   const query = {
     accent_phrases: [
@@ -200,7 +205,7 @@ test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   assert.strictEqual(query.accent_phrases[1].moras[0].consonant_length, 0.20);
 });
 
-//// 句末送气塞音字切成独立无停顿短语落到短语首送气;非送气或单字不动 [@busybee 2026-06-15] ////
+//// 句末送气塞音字切成独立无停顿短语落到短语首送气;非送气或单字不动 [@x380kkm 2026-06-15] ////
 test('splitFinalAspiratedStop 切出句末送气字', () => {
   // 碳 タン(送气 t)黏在玫 メイ 后:切成独立短语,前短语去掉末两个 mora、无停顿
   const aspirated = {
@@ -222,7 +227,7 @@ test('splitFinalAspiratedStop 切出句末送气字', () => {
   assert.strictEqual(single.accent_phrases.length, 1, '单字已在短语首不切');
 });
 
-//// 双向拉平:短音节拉长、长音节收短,向全句平均靠拢;句末再额外拉长;只动元音不动辅音 [@busybee 2026-06-15] ////
+//// 双向拉平:短音节拉长、长音节收短,向全句平均靠拢;句末再额外拉长;只动元音不动辅音 [@x380kkm 2026-06-15] ////
 test('normalizeSyllableDurations 双向拉平音节时长', () => {
   // 三音节:短 シ(总 0.10)、长 グア(总 0.25)、末 マ;短的拉长、长的收短,都向均值靠
   const plan = [{ kana: 'シ' }, { kana: 'グア' }, { kana: 'マ' }];
@@ -253,7 +258,46 @@ test('normalizeSyllableDurations 双向拉平音节时长', () => {
   assert.strictEqual(mm[0].vowel_length, 0.12, '非句末音节在 strength=0 时不变');
 });
 
-//// 二声画"先低后抬"的升、三声画 214 曲折并加长;一声不动 [@busybee 2026-06-15] ////
+//// 三声变调按词边界:双音节词+单音节词读 2-2-3,单音节词+双音节词读 3-2-3 [@x380kkm 2026-06-16] ////
+test('applyToneSandhi 按词边界变调', () => {
+  const tones = (toks, ws) => sentenceToAccentKana(toks, { sandhi: true, wordStart: ws }).plan.map((p) => p.tone);
+  assert.deepStrictEqual(tones(['bao3', 'guan3', 'hao3'], [true, false, true]), [2, 2, 3], '保管好(保管|好)读 2-2-3');
+  assert.deepStrictEqual(tones(['lao3', 'bao3', 'guan3'], [true, true, false]), [3, 2, 3], '老保管(老|保管)读 3-2-3');
+  assert.deepStrictEqual(tones(['wo3', 'hen3', 'hao3'], [true, true, true]), [3, 2, 3], '我很好(三个单字)读 3-2-3');
+  assert.deepStrictEqual(tones(['ni3', 'hao3'], [true, false]), [2, 3], '你好(一个词)读 2-3');
+});
+
+//// 按声线取全局音高偏移:WhiteCUL びえーん(26)压 -0.08,其余声线 0 不动 [@x380kkm 2026-06-16] ////
+test('chineseVoicePitch 按 styleId 取音高偏移', () => {
+  assert.strictEqual(chineseVoicePitch(26), -0.08, 'WhiteCUL びえーん 压低');
+  assert.strictEqual(chineseVoicePitch(2), 0, '其它声线不动');
+});
+
+//// `/` 断句记号断成组并在前一字标 minor,标点标 full [@x380kkm 2026-06-16] ////
+test('sentenceToAccentKana 处理 / 断句记号', () => {
+  const { kana, plan } = sentenceToAccentKana(['wo3', '/', 'hao3']);
+  assert.ok(kana.includes('、'), '/ 处断成组(、停顿)');
+  assert.strictEqual(plan.length, 2, '记号本身不计入音节');
+  assert.strictEqual(plan[0].breakAfter, 'minor', '/ 前一字标半半停顿');
+  assert.strictEqual(plan[1].groupStart, true, '/ 后一字是新组首');
+});
+
+//// 按 breakAfter 给 pause_mora 定长:minor 半半、full 全,按序对应带停顿的短语 [@x380kkm 2026-06-16] ////
+test('sizePhrasePauses 按等级定停顿长', () => {
+  const query = {
+    accent_phrases: [
+      { moras: [{ text: 'ア' }], pause_mora: { vowel_length: 0.3 } },
+      { moras: [{ text: 'イ' }], pause_mora: { vowel_length: 0.3 } },
+      { moras: [{ text: 'ウ' }], pause_mora: null }
+    ]
+  };
+  const plan = [{ breakAfter: 'minor' }, { breakAfter: 'full' }, {}];
+  sizePhrasePauses(query, plan, { fullPause: 0.20, minorPause: 0.06 });
+  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.06, '第一处 minor 设为半半');
+  assert.strictEqual(query.accent_phrases[1].pause_mora.vowel_length, 0.20, '第二处 full 设为全停顿');
+});
+
+//// 二声画"先低后抬"的升、三声画 214 曲折并加长;一声不动 [@x380kkm 2026-06-15] ////
 test('drawToneContours 给二三声画多拍调型', () => {
   // 三声单拍「你」ニ:画成三拍曲折(降到底再不完全回升),拍数变多、谷底最低
   const third = { accent_phrases: [{ moras: [{ text: 'ニ', consonant: 'n', consonant_length: 0.03, vowel: 'i', vowel_length: 0.10, pitch: 5.5 }] }] };
@@ -273,10 +317,62 @@ test('drawToneContours 给二三声画多拍调型', () => {
   assert.strictEqual(first.accent_phrases[0].moras.length, 1, '一声不重切');
 });
 
-//// 不改无声 mora 的音高 [@busybee 2026-06-15] ////
+//// 不改无声 mora 的音高 [@x380kkm 2026-06-15] ////
 test('applyMandarinTones 跳过无声 mora', () => {
   const plan = [{ kana: 'シ', tone: 1, groupStart: true }];
   const query = { accent_phrases: [{ moras: [{ text: 'シ', pitch: 0 }] }] };
   applyMandarinTones(query, plan);
   assert.strictEqual(query.accent_phrases[0].moras[0].pitch, 0);
+});
+
+//// 单元音补拍那一拍按 factor 缩短,只动补拍、不动复韵母 [@x380kkm 2026-06-15] ////
+test('shortenElongationPad 只缩补拍', () => {
+  // 物 ヴ+ウ:第二拍无声母、元音同前(u),是补拍,缩到一半;复韵母 ハ+オ 元音不同,不动
+  const query = { accent_phrases: [{ moras: [
+    { text: 'ヴ', consonant: 'v', consonant_length: 0.03, vowel: 'u', vowel_length: 0.10 },
+    { text: 'ウ', consonant: null, consonant_length: 0, vowel: 'u', vowel_length: 0.10 },
+    { text: 'ハ', consonant: 'h', consonant_length: 0.03, vowel: 'a', vowel_length: 0.10 },
+    { text: 'オ', consonant: null, consonant_length: 0, vowel: 'o', vowel_length: 0.10 }
+  ] }] };
+  shortenElongationPad(query, { padShorten: 0.5 });
+  const m = query.accent_phrases[0].moras;
+  assert.strictEqual(m[1].vowel_length, 0.05, '补拍 ウ 缩到一半');
+  assert.strictEqual(m[0].vowel_length, 0.10, '本元音 ヴ 不动');
+  assert.strictEqual(m[3].vowel_length, 0.10, '复韵母第二拍 オ(元音不同)不动');
+});
+
+//// 停顿前实词延长首拍、非句末与轻声不动 [@x380kkm 2026-06-15] ////
+test('extendPrePausal 延长停顿前实词首拍', () => {
+  // 两音节一组,末音节「好」是停顿前实词:延长其首个有声 mora;「你」非句末,不动
+  const plan = [{ kana: 'ニ', tone: 2, groupStart: true }, { kana: 'ハオ', tone: 3, groupStart: false }];
+  const query = { accent_phrases: [{ moras: [
+    { text: 'ニ', vowel: 'i', vowel_length: 0.10 },
+    { text: 'ハ', vowel: 'a', vowel_length: 0.10 },
+    { text: 'オ', vowel: 'o', vowel_length: 0.10 }
+  ] }] };
+  extendPrePausal(query, plan, { prePausalExtend: 1.5 });
+  const m = query.accent_phrases[0].moras;
+  assert.strictEqual(m[0].vowel_length, 0.10, '非句末「你」不动');
+  assert.ok(Math.abs(m[1].vowel_length - 0.15) < 1e-9, '句末实词「好」首拍延长');
+  assert.strictEqual(m[2].vowel_length, 0.10, '句末实词非首拍不动');
+  // 句末是轻声则不在此列(交给 sustainFinalNeutral)
+  const q2 = { accent_phrases: [{ moras: [{ text: 'マ', vowel: 'a', vowel_length: 0.10 }] }] };
+  extendPrePausal(q2, [{ kana: 'マ', tone: 5, groupStart: true }], { prePausalExtend: 1.5 });
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.10, '句末轻声不被此步延长');
+});
+
+//// 句末轻声撑住延续、句末非轻声不动 [@x380kkm 2026-06-15] ////
+test('sustainFinalNeutral 撑住句末轻声', () => {
+  const query = { accent_phrases: [{ moras: [
+    { text: 'シ', vowel: 'i', vowel_length: 0.10 },
+    { text: 'マ', vowel: 'a', vowel_length: 0.10 }
+  ] }] };
+  sustainFinalNeutral(query, [{ kana: 'シ', tone: 4, groupStart: true }, { kana: 'マ', tone: 5, groupStart: false }], { finalNeutralSustain: 1.6 });
+  const m = query.accent_phrases[0].moras;
+  assert.strictEqual(m[0].vowel_length, 0.10, '非句末不动');
+  assert.ok(Math.abs(m[1].vowel_length - 0.16) < 1e-9, '句末轻声撑长');
+  // 句末非轻声则整句不动
+  const q2 = { accent_phrases: [{ moras: [{ text: 'マ', vowel: 'a', vowel_length: 0.10 }] }] };
+  sustainFinalNeutral(q2, [{ kana: 'マ', tone: 4, groupStart: true }], { finalNeutralSustain: 1.6 });
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.10, '句末非轻声不动');
 });

@@ -13,7 +13,7 @@ const DEFAULT_MOUTH_PARAM = 'ParamMouthOpenY';
 const TRACK_GAIN = { angleX: 30, angleY: -30, angleZ: -5, eyeBallX: 1, eyeBallY: -1 };
 
 export class Live2dRenderer extends RenderAdapter {
-  //// 经构造注入接收 PIXI、Cubism 模型与配置,持有内部状态,不抓全局 [@busybee 2026-06-13] ////
+  //// 经构造注入接收 PIXI、Cubism 模型与配置,持有内部状态,不抓全局 [@x380kkm 2026-06-13] ////
   // deps:{ pixiApp, model, config, fetchJson }。pixiApp 与 model 由组合根创建后注入,
   // fetchJson(url) 用于加载表情文件,把对 fetch 的依赖也收口在注入参数里。
   constructor(deps) {
@@ -33,7 +33,7 @@ export class Live2dRenderer extends RenderAdapter {
     this._buildParamMap();
   }
 
-  //// 从配置的表情与动作清单建一张语义动作名到底层形态的表 [@busybee 2026-06-13] ////
+  //// 从配置的表情与动作清单建一张语义动作名到底层形态的表 [@x380kkm 2026-06-13] ////
   // 表情项来自 config.expressions:[{name, file}];动作项来自 config.motionEmotions:[{name, group, index}]。
   _buildActionTable() {
     const table = {};
@@ -46,7 +46,7 @@ export class Live2dRenderer extends RenderAdapter {
     return table;
   }
 
-  //// 建参数名到下标的映射,后续按名写值靠它 [@busybee 2026-06-13] ////
+  //// 建参数名到下标的映射,后续按名写值靠它 [@x380kkm 2026-06-13] ////
   _buildParamMap() {
     if (!this.model) return;
     const coreParams = this.model.internalModel.coreModel._model.parameters;
@@ -56,13 +56,13 @@ export class Live2dRenderer extends RenderAdapter {
     }
   }
 
-  //// 经下标映射把一个参数写成目标值,封住 Cubism 私有字段访问 [@busybee 2026-06-13] ////
+  //// 经下标映射把一个参数写成目标值,封住 Cubism 私有字段访问 [@x380kkm 2026-06-13] ////
   _setParam(name, value) {
     if (!this.paramMap || this.paramMap[name] === undefined) return;
     this.model.internalModel.coreModel._model.parameters.values[this.paramMap[name]] = value;
   }
 
-  //// 按语义动作名播放:动作走 Cubism motion,表情走缓存参数覆盖 [@busybee 2026-06-13] ////
+  //// 按语义动作名播放:动作走 Cubism motion,表情走缓存参数覆盖 [@x380kkm 2026-06-13] ////
   playAction(name) {
     const action = resolveAction(this.actionTable, name);
     if (!action || !this.model) return;
@@ -73,7 +73,7 @@ export class Live2dRenderer extends RenderAdapter {
     this._activateExpression(name);
   }
 
-  //// 取出表情参数、记下受影响参数的默认值供回退、激活覆盖 [@busybee 2026-06-13] ////
+  //// 取出表情参数、记下受影响参数的默认值供回退、激活覆盖 [@x380kkm 2026-06-13] ////
   _activateExpression(name) {
     const params = this.expressionCache[name];
     if (!params) return;
@@ -86,7 +86,7 @@ export class Live2dRenderer extends RenderAdapter {
     this.activeExprParams = params;
   }
 
-  //// 把当前激活的表情参数写进模型,每帧由组合根的 ticker 调一次 [@busybee 2026-06-13] ////
+  //// 把当前激活的表情参数写进模型,每帧由组合根的 ticker 调一次 [@x380kkm 2026-06-13] ////
   applyExpression() {
     if (!this.activeExprParams) return;
     for (const p of this.activeExprParams) {
@@ -94,7 +94,7 @@ export class Live2dRenderer extends RenderAdapter {
     }
   }
 
-  //// 把受影响参数恢复到默认值并清空激活表情 [@busybee 2026-06-13] ////
+  //// 把受影响参数恢复到默认值并清空激活表情 [@x380kkm 2026-06-13] ////
   revertAction() {
     if (this.savedParamDefaults) {
       for (const [id, val] of Object.entries(this.savedParamDefaults)) {
@@ -105,7 +105,7 @@ export class Live2dRenderer extends RenderAdapter {
     this.activeExprParams = null;
   }
 
-  //// 从注入的 fetchJson 加载表情文件,把参数表缓存供 playAction 用 [@busybee 2026-06-13] ////
+  //// 从注入的 fetchJson 加载表情文件,把参数表缓存供 playAction 用 [@x380kkm 2026-06-13] ////
   // modelDir 为表情文件所在目录,由组合根算好后传入。
   async loadExpressions(modelDir) {
     if (!this.fetchJson || !modelDir) return;
@@ -117,12 +117,12 @@ export class Live2dRenderer extends RenderAdapter {
     }
   }
 
-  //// 设置口型开合度,把 0 到 1 写进 Cubism 的口型参数 [@busybee 2026-06-13] ////
+  //// 设置口型开合度,把 0 到 1 写进 Cubism 的口型参数 [@x380kkm 2026-06-13] ////
   setMouth(openness) {
     this._setParam(this.mouthParam, clampOpenness(openness));
   }
 
-  //// 按跟踪坐标偏转头部与眼球,经增益写入 config.paramMapping 指名的角度参数 [@busybee 2026-06-13] ////
+  //// 按跟踪坐标偏转头部与眼球,经增益写入 config.paramMapping 指名的角度参数 [@x380kkm 2026-06-13] ////
   // x、y 为钳在 -1 到 1 的跟踪坐标;某语义键未在 paramMapping 配出参数名时跳过该项,不写值。
   // angleX/angleZ/eyeBallX 随 x 偏转,angleY/eyeBallY 随 y 偏转,增益与正负见 TRACK_GAIN。
   setTrack(x, y) {
@@ -134,7 +134,7 @@ export class Live2dRenderer extends RenderAdapter {
     if (mapping.eyeBallY) this._setParam(mapping.eyeBallY, y * TRACK_GAIN.eyeBallY);
   }
 
-  //// 命中测试,返回被点中的交互区名或空 [@busybee 2026-06-13] ////
+  //// 命中测试,返回被点中的交互区名或空 [@x380kkm 2026-06-13] ////
   // Cubism 模型的 hitTest 接受模型局部坐标 (x, y),返回命中的 HitArea 名称数组。
   hitTest(point) {
     if (!this.model || typeof this.model.hitTest !== 'function') return null;
@@ -143,7 +143,7 @@ export class Live2dRenderer extends RenderAdapter {
     return null;
   }
 
-  //// 从舞台移除模型并释放 PIXI 应用,清空内部状态 [@busybee 2026-06-13] ////
+  //// 从舞台移除模型并释放 PIXI 应用,清空内部状态 [@x380kkm 2026-06-13] ////
   dispose() {
     if (this.model) {
       if (this.pixiApp) this.pixiApp.stage.removeChild(this.model);

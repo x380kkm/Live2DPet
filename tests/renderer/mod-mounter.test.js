@@ -40,7 +40,7 @@ function makeFakeView() {
   };
 }
 
-//// isSandboxed 与 buildSandboxFrame:可执行档判定与受限 iframe 属性 [@busybee 2026-06-14] ////
+//// isSandboxed 与 buildSandboxFrame:可执行档判定与受限 iframe 属性 [@x380kkm 2026-06-14] ////
 test('isSandboxed 仅 kind 为 sandboxed 时为真', async () => {
   const { isSandboxed } = await loadMounter();
   assert.strictEqual(isSandboxed({ kind: 'sandboxed' }), true);
@@ -58,7 +58,7 @@ test('buildSandboxFrame 只给 allow-scripts、不给 allow-same-origin,srcdoc �
 });
 //// /isSandboxed 与 buildSandboxFrame ////
 
-//// renderPureData:声明模板渲成 DOM,按钮点击产出交互事件 [@busybee 2026-06-14] ////
+//// renderPureData:声明模板渲成 DOM,按钮点击产出交互事件 [@x380kkm 2026-06-14] ////
 test('renderPureData 渲出标题、文本与按钮,按钮点击经 emit 带事件名与载荷', async () => {
   const { renderPureData } = await loadMounter();
   const doc = makeFakeDoc();
@@ -81,7 +81,7 @@ test('renderPureData 渲出标题、文本与按钮,按钮点击经 emit 带事�
 });
 //// /renderPureData ////
 
-//// allowedInteraction:沙箱消息白名单过滤 [@busybee 2026-06-14] ////
+//// allowedInteraction:沙箱消息白名单过滤 [@x380kkm 2026-06-14] ////
 test('allowedInteraction 放行白名单内的交互事件,拒绝白名单外与非交互消息', async () => {
   const { allowedInteraction } = await loadMounter();
   const emits = ['click', 'win'];
@@ -92,7 +92,7 @@ test('allowedInteraction 放行白名单内的交互事件,拒绝白名单外与
 });
 //// /allowedInteraction ////
 
-//// mountMod:纯数据直渲、沙箱桥接白名单内消息、忽略别处来源 [@busybee 2026-06-14] ////
+//// mountMod:纯数据直渲、沙箱桥接白名单内消息、忽略别处来源 [@x380kkm 2026-06-14] ////
 test('mountMod 纯数据档把面板挂入根,按钮点击 emit', async () => {
   const { mountMod } = await loadMounter();
   const doc = makeFakeDoc();
@@ -143,7 +143,7 @@ test('mountMod 返回的卸载函数摘除沙箱消息监听', async () => {
 });
 //// /mountMod ////
 
-//// mountMod 沙箱:iframe 尚未就绪(contentWindow 为空)时拒绝消息,杜绝加载窗口期冒充 [@busybee 2026-06-14] ////
+//// mountMod 沙箱:iframe 尚未就绪(contentWindow 为空)时拒绝消息,杜绝加载窗口期冒充 [@x380kkm 2026-06-14] ////
 test('mountMod 沙箱档在 contentWindow 为空时不转任何消息', async () => {
   const { mountMod } = await loadMounter();
   const doc = makeFakeDoc();

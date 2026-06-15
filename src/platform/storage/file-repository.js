@@ -10,12 +10,12 @@
 
 const { Repository } = require('./repository');
 
-//// 把存储键转成 JSON 文件名:统一加扩展名 [@busybee 2026-06-13] ////
+//// 把存储键转成 JSON 文件名:统一加扩展名 [@x380kkm 2026-06-13] ////
 function toFileName(key) {
   return key.endsWith('.json') ? key : `${key}.json`;
 }
 
-//// 把记录集合摊平成数组:对象取其值,数组原样返回 [@busybee 2026-06-13] ////
+//// 把记录集合摊平成数组:对象取其值,数组原样返回 [@x380kkm 2026-06-13] ////
 function toEntries(collection) {
   if (Array.isArray(collection)) return collection;
   if (collection && typeof collection === 'object') return Object.values(collection);
@@ -29,7 +29,7 @@ class FileRepository extends Repository {
     this.fs = fs;
   }
 
-  //// 读 JSON 文件并解析:文件不存在或解析失败返回 null [@busybee 2026-06-13] ////
+  //// 读 JSON 文件并解析:文件不存在或解析失败返回 null [@x380kkm 2026-06-13] ////
   async get(key) {
     const filePath = this.pathUtils.resolve(toFileName(key));
     try {
@@ -40,7 +40,7 @@ class FileRepository extends Repository {
     }
   }
 
-  //// 序列化并覆盖写入 JSON 文件:先建好父目录 [@busybee 2026-06-13] ////
+  //// 序列化并覆盖写入 JSON 文件:先建好父目录 [@x380kkm 2026-06-13] ////
   async put(key, value) {
     const filePath = this.pathUtils.resolve(toFileName(key));
     const dir = filePath.slice(0, Math.max(filePath.lastIndexOf('/'), filePath.lastIndexOf('\\')));
@@ -49,7 +49,7 @@ class FileRepository extends Repository {
   }
   //// /序列化并覆盖写入 JSON 文件 ////
 
-  //// 按时间区间筛 key 下的记录:取 field 字段落在 [from, to] 内的项 [@busybee 2026-06-13] ////
+  //// 按时间区间筛 key 下的记录:取 field 字段落在 [from, to] 内的项 [@x380kkm 2026-06-13] ////
   async queryByTime(range) {
     const collection = await this.get(range.key);
     if (collection === null) return [];

@@ -9,7 +9,7 @@ const i18nTable = require('./src/i18n/locales');
 
 const D = channelRegistry.CapabilityDomain;
 
-//// 把契约目录里某能力域的通道收成「方法名到 invoke 调用」的窄句柄 [@busybee 2026-06-13] ////
+//// 把契约目录里某能力域的通道收成「方法名到 invoke 调用」的窄句柄 [@x380kkm 2026-06-13] ////
 // 通道名经 channel-registry 校验过域归属,方法名由 toMethodName 从通道名派生,渲染侧只见这层。
 function groupOf(domain) {
   const group = {};
@@ -21,13 +21,13 @@ function groupOf(domain) {
 }
 //// /把契约目录里某能力域的通道收成窄句柄 ////
 
-//// 把 kebab 通道名转成 camelCase 方法名,渲染侧按域取方法 [@busybee 2026-06-13] ////
+//// 把 kebab 通道名转成 camelCase 方法名,渲染侧按域取方法 [@x380kkm 2026-06-13] ////
 function toMethodName(channel) {
   return channel.replace(/-([a-z])/g, (_, c) => c.toUpperCase());
 }
 //// /把 kebab 通道名转成 camelCase 方法名 ////
 
-//// 主进程向渲染侧推送的事件:按事件名订阅,只暴露声明过的几路 [@busybee 2026-06-13] ////
+//// 主进程向渲染侧推送的事件:按事件名订阅,只暴露声明过的几路 [@x380kkm 2026-06-13] ////
 // 这些是单向推送通道(主到渲染),不在 invoke 契约里,故单列;回调只拿到 payload。
 const EVENTS = {
   onCharacterUpdate: 'character-update',
@@ -46,7 +46,7 @@ const EVENTS = {
   onVoicevoxSetupProgress: 'voicevox-setup-progress'
 };
 
-//// 把单向推送通道收成「订阅函数名到注册器」的窄句柄 [@busybee 2026-06-13] ////
+//// 把单向推送通道收成「订阅函数名到注册器」的窄句柄 [@x380kkm 2026-06-13] ////
 function makeEventSubscribers() {
   const subscribers = {};
   for (const [name, channel] of Object.entries(EVENTS)) {
@@ -56,7 +56,7 @@ function makeEventSubscribers() {
 }
 //// /把单向推送通道收成订阅句柄 ////
 
-//// 按能力域分级暴露:无害控制与读写直放,屏幕、外发、文件三域为重能力单列 [@busybee 2026-06-13] ////
+//// 按能力域分级暴露:无害控制与读写直放,屏幕、外发、文件三域为重能力单列 [@x380kkm 2026-06-13] ////
 // 重能力域与无害控制域分桶暴露;渲染侧按域取能力。
 contextBridge.exposeInMainWorld('petBridge', {
   ui: groupOf(D.ui),
@@ -75,7 +75,7 @@ contextBridge.exposeInMainWorld('petBridge', {
 });
 //// /按能力域分级暴露 ////
 
-//// 单列界面文案表:它是静态参考数据而非能力通道,故不挂进 petBridge,另以 petI18n 暴露 [@busybee 2026-06-14] ////
+//// 单列界面文案表:它是静态参考数据而非能力通道,故不挂进 petBridge,另以 petI18n 暴露 [@x380kkm 2026-06-14] ////
 // 设置界面据当前语言查表把动态文案译出;查不到的语言或键由界面侧回退 en 再回退键名。
 contextBridge.exposeInMainWorld('petI18n', i18nTable);
 //// /单列界面文案表 ////

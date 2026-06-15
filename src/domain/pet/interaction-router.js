@@ -8,7 +8,7 @@ const { TriggerWhen } = require('../intent/intent');
 const { INTERACTION_EVENT_TYPE } = require('../mod/interaction-event');
 
 class InteractionRouter {
-  //// 构造注入事件总线、意图注册表、pet 编排器 [@busybee 2026-06-14] ////
+  //// 构造注入事件总线、意图注册表、pet 编排器 [@x380kkm 2026-06-14] ////
   // deps:{ eventBus, registry(IntentRegistry), pet(PetOrchestrator) }。
   constructor(deps = {}) {
     this.eventBus = deps.eventBus;
@@ -17,7 +17,7 @@ class InteractionRouter {
     this._unsub = null;
   }
 
-  //// 订阅交互事件,重复启动无副作用 [@busybee 2026-06-14] ////
+  //// 订阅交互事件,重复启动无副作用 [@x380kkm 2026-06-14] ////
   start() {
     if (this._unsub || !this.eventBus) return;
     this._unsub = this.eventBus.subscribe(INTERACTION_EVENT_TYPE, (event) => {
@@ -26,12 +26,12 @@ class InteractionRouter {
   }
   //// /订阅交互事件 ////
 
-  //// 取消订阅,重复停止无副作用 [@busybee 2026-06-14] ////
+  //// 取消订阅,重复停止无副作用 [@x380kkm 2026-06-14] ////
   stop() {
     if (this._unsub) { this._unsub(); this._unsub = null; }
   }
 
-  //// 路由一次交互:据事件名取声明消费它的意图作候选、选一个、跑出回应 [@busybee 2026-06-14] ////
+  //// 路由一次交互:据事件名取声明消费它的意图作候选、选一个、跑出回应 [@x380kkm 2026-06-14] ////
   // 候选只取声明消费 mod 事件的意图;空闲意图虽在无视觉输入下本会被选,但一次交互不该触发空闲闲聊,故按触发类型滤掉。
   async _route(event) {
     if (!event || typeof event.name !== 'string' || !event.name) return null;
@@ -51,7 +51,7 @@ class InteractionRouter {
   //// /路由一次交互 ////
 }
 
-//// 路由失败时记录,有 console 才打,无则静默 [@busybee 2026-06-14] ////
+//// 路由失败时记录,有 console 才打,无则静默 [@x380kkm 2026-06-14] ////
 function logRouteError(error) {
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
     console.error('[InteractionRouter] 路由交互失败:', error && error.message ? error.message : error);

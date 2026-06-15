@@ -4,7 +4,7 @@ const assert = require('node:assert');
 
 const gateway = require('../../src/platform/ipc/capability-gateway');
 
-// 装配一组可观察的协作者:记录确认次数与执行参数 [@busybee 2026-06-13]
+// 装配一组可观察的协作者:记录确认次数与执行参数 [@x380kkm 2026-06-13]
 function makeDeps({ confirm = async () => true, masterEnabled = () => true } = {}) {
   const calls = { confirm: 0, executed: [] };
   return {

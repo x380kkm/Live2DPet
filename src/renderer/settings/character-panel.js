@@ -15,7 +15,7 @@ const FIELD_IDS = {
   language: 'prompt-language'
 };
 
-//// 装配角色卡面板,持有当前角色 id 与新建改名的输入状态 [@busybee 2026-06-13] ////
+//// 装配角色卡面板,持有当前角色 id 与新建改名的输入状态 [@x380kkm 2026-06-13] ////
 export function mountCharacterPanel(ctx) {
   const { doc, gateway, t, showStatus } = ctx;
   const state = { currentId: null, nameAction: null };
@@ -54,7 +54,7 @@ export function mountCharacterPanel(ctx) {
   ctx.reloadCharacterPrompt = () => loadPrompt(ctx, state.currentId);
 }
 
-//// 拉取角色卡列表填入下拉并载入当前角色字段 [@busybee 2026-06-13] ////
+//// 拉取角色卡列表填入下拉并载入当前角色字段 [@x380kkm 2026-06-13] ////
 export async function loadCharacterList(ctx, state) {
   const { doc, gateway, t } = ctx;
   if (!gateway.character.list) return;
@@ -72,7 +72,7 @@ export async function loadCharacterList(ctx, state) {
   await loadPrompt(ctx, activeCharacterId);
 }
 
-//// 载入一个角色卡的字段,内置卡按当前语言解析 i18n 覆盖 [@busybee 2026-06-13] ////
+//// 载入一个角色卡的字段,内置卡按当前语言解析 i18n 覆盖 [@x380kkm 2026-06-13] ////
 async function loadPrompt(ctx, id) {
   const { gateway, lang } = ctx;
   if (!gateway.character.loadPrompt || !id) return;
@@ -86,7 +86,7 @@ async function loadPrompt(ctx, id) {
   fillFields(ctx, data);
 }
 
-//// 把角色卡数据填入各表单输入 [@busybee 2026-06-13] ////
+//// 把角色卡数据填入各表单输入 [@x380kkm 2026-06-13] ////
 function fillFields(ctx, data) {
   const { doc } = ctx;
   for (const [field, id] of Object.entries(FIELD_IDS)) {
@@ -94,7 +94,7 @@ function fillFields(ctx, data) {
   }
 }
 
-//// 从各表单输入收集角色卡数据 [@busybee 2026-06-13] ////
+//// 从各表单输入收集角色卡数据 [@x380kkm 2026-06-13] ////
 function collectFields(ctx) {
   const { doc } = ctx;
   const data = {};
@@ -104,7 +104,7 @@ function collectFields(ctx) {
   return data;
 }
 
-//// 展开内联名字输入行并记录本次动作是新建还是改名 [@busybee 2026-06-13] ////
+//// 展开内联名字输入行并记录本次动作是新建还是改名 [@x380kkm 2026-06-13] ////
 function showNameInput(ctx, state, defaultValue, action) {
   const { doc } = ctx;
   state.nameAction = action;
@@ -116,13 +116,13 @@ function showNameInput(ctx, state, defaultValue, action) {
   input.select();
 }
 
-//// 收起内联名字输入行并清空动作 [@busybee 2026-06-13] ////
+//// 收起内联名字输入行并清空动作 [@x380kkm 2026-06-13] ////
 function hideNameInput(ctx, state) {
   ctx.doc.getElementById('character-name-input-row').style.display = 'none';
   state.nameAction = null;
 }
 
-//// 按当前动作确认名字:新建则创建并激活,改名则改当前角色名 [@busybee 2026-06-13] ////
+//// 按当前动作确认名字:新建则创建并激活,改名则改当前角色名 [@x380kkm 2026-06-13] ////
 async function confirmName(ctx, state) {
   const { doc, gateway, t, showStatus } = ctx;
   const name = doc.getElementById('character-name-input').value.trim();
@@ -144,7 +144,7 @@ async function confirmName(ctx, state) {
   hideNameInput(ctx, state);
 }
 
-//// 导入角色卡并激活最后一张 [@busybee 2026-06-13] ////
+//// 导入角色卡并激活最后一张 [@x380kkm 2026-06-13] ////
 async function importCharacter(ctx, state) {
   const { gateway, t, showStatus } = ctx;
   const result = await gateway.character.import();
@@ -156,7 +156,7 @@ async function importCharacter(ctx, state) {
   }
 }
 
-//// 删除当前角色卡并重载列表与 prompt [@busybee 2026-06-13] ////
+//// 删除当前角色卡并重载列表与 prompt [@x380kkm 2026-06-13] ////
 async function deleteCharacter(ctx, state) {
   const { gateway, t, showStatus } = ctx;
   if (!state.currentId) return;
@@ -170,7 +170,7 @@ async function deleteCharacter(ctx, state) {
   }
 }
 
-//// 重置内置角色卡并重载 [@busybee 2026-06-13] ////
+//// 重置内置角色卡并重载 [@x380kkm 2026-06-13] ////
 async function resetBuiltin(ctx, state) {
   const { gateway, t, showStatus } = ctx;
   if (!gateway.character.resetBuiltin) return;
@@ -183,7 +183,7 @@ async function resetBuiltin(ctx, state) {
   }
 }
 
-//// 收集字段保存当前角色卡并通知重载宠物 prompt [@busybee 2026-06-13] ////
+//// 收集字段保存当前角色卡并通知重载宠物 prompt [@x380kkm 2026-06-13] ////
 async function savePrompt(ctx, state) {
   const { gateway, t, showStatus } = ctx;
   if (!state.currentId) return;

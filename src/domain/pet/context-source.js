@@ -3,7 +3,7 @@
 // 上下文源接口与组装器:命名上下文源声明优先级与 token 预算,组装器按优先级排序累加到预算截断。
 // 不变量:每个源以引用接入意图、不内联内容;render 返回 null 的源在组装时被跳过。
 
-//// 上下文源接口:命名、可优先级、可估算预算、按作用域渲染 [@busybee 2026-06-13] ////
+//// 上下文源接口:命名、可优先级、可估算预算、按作用域渲染 [@x380kkm 2026-06-13] ////
 class ContextSource {
   get id() {
     throw new Error('子类必须给出 id');
@@ -23,7 +23,7 @@ class ContextSource {
 }
 //// /上下文源接口 ////
 
-//// 把一段渲染逻辑包成命名上下文源,替代 sendRequest 里手工拼接的内联块 [@busybee 2026-06-13] ////
+//// 把一段渲染逻辑包成命名上下文源,替代 sendRequest 里手工拼接的内联块 [@x380kkm 2026-06-13] ////
 // 用一个渲染函数声明一个上下文源:idleInfo、focusInfo、interactionInfo 等过去写死在 sendRequest
 // 里的片段各成一个实例,优先级与 token 估算随声明给定,render 在缺数据时返回 null 由组装器跳过。
 class NamedContextSource extends ContextSource {
@@ -44,7 +44,7 @@ class NamedContextSource extends ContextSource {
     return this._priority;
   }
 
-  //// 估算本源渲染后的 token 数,缺省按字符数粗估 [@busybee 2026-06-13] ////
+  //// 估算本源渲染后的 token 数,缺省按字符数粗估 [@x380kkm 2026-06-13] ////
   estimateTokens(scope) {
     if (this._estimateTokens) {
       return this._estimateTokens(scope);
@@ -59,7 +59,7 @@ class NamedContextSource extends ContextSource {
 }
 //// /把一段渲染逻辑包成命名上下文源 ////
 
-//// 按字符数粗估文本 token 数:无文本计零 [@busybee 2026-06-13] ////
+//// 按字符数粗估文本 token 数:无文本计零 [@x380kkm 2026-06-13] ////
 // 中英文混排无供应商无关的精确分词,这里按字符数除以经验系数 4 给一个上界够用的估算。
 function estimateTextTokens(text) {
   if (!text) {
@@ -69,7 +69,7 @@ function estimateTextTokens(text) {
   return Math.ceil(text.length / 4);
 }
 
-//// 上下文组装器:按优先级排序累加到预算截断,跳过渲染为空的源 [@busybee 2026-06-13] ////
+//// 上下文组装器:按优先级排序累加到预算截断,跳过渲染为空的源 [@x380kkm 2026-06-13] ////
 class ContextAssembler {
   // 组装结果是按优先级排好序、累计 token 不超过 budget 的若干命名片段。
   // 返回 { fragments: [{ id, text, tokens }], text, tokens }。

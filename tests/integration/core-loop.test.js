@@ -39,7 +39,7 @@ const { ToneHintSource } = require('../../src/domain/pet/sources/tone-hint-sourc
 const { RecentRepliesSource } = require('../../src/domain/pet/sources/recent-replies-source');
 const { IdleInfoSource } = require('../../src/domain/pet/sources/idle-info-source');
 
-//// 内存仓储:实现 MemoryStore 期待的 get/put 键值接口 [@busybee 2026-06-13] ////
+//// 内存仓储:实现 MemoryStore 期待的 get/put 键值接口 [@x380kkm 2026-06-13] ////
 function memoryRepository() {
   const store = new Map();
   return {
@@ -52,7 +52,7 @@ function memoryRepository() {
   };
 }
 
-//// 脚本化 LLM 客户端:按调用顺序回放给定回复,记录每次请求 [@busybee 2026-06-13] ////
+//// 脚本化 LLM 客户端:按调用顺序回放给定回复,记录每次请求 [@x380kkm 2026-06-13] ////
 // 每条脚本项形如 { match?, text }:match 命中请求里的系统提示时回该项,否则按队列顺序取。
 function scriptedLlm(defaultText) {
   const calls = [];
@@ -71,13 +71,13 @@ function scriptedLlm(defaultText) {
   };
 }
 
-//// 按 id 索引上下文源的内存注册表,RequestPipeline 经 get(id) 取源 [@busybee 2026-06-13] ////
+//// 按 id 索引上下文源的内存注册表,RequestPipeline 经 get(id) 取源 [@x380kkm 2026-06-13] ////
 function sourceRegistry(sources) {
   const byId = new Map(sources.map((s) => [s.id, s]));
   return { get: (id) => byId.get(id) || null };
 }
 
-//// 假感知源:每次 capture 回放一帧,队列空后回 null,记录调用次数 [@busybee 2026-06-13] ////
+//// 假感知源:每次 capture 回放一帧,队列空后回 null,记录调用次数 [@x380kkm 2026-06-13] ////
 function scriptedPerception(frames) {
   const queue = frames.slice();
   let captureCount = 0;
@@ -92,7 +92,7 @@ function scriptedPerception(frames) {
   };
 }
 
-//// 把循环各模块装配成一套真实流水线,LLM 与感知与仓储经参数注入 [@busybee 2026-06-13] ////
+//// 把循环各模块装配成一套真实流水线,LLM 与感知与仓储经参数注入 [@x380kkm 2026-06-13] ////
 // 返回各协作者引用,供用例直接驱动 scheduler 或 pet 并断言总线产物。
 function assembleLoop(opts) {
   const bus = new EventBus();
@@ -187,19 +187,19 @@ function assembleLoop(opts) {
   return { bus, registry, pipeline, pet, decider, scheduler, emotionState, emotionSelector, mainLlm, recentReplies, collector };
 }
 
-//// 排空已挂起的微任务,等情绪选取这类未 await 的异步链落地 [@busybee 2026-06-13] ////
+//// 排空已挂起的微任务,等情绪选取这类未 await 的异步链落地 [@x380kkm 2026-06-13] ////
 function flush() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
-//// 订阅一类事件,把收到的事件依序收集 [@busybee 2026-06-13] ////
+//// 订阅一类事件,把收到的事件依序收集 [@x380kkm 2026-06-13] ////
 function collect(bus, type) {
   const events = [];
   bus.subscribe(type, (e) => events.push(e));
   return events;
 }
 
-//// 核心循环:有视觉输入时选「观察回应」,产出经清洗的发言,喂情绪,上下文进提示词 [@busybee 2026-06-13] ////
+//// 核心循环:有视觉输入时选「观察回应」,产出经清洗的发言,喂情绪,上下文进提示词 [@x380kkm 2026-06-13] ////
 test('有视觉输入时核心循环选观察回应并产出经清洗的发言', async () => {
   // 主 LLM 先答选意图(单候选时不会被调到),再答发言文本带 think 标签待清洗。
   const mainLlm = scriptedLlm('').enqueue('<think>盘算一下</think>你好');
@@ -252,7 +252,7 @@ test('有视觉输入时核心循环选观察回应并产出经清洗的发言',
   assert.strictEqual(keyframe.situation, undefined, 'situationDigest 源依赖的 situation 字段从未被抽取器回写');
 });
 
-//// 空闲分支:无视觉输入时选「空闲闲聊」并产出发言 [@busybee 2026-06-13] ////
+//// 空闲分支:无视觉输入时选「空闲闲聊」并产出发言 [@x380kkm 2026-06-13] ////
 test('无视觉输入时核心循环选空闲闲聊', async () => {
   const mainLlm = scriptedLlm('').enqueue('一个人待着也不错');
   const perceptionLlm = scriptedLlm('');
@@ -283,7 +283,7 @@ test('无视觉输入时核心循环选空闲闲聊', async () => {
   assert.strictEqual(perception.captureCount, 1);
 });
 
-//// 单候选时不耗选意图调用,直接跑出该意图 [@busybee 2026-06-13] ////
+//// 单候选时不耗选意图调用,直接跑出该意图 [@x380kkm 2026-06-13] ////
 test('两条出厂意图按视觉信号互斥触发,各自只剩单候选', async () => {
   const loop = assembleLoop({
     mainLlm: scriptedLlm('x'), perceptionLlm: scriptedLlm(''), emotionLlm: scriptedLlm('happy'),

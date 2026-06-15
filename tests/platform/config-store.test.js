@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { ConfigStore, ENCRYPTED_FIELDS } = require('../../src/platform/config/config-store');
 
-//// 构造一个内存仓储 mock,记录所有 get/put [@busybee 2026-06-13] ////
+//// 构造一个内存仓储 mock,记录所有 get/put [@x380kkm 2026-06-13] ////
 function mockRepository(initial = {}) {
   const store = { ...initial };
   return {
@@ -20,7 +20,7 @@ function mockRepository(initial = {}) {
   };
 }
 
-//// 简单可逆加解密 mock,用前缀标记加密态 [@busybee 2026-06-13] ////
+//// 简单可逆加解密 mock,用前缀标记加密态 [@x380kkm 2026-06-13] ////
 const fakeCrypto = {
   encrypt: (v) => `ENC(${v})`,
   decrypt: (v) => (typeof v === 'string' && v.startsWith('ENC(') ? v.slice(4, -1) : v)

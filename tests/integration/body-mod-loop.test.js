@@ -16,7 +16,7 @@ const { InteractionEvent } = require('../../src/domain/mod/interaction-event.js'
 
 const MODS_DIR = path.join(__dirname, '..', '..', 'assets', 'mods');
 
-//// 出厂身体交互 mod 经文件源被发现并注入意图 [@busybee 2026-06-14] ////
+//// 出厂身体交互 mod 经文件源被发现并注入意图 [@x380kkm 2026-06-14] ////
 test('出厂 body-interaction mod 被发现,其 click 与 touch 意图注入注册表', () => {
   const source = createModSource({ dirs: [{ dir: MODS_DIR, trust: 'Official' }], fs, path });
   const registry = new ModRegistry({ source, globalEnabled: [] });
@@ -31,7 +31,7 @@ test('出厂 body-interaction mod 被发现,其 click 与 touch 意图注入注�
   assert.ok(ids.includes('body-click'), 'click 信号应能触发 body-click 意图');
 });
 
-//// 一次 click 交互经路由触发 body-click 意图并跑出回应 [@busybee 2026-06-14] ////
+//// 一次 click 交互经路由触发 body-click 意图并跑出回应 [@x380kkm 2026-06-14] ////
 test('click 交互事件经交互路由触发 body-click 意图', async () => {
   const source = createModSource({ dirs: [{ dir: MODS_DIR, trust: 'Official' }], fs, path });
   const mods = new ModRegistry({ source, globalEnabled: [] }).discover();

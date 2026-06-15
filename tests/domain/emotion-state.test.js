@@ -12,7 +12,7 @@ function makeBus() {
   return { events, publish(event) { events.push(event); } };
 }
 
-//// 一拍 tick 按基础量推进当前值 [@busybee 2026-06-13] ////
+//// 一拍 tick 按基础量推进当前值 [@x380kkm 2026-06-13] ////
 test('feed tick advances current by base rate', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 100, baseRatePerTick: 2 });
@@ -23,7 +23,7 @@ test('feed tick advances current by base rate', () => {
   assert.strictEqual(bus.events.length, 0);
 });
 
-//// 悬停时一拍在基础量上叠加悬停量 [@busybee 2026-06-13] ////
+//// 悬停时一拍在基础量上叠加悬停量 [@x380kkm 2026-06-13] ////
 test('feed tick adds hover rate when hovering', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 100, baseRatePerTick: 2, hoverRatePerTick: 3 });
@@ -33,7 +33,7 @@ test('feed tick adds hover rate when hovering', () => {
   assert.strictEqual(state.current, 5);
 });
 
-//// 到阈值时发布到阈值事件并把当前值清零 [@busybee 2026-06-13] ////
+//// 到阈值时发布到阈值事件并把当前值清零 [@x380kkm 2026-06-13] ////
 test('reaching threshold publishes event and resets current', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 10, baseRatePerTick: 10 });
@@ -46,7 +46,7 @@ test('reaching threshold publishes event and resets current', () => {
   assert.strictEqual(state.current, 0);
 });
 
-//// 未到阈值时不发任何事件 [@busybee 2026-06-13] ////
+//// 未到阈值时不发任何事件 [@x380kkm 2026-06-13] ////
 test('below threshold publishes nothing', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 100, baseRatePerTick: 5 });
@@ -58,7 +58,7 @@ test('below threshold publishes nothing', () => {
   assert.strictEqual(state.hasReachedThreshold(), false);
 });
 
-//// 回复加成按文本长度给一次性推进,随机源可注入 [@busybee 2026-06-13] ////
+//// 回复加成按文本长度给一次性推进,随机源可注入 [@x380kkm 2026-06-13] ////
 test('reply bonus scales with text length using injected random', () => {
   const bus = makeBus();
   // 注入恒定随机源,使加成确定:base + random * span * (length / cap)。
@@ -74,7 +74,7 @@ test('reply bonus scales with text length using injected random', () => {
   assert.ok(Math.abs(state.current - 15) < 1e-9);
 });
 
-//// 回复加成把超长文本的长度因子封顶为一 [@busybee 2026-06-13] ////
+//// 回复加成把超长文本的长度因子封顶为一 [@x380kkm 2026-06-13] ////
 test('reply bonus caps length factor at one', () => {
   const bus = makeBus();
   const state = new EmotionState(
@@ -89,7 +89,7 @@ test('reply bonus caps length factor at one', () => {
   assert.ok(Math.abs(state.current - 25) < 1e-9);
 });
 
-//// 缺省输入或空输入不推进也不发事件 [@busybee 2026-06-13] ////
+//// 缺省输入或空输入不推进也不发事件 [@x380kkm 2026-06-13] ////
 test('empty input is a no-op', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 100, baseRatePerTick: 5 });
@@ -100,7 +100,7 @@ test('empty input is a no-op', () => {
   assert.strictEqual(bus.events.length, 0);
 });
 
-//// 越过阈值清零后可重新积累并再次到阈值 [@busybee 2026-06-13] ////
+//// 越过阈值清零后可重新积累并再次到阈值 [@x380kkm 2026-06-13] ////
 test('state re-accumulates after reset and fires again', () => {
   const bus = makeBus();
   const state = new EmotionState(bus, { threshold: 10, baseRatePerTick: 10 });

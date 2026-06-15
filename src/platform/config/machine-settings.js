@@ -11,25 +11,25 @@ const GLOBAL_KEYS = new Set(
 );
 
 class MachineSettings {
-  //// 构造注入 config-store 与全局层当前快照 [@busybee 2026-06-13] ////
+  //// 构造注入 config-store 与全局层当前快照 [@x380kkm 2026-06-13] ////
   constructor(configStore, snapshot = {}) {
     this.configStore = configStore;
     this.values = { ...snapshot };
   }
 
-  //// 从 config-store 读全局层并装配一份设置实例 [@busybee 2026-06-13] ////
+  //// 从 config-store 读全局层并装配一份设置实例 [@x380kkm 2026-06-13] ////
   static async load(configStore) {
     const snapshot = await configStore.read('global');
     return new MachineSettings(configStore, snapshot || {});
   }
 
-  //// 取一个全局设置,非全局层键直接拒绝 [@busybee 2026-06-13] ////
+  //// 取一个全局设置,非全局层键直接拒绝 [@x380kkm 2026-06-13] ////
   get(key) {
     assertGlobalKey(key);
     return this.values[key];
   }
 
-  //// 写一个全局设置并经 config-store 落盘 [@busybee 2026-06-13] ////
+  //// 写一个全局设置并经 config-store 落盘 [@x380kkm 2026-06-13] ////
   async set(key, value) {
     assertGlobalKey(key);
     this.values[key] = value;
@@ -37,7 +37,7 @@ class MachineSettings {
   }
 }
 
-//// 校验键属于全局层,否则报清晰错误 [@busybee 2026-06-13] ////
+//// 校验键属于全局层,否则报清晰错误 [@x380kkm 2026-06-13] ////
 function assertGlobalKey(key) {
   if (!GLOBAL_KEYS.has(key)) {
     throw new Error(`键 ${key} 不是全局层键,不能进 machine-settings`);

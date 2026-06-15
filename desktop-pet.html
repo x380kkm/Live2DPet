@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
@@ -43,7 +43,7 @@
     <script type="module">
         import { bootStage, createRenderAdapter as createRealRenderAdapter } from './src/renderer/boot/stage-boot.js';
 
-        //// 把分域的 petBridge 拍平成 stage-boot 期待的窄接口 [@busybee 2026-06-13] ////
+        //// 把分域的 petBridge 拍平成 stage-boot 期待的窄接口 [@x380kkm 2026-06-13] ////
         // stage-boot 调用 loadConfig、validateModelPaths、getCursorPosition 等扁平方法;
         // 此处从分域桥按域取出对应能力,组成 stage-boot 的 narrowApi,渲染侧不直接抓全局。
         function makeNarrowApi(bridge) {
@@ -70,7 +70,7 @@
             };
         }
 
-        //// 真实渲染适配:把浏览器侧的 PIXI 与 Cubism 全局与 DOM、取 JSON 函数注入给 stage-boot 的适配工厂 [@busybee 2026-06-13] ////
+        //// 真实渲染适配:把浏览器侧的 PIXI 与 Cubism 全局与 DOM、取 JSON 函数注入给 stage-boot 的适配工厂 [@x380kkm 2026-06-13] ////
         // PIXI 由 libs/pixi.min.js 暴露,Live2DModel 由 libs/cubism4.min.js 挂在 PIXI.live2d 下;
         // fetchJson 封住对 fetch 的依赖,加载表情文件用。第三方全局只在此入口取,业务模块不直接抓。
         async function createRenderAdapter(plan) {

@@ -3,14 +3,14 @@
 // 意图数据结构:模型侧在运行期从可枚举意图集里选一个的纯数据声明,含触发条件、上下文源清单、few-shot 引用、产物声明。
 // 不变量:纯数据无方法无副作用;不含成品措辞、不含人格文本。
 
-//// 触发条件取值:有视觉输入、空闲、某个 mod 事件名 [@busybee 2026-06-13] ////
+//// 触发条件取值:有视觉输入、空闲、某个 mod 事件名 [@x380kkm 2026-06-13] ////
 const TriggerWhen = {
   VisualInput: 'visual-input',
   Idle: 'idle',
   ModEvent: 'mod-event',
 };
 
-//// 产物形态取值:用某个模板,或当场生成临时 mod [@busybee 2026-06-13] ////
+//// 产物形态取值:用某个模板,或当场生成临时 mod [@x380kkm 2026-06-13] ////
 const ProductKind = {
   UseTemplate: 'use-template',
   GenerateTempMod: 'generate-temp-mod',
@@ -33,7 +33,7 @@ class Intent {
   }
 }
 
-//// 从数据声明逐字段拷贝建意图,校验必填项,可追溯而非深反射 [@busybee 2026-06-13] ////
+//// 从数据声明逐字段拷贝建意图,校验必填项,可追溯而非深反射 [@x380kkm 2026-06-13] ////
 function intentFromDeclaration(declaration, origin) {
   if (!declaration || typeof declaration !== 'object') {
     throw new Error('意图声明必须是对象');

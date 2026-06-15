@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { LowDiscrepancySequence, pickByWeight, GOLDEN_RATIO_CONJUGATE } = require('../../src/domain/pet/low-discrepancy.js');
 
-//// 序列值恒在 [0,1),相邻步进为黄金比共轭取小数 [@busybee 2026-06-14] ////
+//// 序列值恒在 [0,1),相邻步进为黄金比共轭取小数 [@x380kkm 2026-06-14] ////
 test('LowDiscrepancySequence 值落在 [0,1),相邻步差为黄金比共轭', () => {
   const seq = new LowDiscrepancySequence(0);
   let prev = 0;
@@ -44,7 +44,7 @@ test('LowDiscrepancySequence 在每个十分位桶里分布均匀,优于纯随�
 });
 //// /序列值恒在 [0,1) ////
 
-//// pickByWeight:逆变换抽样按权重命中下标 [@busybee 2026-06-14] ////
+//// pickByWeight:逆变换抽样按权重命中下标 [@x380kkm 2026-06-14] ////
 test('pickByWeight 按累计权重把抽样值映射到正确下标', () => {
   const weights = [800, 100, 100]; // 对话 800、模组各 100,总 1000
   assert.strictEqual(pickByWeight(weights, 0), 0);       // 落在 [0,800)

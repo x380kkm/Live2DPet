@@ -12,7 +12,7 @@
 // compose(intent, context, scope) 收已组装上下文与意图,产出 { messages };
 // scope.characterId 决定 few-shot 取哪个角色的语气;context.text 为组装器已按预算裁好的上下文片段。
 
-//// 按字符数粗估文本 token 数:无文本计零 [@busybee 2026-06-13] ////
+//// 按字符数粗估文本 token 数:无文本计零 [@x380kkm 2026-06-13] ////
 // 与 context-source 同口径:每 4 字符约一个 token,向上取整避免低估。
 function estimateTextTokensByChars(text) {
   if (!text) {
@@ -22,7 +22,7 @@ function estimateTextTokensByChars(text) {
 }
 
 class PromptComposer {
-  //// 构造注入 few-shot 解析器、人格数据、token 估算、样例预算与用户额外 system 注入 [@busybee 2026-06-13] ////
+  //// 构造注入 few-shot 解析器、人格数据、token 估算、样例预算与用户额外 system 注入 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     this.fewShotResolver = deps.fewShotResolver;
     this.persona = deps.persona || {};
@@ -34,7 +34,7 @@ class PromptComposer {
   }
   //// /构造注入 few-shot 解析器、人格数据、token 估算、样例预算与用户额外 system 注入 ////
 
-  //// 把已组装上下文与意图拼成结构化 LLM 请求 [@busybee 2026-06-13] ////
+  //// 把已组装上下文与意图拼成结构化 LLM 请求 [@x380kkm 2026-06-13] ////
   // 消息序:人格与上下文合成的系统提示在前,角色文风样例轮次居中,意图指令收尾。
   compose(intent, context, scope) {
     const characterId = (scope && scope.characterId) || '';
@@ -53,7 +53,7 @@ class PromptComposer {
   }
   //// /把已组装上下文与意图拼成结构化 LLM 请求 ////
 
-  //// 把一个状态边界反应拼成结构化请求:人格系统提示在前,状态边界描述与反应指令收尾 [@busybee 2026-06-14] ////
+  //// 把一个状态边界反应拼成结构化请求:人格系统提示在前,状态边界描述与反应指令收尾 [@x380kkm 2026-06-14] ////
   // reactionContext 形如 { state, from, input };只搭结构、不写成品措辞,反应的文风由人格决定。
   // 反应走不经截图循环的外部触发,故不带屏幕态势上下文;人格作稳定前缀以吃满缓存。
   composeReaction(reactionContext) {
@@ -67,7 +67,7 @@ class PromptComposer {
   }
   //// /把一个状态边界反应拼成结构化请求 ////
 
-  //// 把人格各段与已组装上下文折成一段系统提示,缺字段即略过 [@busybee 2026-06-13] ////
+  //// 把人格各段与已组装上下文折成一段系统提示,缺字段即略过 [@x380kkm 2026-06-13] ////
   // 段序:回应模式、人物设定、规则、上下文、语言指令。
   _buildSystemContent(contextText) {
     const persona = this.persona;
@@ -106,7 +106,7 @@ class PromptComposer {
   }
   //// /把人格各段与已组装上下文折成一段系统提示 ////
 
-  //// 经解析器取本角色的 few-shot 样例轮次,按预算裁剪 [@busybee 2026-06-13] ////
+  //// 经解析器取本角色的 few-shot 样例轮次,按预算裁剪 [@x380kkm 2026-06-13] ////
   // 解析器在角色文风下产出 { role, content } 轮次;无解析器或无引用时返回空。
   _resolveFewShot(intent, characterId) {
     if (!this.fewShotResolver) {
@@ -118,7 +118,7 @@ class PromptComposer {
   }
   //// /经解析器取本角色的 few-shot 样例轮次 ////
 
-  //// 按 token 预算从前往后累加样例轮次,超预算则丢其后全部轮次 [@busybee 2026-06-13] ////
+  //// 按 token 预算从前往后累加样例轮次,超预算则丢其后全部轮次 [@x380kkm 2026-06-13] ////
   // 样例已按解析顺序排好优先级,前面的更代表性;预算未给定时全数保留。
   _trimToBudget(turns) {
     if (this.fewShotBudget === undefined) {
@@ -138,7 +138,7 @@ class PromptComposer {
   }
   //// /按 token 预算从前往后累加样例轮次 ////
 
-  //// 把意图压成一行收尾指令,只搭结构不写成品措辞 [@busybee 2026-06-13] ////
+  //// 把意图压成一行收尾指令,只搭结构不写成品措辞 [@x380kkm 2026-06-13] ////
   // 意图只给 id,让模型据上文与样例产出本意图下的一句发言;当前态势经 situationDigest 上下文源进入上文,不在此重复。
   // 有 few-shot 样例时,指令要求模仿示例文风但不照抄、不重复最近发言,压住低创作度下的复读。
   _buildIntentInstruction(intent, hasFewShot) {

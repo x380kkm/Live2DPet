@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { FewShotResolver } = require('../../src/domain/fewshot/fewshot-resolver');
 
-//// 造一个记录调用的 mock bank,语气按角色分桶 [@busybee 2026-06-13] ////
+//// 造一个记录调用的 mock bank,语气按角色分桶 [@x380kkm 2026-06-13] ////
 // 用 mock 注入隔离 platform 与样例库,只断言解析器的编排行为。
 function mockBank({ structures = {}, tones = {} } = {}) {
   const calls = { compose: [], resolveTone: [] };
@@ -20,7 +20,7 @@ function mockBank({ structures = {}, tones = {} } = {}) {
       const bucket = tones[characterId] || {};
       return bucket[ref] || null;
     },
-    //// 合成时把结构、语气、调用方槽位原样回填成可读轮次 [@busybee 2026-06-13] ////
+    //// 合成时把结构、语气、调用方槽位原样回填成可读轮次 [@x380kkm 2026-06-13] ////
     compose(structure, tone, slots) {
       calls.compose.push({ structure, tone, slots });
       return structure.turns.map((turn) => ({

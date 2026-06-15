@@ -11,7 +11,7 @@ class IntentRegistry {
     this._byId = new Map();
   }
 
-  //// 注册一个已解析的意图实例,同 id 覆盖 [@busybee 2026-06-13] ////
+  //// 注册一个已解析的意图实例,同 id 覆盖 [@x380kkm 2026-06-13] ////
   register(intent) {
     if (!intent || typeof intent.id !== 'string' || !intent.id) {
       throw new Error('注册的意图缺少字符串 id');
@@ -24,7 +24,7 @@ class IntentRegistry {
   }
   //// /注册一个已解析的意图实例 ////
 
-  //// 从出厂意图清单逐条发现注入 [@busybee 2026-06-13] ////
+  //// 从出厂意图清单逐条发现注入 [@x380kkm 2026-06-13] ////
   discoverBuiltins(intents) {
     for (const intent of intents || []) {
       this.register(intent);
@@ -32,7 +32,7 @@ class IntentRegistry {
   }
   //// /从出厂意图清单逐条发现注入 ////
 
-  //// 从一组 mod 读其 intents 数据声明并注入,可追溯到 mod id [@busybee 2026-06-13] ////
+  //// 从一组 mod 读其 intents 数据声明并注入,可追溯到 mod id [@x380kkm 2026-06-13] ////
   discoverFromMods(mods) {
     for (const mod of mods || []) {
       const declarations = mod && Array.isArray(mod.intents) ? mod.intents : [];
@@ -47,7 +47,7 @@ class IntentRegistry {
   }
   //// /从一组 mod 读其 intents 数据声明并注入 ////
 
-  //// 从角色的 intents 数据声明注入,可追溯到角色 id [@busybee 2026-06-13] ////
+  //// 从角色的 intents 数据声明注入,可追溯到角色 id [@x380kkm 2026-06-13] ////
   discoverFromCharacter(character) {
     const declarations = character && Array.isArray(character.intents) ? character.intents : [];
     const origin = character && character.id ? `character:${character.id}` : 'character';
@@ -57,7 +57,7 @@ class IntentRegistry {
   }
   //// /从角色的 intents 数据声明注入 ////
 
-  //// 列出当前作用域信号能触发的候选意图,情绪焦点反重复不参与触发 [@busybee 2026-06-13] ////
+  //// 列出当前作用域信号能触发的候选意图,情绪焦点反重复不参与触发 [@x380kkm 2026-06-13] ////
   candidates(scope) {
     const signals = (scope && scope.signals) || {};
     const result = [];
@@ -70,7 +70,7 @@ class IntentRegistry {
   }
   //// /列出当前作用域信号能触发的候选意图 ////
 
-  //// 触发条件按信号匹配:有视觉输入、空闲、具名 mod 事件 [@busybee 2026-06-13] ////
+  //// 触发条件按信号匹配:有视觉输入、空闲、具名 mod 事件 [@x380kkm 2026-06-13] ////
   _triggerMatches(trigger, signals) {
     switch (trigger.when) {
       case TriggerWhen.VisualInput:

@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const { Mod, ModRuntime, TRUST } = require('../../src/domain/mod/mod');
 const { INTERACTION_EVENT_TYPE } = require('../../src/domain/mod/interaction-event');
 
-//// 规格物化成纯数据模板,缺省信任级别为用户自定义 [@busybee 2026-06-13] ////
+//// 规格物化成纯数据模板,缺省信任级别为用户自定义 [@x380kkm 2026-06-13] ////
 test('mod materializes spec and defaults to user-custom trust', () => {
   const mod = new Mod({ id: 'pat', emits: ['click'], intents: [{ id: 'react' }], hostApi: ['playAction'] });
   assert.strictEqual(mod.id, 'pat');
@@ -18,13 +18,13 @@ test('mod materializes spec and defaults to user-custom trust', () => {
   assert.deepStrictEqual(mod.intents, [{ id: 'react' }]);
 });
 
-//// 出厂信任级别被识别 [@busybee 2026-06-13] ////
+//// 出厂信任级别被识别 [@x380kkm 2026-06-13] ////
 test('official trust is recognized', () => {
   const mod = new Mod({ id: 'builtin', trust: TRUST.OFFICIAL });
   assert.strictEqual(mod.isOfficial(), true);
 });
 
-//// 挂载只放行 mod 声明的宿主方法 [@busybee 2026-06-13] ////
+//// 挂载只放行 mod 声明的宿主方法 [@x380kkm 2026-06-13] ////
 test('mount exposes only the host methods the mod declares', () => {
   const mod = new Mod({ id: 'pat', hostApi: ['playAction'] });
   const fullApi = {
@@ -40,7 +40,7 @@ test('mount exposes only the host methods the mod declares', () => {
   assert.strictEqual(mounted.api.playAction(), 'played');
 });
 
-//// emit 经注入发布器送出一个交互事件 [@busybee 2026-06-13] ////
+//// emit 经注入发布器送出一个交互事件 [@x380kkm 2026-06-13] ////
 test('emit publishes an interaction event through the injected publisher', () => {
   const published = [];
   const mod = new Mod({ id: 'pat', hostApi: [] });
@@ -56,13 +56,13 @@ test('emit publishes an interaction event through the injected publisher', () =>
   assert.strictEqual(event, published[0]);
 });
 
-//// 未挂载时 emit 拒绝产出 [@busybee 2026-06-13] ////
+//// 未挂载时 emit 拒绝产出 [@x380kkm 2026-06-13] ////
 test('emit before mount is rejected', () => {
   const runtime = new ModRuntime(new Mod({ id: 'pat' }), () => {});
   assert.throws(() => runtime.emit('click', {}), /未挂载/);
 });
 
-//// 事件名缺失时 emit 拒绝产出 [@busybee 2026-06-13] ////
+//// 事件名缺失时 emit 拒绝产出 [@x380kkm 2026-06-13] ////
 test('emit with a missing event name is rejected', () => {
   const published = [];
   const runtime = new ModRuntime(new Mod({ id: 'pat' }), (e) => published.push(e));
@@ -71,7 +71,7 @@ test('emit with a missing event name is rejected', () => {
   assert.strictEqual(published.length, 0);
 });
 
-//// dispose 后清空状态并阻断 emit [@busybee 2026-06-13] ////
+//// dispose 后清空状态并阻断 emit [@x380kkm 2026-06-13] ////
 test('dispose clears state and blocks further emit', () => {
   const runtime = new ModRuntime(new Mod({ id: 'pat' }), () => {});
   runtime.mount({}, {});

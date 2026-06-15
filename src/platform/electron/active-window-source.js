@@ -6,18 +6,18 @@
 // 依赖经构造注入:loadActiveWin 异步给出 active-win 模块,缺省时才动态 import 真实包。
 // active-win 仅发布为 ESM,主进程侧用动态 import 取得,故查询为异步。
 
-//// 取得 active-win 模块,优先用注入,缺省时才动态 import [@busybee 2026-06-13] ////
+//// 取得 active-win 模块,优先用注入,缺省时才动态 import [@x380kkm 2026-06-13] ////
 function makeLoader(injected) {
   if (injected) return injected;
   return () => import('active-win');
 }
 //// /取得 active-win 模块,优先用注入,缺省时才动态 import ////
 
-//// 装配 active-win 加载器,产出活动窗口与开窗列表两个查询 [@busybee 2026-06-13] ////
+//// 装配 active-win 加载器,产出活动窗口与开窗列表两个查询 [@x380kkm 2026-06-13] ////
 function createActiveWindowSource(deps = {}) {
   const load = makeLoader(deps.loadActiveWin);
 
-  //// 查当前活动窗口,无活动窗口或出错都折成失败数据 [@busybee 2026-06-13] ////
+  //// 查当前活动窗口,无活动窗口或出错都折成失败数据 [@x380kkm 2026-06-13] ////
   async function current() {
     try {
       const mod = await load();
@@ -31,7 +31,7 @@ function createActiveWindowSource(deps = {}) {
   }
   //// /查当前活动窗口 ////
 
-  //// 列出全部打开的窗口,出错折成失败数据 [@busybee 2026-06-13] ////
+  //// 列出全部打开的窗口,出错折成失败数据 [@x380kkm 2026-06-13] ////
   async function openWindows() {
     try {
       const mod = await load();

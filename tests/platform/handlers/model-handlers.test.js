@@ -8,7 +8,7 @@ const {
   createModelHandlers, suggestParamMapping, PARAM_FUZZY_MAP
 } = require('../../../src/platform/ipc/handlers/model-handlers');
 
-//// 内存文件系统:dirs 列目录、jsons 给 readJson、存在性据二者键判定 [@busybee 2026-06-13] ////
+//// 内存文件系统:dirs 列目录、jsons 给 readJson、存在性据二者键判定 [@x380kkm 2026-06-13] ////
 function fakeFiles(opts = {}) {
   const dirs = opts.dirs || {};
   const jsons = opts.jsons || {};
@@ -35,7 +35,7 @@ function fakeFiles(opts = {}) {
   };
 }
 
-//// 内存选择框:按脚本逐次返回 { canceled, paths } [@busybee 2026-06-13] ////
+//// 内存选择框:按脚本逐次返回 { canceled, paths } [@x380kkm 2026-06-13] ////
 function fakePicker(script = {}) {
   return {
     async pickDirectory() { return script.directory || { canceled: true, paths: [] }; },
@@ -43,7 +43,7 @@ function fakePicker(script = {}) {
   };
 }
 
-//// 造一套处理器,逐项覆盖注入件;mt 透传键名便于断言 [@busybee 2026-06-13] ////
+//// 造一套处理器,逐项覆盖注入件;mt 透传键名便于断言 [@x380kkm 2026-06-13] ////
 function makeHandlers(overrides = {}) {
   const deps = {
     picker: overrides.picker || fakePicker(),

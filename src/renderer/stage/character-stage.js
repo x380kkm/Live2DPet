@@ -5,7 +5,7 @@
 
 import { ExpressionArea, Occupant } from './expression-area.js';
 
-//// 表达区在头部周围可用的尺寸预算:宽随舞台、高占舞台一截、各方向留头部余量 [@busybee 2026-06-13] ////
+//// 表达区在头部周围可用的尺寸预算:宽随舞台、高占舞台一截、各方向留头部余量 [@x380kkm 2026-06-13] ////
 // stageSize 为覆盖窗口尺寸;reserve 为给头部预留的高度比例;返回表达区与槽的尺寸上限。
 export function computeExpressionBudget(stageSize, reserve = 0.4) {
   const ratio = clampRatio(reserve);
@@ -15,7 +15,7 @@ export function computeExpressionBudget(stageSize, reserve = 0.4) {
   };
 }
 
-//// 把一个请求尺寸钳进表达区预算上限,不放大、不越界 [@busybee 2026-06-13] ////
+//// 把一个请求尺寸钳进表达区预算上限,不放大、不越界 [@x380kkm 2026-06-13] ////
 export function fitWithinBudget(requested, budget) {
   return {
     width: Math.min(requested.width, budget.width),
@@ -23,7 +23,7 @@ export function fitWithinBudget(requested, budget) {
   };
 }
 
-//// 把比例钳进 0 到 1 [@busybee 2026-06-13] ////
+//// 把比例钳进 0 到 1 [@x380kkm 2026-06-13] ////
 function clampRatio(value) {
   if (typeof value !== 'number' || Number.isNaN(value)) return 0;
   if (value < 0) return 0;
@@ -32,7 +32,7 @@ function clampRatio(value) {
 }
 
 export class CharacterStage {
-  //// 经构造注入舞台元素、表达区与两视图,装配排他仲裁 [@busybee 2026-06-13] ////
+  //// 经构造注入舞台元素、表达区与两视图,装配排他仲裁 [@x380kkm 2026-06-13] ////
   // deps:{ stageElement, stageSize, modSlot, chatBubble, headAdapter? }。
   constructor(deps) {
     this.stageElement = deps.stageElement;
@@ -41,20 +41,20 @@ export class CharacterStage {
     this.chatBubble = deps.chatBubble;
     this.headAdapter = deps.headAdapter || null;
 
-    //// 表达区以两视图的隐藏为停用钩子,保证主导切换时另一占用者被收起 [@busybee 2026-06-13] ////
+    //// 表达区以两视图的隐藏为停用钩子,保证主导切换时另一占用者被收起 [@x380kkm 2026-06-13] ////
     this.expressionArea = new ExpressionArea({
       [Occupant.ModFrontend]: { deactivate: () => this.modSlot && this.modSlot.clear() },
       [Occupant.Bubble]: { deactivate: () => this.chatBubble && this.chatBubble.hide() },
     });
   }
 
-  //// 挂角色头部:记下渲染适配,后续情绪经它驱动 [@busybee 2026-06-13] ////
+  //// 挂角色头部:记下渲染适配,后续情绪经它驱动 [@x380kkm 2026-06-13] ////
   mountHead(adapter) {
     this.headAdapter = adapter;
     return adapter;
   }
 
-  //// 分配 mod 前端槽:槽占主导、尺寸钳进表达区预算,返回带尺寸上限的槽句柄 [@busybee 2026-06-13] ////
+  //// 分配 mod 前端槽:槽占主导、尺寸钳进表达区预算,返回带尺寸上限的槽句柄 [@x380kkm 2026-06-13] ////
   allocateModSlot(modId) {
     this.expressionArea.takeOver(Occupant.ModFrontend);
     const budget = computeExpressionBudget(this.stageSize);
@@ -62,14 +62,14 @@ export class CharacterStage {
   }
   //// /分配 mod 前端槽 ////
 
-  //// 显示气泡:气泡占主导,把文本交给气泡视图 [@busybee 2026-06-13] ////
+  //// 显示气泡:气泡占主导,把文本交给气泡视图 [@x380kkm 2026-06-13] ////
   showBubble(text) {
     this.expressionArea.takeOver(Occupant.Bubble);
     if (this.chatBubble) this.chatBubble.show(text);
   }
   //// /显示气泡 ////
 
-  //// 仲裁:守住表达区同一时刻至多一个占主导的不变量 [@busybee 2026-06-13] ////
+  //// 仲裁:守住表达区同一时刻至多一个占主导的不变量 [@x380kkm 2026-06-13] ////
   // 表达区的 takeOver 已在切换时停用原主导;此处对外暴露当前主导供宿主查询。
   arbitrate() {
     return this.expressionArea.dominant;

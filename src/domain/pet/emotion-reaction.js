@@ -11,7 +11,7 @@
 const UTTERANCE_PRODUCED = 'UtteranceProduced';
 
 class EmotionReaction {
-  //// 构造注入事件总线与情绪选择器 [@busybee 2026-06-13] ////
+  //// 构造注入事件总线与情绪选择器 [@x380kkm 2026-06-13] ////
   constructor(deps = {}) {
     this.eventBus = deps.eventBus;
     this.emotionSelector = deps.emotionSelector;
@@ -20,7 +20,7 @@ class EmotionReaction {
   }
   //// /构造注入事件总线与情绪选择器 ////
 
-  //// 订阅发言产物事件,每条发言触发一次情绪选取 [@busybee 2026-06-13] ////
+  //// 订阅发言产物事件,每条发言触发一次情绪选取 [@x380kkm 2026-06-13] ////
   // 返回取消订阅的函数;重复 start 先撤销上一次订阅,避免一条事件触发多次选取。
   start() {
     this.stop();
@@ -36,7 +36,7 @@ class EmotionReaction {
   }
   //// /订阅发言产物事件 ////
 
-  //// 撤销订阅,使连接件不再触发情绪选取 [@busybee 2026-06-13] ////
+  //// 撤销订阅,使连接件不再触发情绪选取 [@x380kkm 2026-06-13] ////
   stop() {
     if (this._unsubscribe) {
       this._unsubscribe();
@@ -46,7 +46,7 @@ class EmotionReaction {
   //// /撤销订阅 ////
 }
 
-//// 从两种发言产物载荷里取出刚说出的话 [@busybee 2026-06-13] ////
+//// 从两种发言产物载荷里取出刚说出的话 [@x380kkm 2026-06-13] ////
 // utterance-session 发 { utterance:{ text } };pet 编排器发 { text }。
 function spokenTextOf(event) {
   if (!event) {

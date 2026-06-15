@@ -12,7 +12,7 @@ const I18N = require('../../i18n/locales');
 // 缺省回退语言:任一语言缺该键时退到此语言
 const DEFAULT_FALLBACK_LANG = 'en';
 
-//// 持有当前语言并据其查表翻译的载体,缺失逐级回退 [@busybee 2026-06-13] ////
+//// 持有当前语言并据其查表翻译的载体,缺失逐级回退 [@x380kkm 2026-06-13] ////
 class LanguageState {
   constructor({ table = I18N, lang = DEFAULT_FALLBACK_LANG, fallbackLang = DEFAULT_FALLBACK_LANG } = {}) {
     this.table = table;
@@ -20,17 +20,17 @@ class LanguageState {
     this.fallbackLang = fallbackLang;
   }
 
-  //// 读取当前语言代码 [@busybee 2026-06-13] ////
+  //// 读取当前语言代码 [@x380kkm 2026-06-13] ////
   get() {
     return this.lang;
   }
 
-  //// 设置当前语言代码 [@busybee 2026-06-13] ////
+  //// 设置当前语言代码 [@x380kkm 2026-06-13] ////
   set(lang) {
     if (lang) this.lang = lang;
   }
 
-  //// 查当前语言译文,缺则回退语言,再缺则返回原 key [@busybee 2026-06-13] ////
+  //// 查当前语言译文,缺则回退语言,再缺则返回原 key [@x380kkm 2026-06-13] ////
   mt(key) {
     const current = this.table[this.lang];
     if (current && current[key] !== undefined) return current[key];

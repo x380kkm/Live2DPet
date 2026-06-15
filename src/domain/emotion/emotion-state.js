@@ -21,7 +21,7 @@ const DEFAULT_CONFIG = {
 };
 
 class EmotionState {
-  //// 构造注入事件总线与积累参数,把当前情绪值清零 [@busybee 2026-06-13] ////
+  //// 构造注入事件总线与积累参数,把当前情绪值清零 [@x380kkm 2026-06-13] ////
   // bus 为事件总线;config 缺省键回退到 DEFAULT_CONFIG;随机源 random 可注入以便测试。
   constructor(bus, config, deps) {
     this.bus = bus;
@@ -32,7 +32,7 @@ class EmotionState {
     this.current = 0;
   }
 
-  //// 外部直喂一次情绪输入,推进当前值,到阈值则发事件并清零 [@busybee 2026-06-13] ////
+  //// 外部直喂一次情绪输入,推进当前值,到阈值则发事件并清零 [@x380kkm 2026-06-13] ////
   // input.kind 为 'tick' 时按基础量推进,悬停叠加;为 'reply' 时按文本长度给一次性加成。
   feed(input) {
     this.current += this._increment(input);
@@ -43,12 +43,12 @@ class EmotionState {
   }
   //// /外部直喂一次情绪输入 ////
 
-  //// 判定当前值是否到达阈值 [@busybee 2026-06-13] ////
+  //// 判定当前值是否到达阈值 [@x380kkm 2026-06-13] ////
   hasReachedThreshold() {
     return this.current >= this.config.threshold;
   }
 
-  //// 当前情绪值归一到 [0,1]:到阈值即 1,供决策器据此抬升模组动作倾向 [@busybee 2026-06-14] ////
+  //// 当前情绪值归一到 [0,1]:到阈值即 1,供决策器据此抬升模组动作倾向 [@x380kkm 2026-06-14] ////
   normalized() {
     const threshold = this.config.threshold;
     if (!threshold || threshold <= 0) {
@@ -57,7 +57,7 @@ class EmotionState {
     return Math.min(this.current / threshold, 1);
   }
 
-  //// 把一次输入折算成本次推进量 [@busybee 2026-06-13] ////
+  //// 把一次输入折算成本次推进量 [@x380kkm 2026-06-13] ////
   _increment(input) {
     if (!input) return 0;
     if (input.kind === 'reply') {
@@ -71,13 +71,13 @@ class EmotionState {
     return amount;
   }
 
-  //// 按文本长度算一次性回复加成,越长加成上限越高 [@busybee 2026-06-13] ////
+  //// 按文本长度算一次性回复加成,越长加成上限越高 [@x380kkm 2026-06-13] ////
   _replyBonus(length) {
     const lengthFactor = Math.min(length / this.config.replyLengthCap, 1);
     return this.config.replyBonusBase + this.random() * this.config.replyBonusSpan * lengthFactor;
   }
 
-  //// 向总线发布到阈值事件,携带越过阈值时的情绪值 [@busybee 2026-06-13] ////
+  //// 向总线发布到阈值事件,携带越过阈值时的情绪值 [@x380kkm 2026-06-13] ////
   _publishThreshold() {
     this.bus.publish({ type: THRESHOLD_REACHED, value: this.current });
   }

@@ -30,7 +30,7 @@ function makeRegistry() {
   return registry;
 }
 
-//// 交互事件触发声明消费它的意图,空闲意图不因一次交互被触发 [@busybee 2026-06-14] ////
+//// 交互事件触发声明消费它的意图,空闲意图不因一次交互被触发 [@x380kkm 2026-06-14] ////
 test('InteractionRouter 把 click 交互路由到声明消费 click 的意图,空闲意图被滤掉', async () => {
   const bus = new EventBus();
   const pet = makeFakePet();

@@ -6,7 +6,7 @@ const router = require('../../../src/platform/ipc/ipc-router');
 const { EventBus } = require('../../../src/platform/bus/event-bus');
 const { registerEmotionHandlers } = require('../../../src/platform/ipc/handlers/emotion-handlers');
 
-// 造一个记录 send 调用、可标记销毁的假窗口 [@busybee 2026-06-13]
+// 造一个记录 send 调用、可标记销毁的假窗口 [@x380kkm 2026-06-13]
 function makeWindow() {
   const sent = [];
   let destroyed = false;
@@ -20,7 +20,7 @@ function makeWindow() {
   };
 }
 
-// 把真实 router 与真实总线装好,注入取宠物窗口与设置窗口的取值函数 [@busybee 2026-06-13]
+// 把真实 router 与真实总线装好,注入取宠物窗口与设置窗口的取值函数 [@x380kkm 2026-06-13]
 function setup() {
   router.reset();
   const bus = new EventBus();

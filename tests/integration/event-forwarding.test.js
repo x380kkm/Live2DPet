@@ -14,7 +14,7 @@ const { EmotionSelector } = require('../../src/domain/emotion/emotion-selector')
 const { EmotionReaction } = require('../../src/domain/pet/emotion-reaction');
 const { registerUiHandlers } = require('../../src/platform/ipc/handlers/ui-handlers');
 
-//// 记录每次 send 的假窗口句柄 [@busybee 2026-06-13] ////
+//// 记录每次 send 的假窗口句柄 [@x380kkm 2026-06-13] ////
 function fakeWindow() {
   const sent = [];
   const record = (channel, args) => sent.push({ channel, args });
@@ -29,12 +29,12 @@ function fakeWindow() {
   };
 }
 
-//// 排空已挂起的微任务,等情绪选取这类未 await 的异步链落地 [@busybee 2026-06-13] ////
+//// 排空已挂起的微任务,等情绪选取这类未 await 的异步链落地 [@x380kkm 2026-06-13] ////
 function flush() {
   return new Promise((resolve) => setImmediate(resolve));
 }
 
-//// 复刻 main.js 的 subscribeRenderForwarders:发言交气泡控制器、说话态进宠物窗口、选定情绪进表情 [@busybee 2026-06-14] ////
+//// 复刻 main.js 的 subscribeRenderForwarders:发言交气泡控制器、说话态进宠物窗口、选定情绪进表情 [@x380kkm 2026-06-14] ////
 // main.js 里该函数私有未导出;此处按其当前逻辑接线,以行为仿真验证它产出的 IPC 推送与气泡调用。
 // 发言产物经气泡控制器显示到独立气泡窗口(不再向宠物窗口推送气泡通道);说话态与表情仍推宠物窗口。
 function subscribeRenderForwarders(eventBus, getPetWindow, bubble = { show() {} }) {
@@ -57,7 +57,7 @@ function subscribeRenderForwarders(eventBus, getPetWindow, bubble = { show() {} 
   }, () => router.isAlive(getPetWindow()));
 }
 
-//// 选定情绪事件转成宠物窗口的 play-expression 推送 [@busybee 2026-06-13] ////
+//// 选定情绪事件转成宠物窗口的 play-expression 推送 [@x380kkm 2026-06-13] ////
 test('EmotionSelected 经渲染转发器转成 play-expression 推送', () => {
   const bus = new EventBus();
   const petWindow = fakeWindow();
@@ -68,7 +68,7 @@ test('EmotionSelected 经渲染转发器转成 play-expression 推送', () => {
   assert.deepStrictEqual(petWindow.sent, [{ channel: 'play-expression', args: ['surprised'] }]);
 });
 
-//// 空情绪名不推送,留给渲染层自行回退 [@busybee 2026-06-13] ////
+//// 空情绪名不推送,留给渲染层自行回退 [@x380kkm 2026-06-13] ////
 test('EmotionSelected 名为空时不推送', () => {
   const bus = new EventBus();
   const petWindow = fakeWindow();
@@ -79,7 +79,7 @@ test('EmotionSelected 名为空时不推送', () => {
   assert.strictEqual(petWindow.sent.length, 0);
 });
 
-//// 发言产物经真实情绪链触发情绪选取,再转成 play-expression 与气泡推送 [@busybee 2026-06-13] ////
+//// 发言产物经真实情绪链触发情绪选取,再转成 play-expression 与气泡推送 [@x380kkm 2026-06-13] ////
 test('UtteranceProduced 经真实情绪链产出 EmotionSelected 并转成 play-expression', async () => {
   const bus = new EventBus();
   const petWindow = fakeWindow();
@@ -103,7 +103,7 @@ test('UtteranceProduced 经真实情绪链产出 EmotionSelected 并转成 play-
   ]);
 });
 
-//// 死窗口被总线统一过滤,转发不向已毁窗口推送 [@busybee 2026-06-13] ////
+//// 死窗口被总线统一过滤,转发不向已毁窗口推送 [@x380kkm 2026-06-13] ////
 test('宠物窗口已毁时渲染转发器不再推送', () => {
   const bus = new EventBus();
   const petWindow = fakeWindow();
@@ -115,7 +115,7 @@ test('宠物窗口已毁时渲染转发器不再推送', () => {
   assert.strictEqual(petWindow.sent.length, 0);
 });
 
-//// show-pet-chat 命令侧经气泡控制器显示发言,不再向宠物窗口推送 [@busybee 2026-06-14] ////
+//// show-pet-chat 命令侧经气泡控制器显示发言,不再向宠物窗口推送 [@x380kkm 2026-06-14] ////
 test('show-pet-chat 命令经气泡控制器显示发言', async () => {
   router.reset();
   const petWindow = fakeWindow();

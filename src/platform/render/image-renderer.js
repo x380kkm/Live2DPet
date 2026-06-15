@@ -7,7 +7,7 @@
 import { RenderAdapter } from './model-renderer.js';
 
 export class ImageRenderer extends RenderAdapter {
-  //// 经构造注入接收图片元素与配置,建好分帧池,不抓全局 [@busybee 2026-06-13] ////
+  //// 经构造注入接收图片元素与配置,建好分帧池,不抓全局 [@x380kkm 2026-06-13] ////
   // deps:{ imageElement, config }。imageElement 为页面里的 <img>,由组合根取好后注入。
   constructor(deps) {
     super();
@@ -27,7 +27,7 @@ export class ImageRenderer extends RenderAdapter {
     }
   }
 
-  //// 把配置的图片文件按用途分进空闲、说话、情绪三类池 [@busybee 2026-06-13] ////
+  //// 把配置的图片文件按用途分进空闲、说话、情绪三类池 [@x380kkm 2026-06-13] ////
   _buildPools() {
     this.idleImages = [];
     this.talkingImages = [];
@@ -42,7 +42,7 @@ export class ImageRenderer extends RenderAdapter {
     }
   }
 
-  //// 按情绪、说话、空闲的优先级选当前应显示的池并刷新一帧 [@busybee 2026-06-13] ////
+  //// 按情绪、说话、空闲的优先级选当前应显示的池并刷新一帧 [@x380kkm 2026-06-13] ////
   _updateDisplay() {
     if (!this.folderMode) return;
     if (this.currentEmotion && this.emotionImages[this.currentEmotion]) {
@@ -54,7 +54,7 @@ export class ImageRenderer extends RenderAdapter {
     }
   }
 
-  //// 从一个池里随机取一帧,拼成 file:// 地址写进图片元素 [@busybee 2026-06-13] ////
+  //// 从一个池里随机取一帧,拼成 file:// 地址写进图片元素 [@x380kkm 2026-06-13] ////
   _showRandom(pool) {
     if (!pool || pool.length === 0 || !this.imageElement) return;
     const file = pool[Math.floor(Math.random() * pool.length)];
@@ -62,7 +62,7 @@ export class ImageRenderer extends RenderAdapter {
     this.imageElement.src = 'file:///' + folderPath + '/' + encodeURIComponent(file);
   }
 
-  //// 按语义动作名切换图片帧:分帧模式选情绪池,旧模式查 GIF 表 [@busybee 2026-06-13] ////
+  //// 按语义动作名切换图片帧:分帧模式选情绪池,旧模式查 GIF 表 [@x380kkm 2026-06-13] ////
   playAction(name) {
     if (this.folderMode) {
       this.currentEmotion = name;
@@ -75,7 +75,7 @@ export class ImageRenderer extends RenderAdapter {
     }
   }
 
-  //// 清除当前情绪、回到说话或空闲的常态帧 [@busybee 2026-06-13] ////
+  //// 清除当前情绪、回到说话或空闲的常态帧 [@x380kkm 2026-06-13] ////
   revertAction() {
     if (this.folderMode) {
       this.currentEmotion = null;
@@ -87,24 +87,24 @@ export class ImageRenderer extends RenderAdapter {
     }
   }
 
-  //// 外部告知说话状态变化,空闲与说话帧据此切换 [@busybee 2026-06-13] ////
+  //// 外部告知说话状态变化,空闲与说话帧据此切换 [@x380kkm 2026-06-13] ////
   // 说话状态由调用方显式喂入。
   setTalking(isTalking) {
     this.isTalking = isTalking;
     if (!this.currentEmotion) this._updateDisplay();
   }
 
-  //// 设置口型开合度:分帧口型为后置增强,当前不动帧 [@busybee 2026-06-13] ////
+  //// 设置口型开合度:分帧口型为后置增强,当前不动帧 [@x380kkm 2026-06-13] ////
   setMouth(openness) {
     // 图片模式不写口型。
   }
 
-  //// 命中测试:图片模式无交互区,恒返回空 [@busybee 2026-06-13] ////
+  //// 命中测试:图片模式无交互区,恒返回空 [@x380kkm 2026-06-13] ////
   hitTest(point) {
     return null;
   }
 
-  //// 清空图片元素并隐藏,释放图片资源 [@busybee 2026-06-13] ////
+  //// 清空图片元素并隐藏,释放图片资源 [@x380kkm 2026-06-13] ////
   dispose() {
     if (this.imageElement) {
       this.imageElement.src = '';

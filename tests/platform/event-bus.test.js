@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { EventBus } = require('../../src/platform/bus/event-bus');
 
-//// 同类型多订阅者都收到事件 [@busybee 2026-06-13] ////
+//// 同类型多订阅者都收到事件 [@x380kkm 2026-06-13] ////
 test('publish fans out to all subscribers of the type', () => {
   const bus = new EventBus();
   const seen = [];
@@ -18,7 +18,7 @@ test('publish fans out to all subscribers of the type', () => {
   assert.deepStrictEqual(seen, [['a', 'happy'], ['b', 'happy']]);
 });
 
-//// 不同类型的订阅者互不感知 [@busybee 2026-06-13] ////
+//// 不同类型的订阅者互不感知 [@x380kkm 2026-06-13] ////
 test('publish only reaches subscribers of the matching type', () => {
   const bus = new EventBus();
   let emotionHits = 0;
@@ -32,13 +32,13 @@ test('publish only reaches subscribers of the matching type', () => {
   assert.strictEqual(utteranceHits, 0);
 });
 
-//// 无订阅者时发布不抛错 [@busybee 2026-06-13] ////
+//// 无订阅者时发布不抛错 [@x380kkm 2026-06-13] ////
 test('publish with no subscribers is a no-op', () => {
   const bus = new EventBus();
   assert.doesNotThrow(() => bus.publish({ type: 'PerceptionUpdated' }));
 });
 
-//// 取消订阅后不再收到事件 [@busybee 2026-06-13] ////
+//// 取消订阅后不再收到事件 [@x380kkm 2026-06-13] ////
 test('unsubscribe stops further delivery', () => {
   const bus = new EventBus();
   let hits = 0;
@@ -51,7 +51,7 @@ test('unsubscribe stops further delivery', () => {
   assert.strictEqual(hits, 1);
 });
 
-//// 死窗口订阅者被总线侧跳过并不收到事件 [@busybee 2026-06-13] ////
+//// 死窗口订阅者被总线侧跳过并不收到事件 [@x380kkm 2026-06-13] ////
 test('dead subscriber is filtered out by the bus', () => {
   const bus = new EventBus();
   // 模拟一个窗口适配:isDestroyed 翻转后总线应停止转发,发布方无需知情。
@@ -74,7 +74,7 @@ test('dead subscriber is filtered out by the bus', () => {
   assert.deepStrictEqual(fakeWindow.sent.map((e) => e.value), ['angry']);
 });
 
-//// 死订阅者在分发时被剔除而非常驻 [@busybee 2026-06-13] ////
+//// 死订阅者在分发时被剔除而非常驻 [@x380kkm 2026-06-13] ////
 test('dead subscriber is pruned and never revives', () => {
   const bus = new EventBus();
   let alive = true;
@@ -90,7 +90,7 @@ test('dead subscriber is pruned and never revives', () => {
   assert.strictEqual(hits, 0);
 });
 
-//// 缺省订阅者始终存活并持续收到事件 [@busybee 2026-06-13] ////
+//// 缺省订阅者始终存活并持续收到事件 [@x380kkm 2026-06-13] ////
 test('subscriber without liveness predicate stays alive', () => {
   const bus = new EventBus();
   let hits = 0;
@@ -102,7 +102,7 @@ test('subscriber without liveness predicate stays alive', () => {
   assert.strictEqual(hits, 2);
 });
 
-//// 处理器内取消订阅不打断当次分发 [@busybee 2026-06-13] ////
+//// 处理器内取消订阅不打断当次分发 [@x380kkm 2026-06-13] ////
 test('unsubscribing during dispatch does not skip remaining subscribers', () => {
   const bus = new EventBus();
   const order = [];

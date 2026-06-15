@@ -7,7 +7,7 @@ const assert = require('node:assert');
 const { Intent } = require('../../src/domain/intent/intent');
 const { builtinIntents, BUILTIN_ORIGIN } = require('../../src/domain/intent/builtin-intents');
 
-//// 恰好两条核心意图,且都是意图实例带出厂来源 [@busybee 2026-06-13] ////
+//// 恰好两条核心意图,且都是意图实例带出厂来源 [@x380kkm 2026-06-13] ////
 test('builtinIntents yields exactly the two core intents tagged builtin', () => {
   const intents = builtinIntents();
   assert.strictEqual(intents.length, 2);
@@ -19,19 +19,19 @@ test('builtinIntents yields exactly the two core intents tagged builtin', () => 
   assert.deepStrictEqual(ids, ['idle-chat', 'observe-response']);
 });
 
-//// 观察回应由有视觉输入触发 [@busybee 2026-06-13] ////
+//// 观察回应由有视觉输入触发 [@x380kkm 2026-06-13] ////
 test('observe-response triggers on visual input', () => {
   const observe = builtinIntents().find((i) => i.id === 'observe-response');
   assert.strictEqual(observe.trigger.when, 'visual-input');
 });
 
-//// 空闲闲聊由空闲触发 [@busybee 2026-06-13] ////
+//// 空闲闲聊由空闲触发 [@x380kkm 2026-06-13] ////
 test('idle-chat triggers on idle', () => {
   const idle = builtinIntents().find((i) => i.id === 'idle-chat');
   assert.strictEqual(idle.trigger.when, 'idle');
 });
 
-//// 情绪焦点反重复以上下文源引用出现,不在任何意图 id 上 [@busybee 2026-06-13] ////
+//// 情绪焦点反重复以上下文源引用出现,不在任何意图 id 上 [@x380kkm 2026-06-13] ////
 test('emotion, focus and anti-repetition appear as context source refs, never as intents', () => {
   const intents = builtinIntents();
   const ids = intents.map((i) => i.id);
@@ -45,7 +45,7 @@ test('emotion, focus and anti-repetition appear as context source refs, never as
   assert.ok(idle.contextSourceRefs.includes('recentReplies'));
 });
 
-//// few-shot 只引结构样例,不内联成品措辞 [@busybee 2026-06-13] ////
+//// few-shot 只引结构样例,不内联成品措辞 [@x380kkm 2026-06-13] ////
 test('few-shot refs point at structure examples only, no inline finished wording', () => {
   for (const intent of builtinIntents()) {
     assert.ok(intent.fewShotRefs.length > 0);
@@ -55,7 +55,7 @@ test('few-shot refs point at structure examples only, no inline finished wording
   }
 });
 
-//// 默认产物为用某个模板,零额外大模型调用 [@busybee 2026-06-13] ////
+//// 默认产物为用某个模板,零额外大模型调用 [@x380kkm 2026-06-13] ////
 test('default product uses a template', () => {
   for (const intent of builtinIntents()) {
     assert.strictEqual(intent.product.kind, 'use-template');

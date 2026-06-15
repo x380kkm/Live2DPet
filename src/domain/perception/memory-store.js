@@ -9,7 +9,7 @@
 // flush 把内存缓冲并入仓储并按保留期淘汰过旧条目。仓储键经构造给定,默认 perception-memory。
 
 class MemoryStore {
-  //// 构造注入仓储、时钟与配置,装配空的短期缓冲 [@busybee 2026-06-13] ////
+  //// 构造注入仓储、时钟与配置,装配空的短期缓冲 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     this.repository = deps.repository;
     this.now = deps.now || (() => Date.now());
@@ -25,14 +25,14 @@ class MemoryStore {
   }
   //// /构造注入仓储、时钟与配置 ////
 
-  //// 经仓储加载已有中期记忆进内存 [@busybee 2026-06-13] ////
+  //// 经仓储加载已有中期记忆进内存 [@x380kkm 2026-06-13] ////
   async load() {
     const stored = await this.repository.get(this.storageKey);
     this.midTerm = Array.isArray(stored) ? stored : [];
   }
   //// /经仓储加载已有中期记忆进内存 ////
 
-  //// 写入一条记忆到短期缓冲:补全时间戳,不落盘 [@busybee 2026-06-13] ////
+  //// 写入一条记忆到短期缓冲:补全时间戳,不落盘 [@x380kkm 2026-06-13] ////
   append(entry) {
     if (!entry) return;
     const stamped = {
@@ -43,7 +43,7 @@ class MemoryStore {
   }
   //// /写入一条记忆到短期缓冲 ////
 
-  //// 按时间窗读取记忆:合并中期与短期,筛时间戳落在 [from, to] 内的项,最新在前 [@busybee 2026-06-13] ////
+  //// 按时间窗读取记忆:合并中期与短期,筛时间戳落在 [from, to] 内的项,最新在前 [@x380kkm 2026-06-13] ////
   recall(window = {}) {
     const from = window.from != null ? window.from : -Infinity;
     const to = window.to != null ? window.to : Infinity;
@@ -54,7 +54,7 @@ class MemoryStore {
   }
   //// /按时间窗读取记忆 ////
 
-  //// 经仓储落盘:短期并入中期、淘汰过旧与超额条目、写回仓储、清空短期 [@busybee 2026-06-13] ////
+  //// 经仓储落盘:短期并入中期、淘汰过旧与超额条目、写回仓储、清空短期 [@x380kkm 2026-06-13] ////
   async flush() {
     if (this.shortTerm.length === 0) return;
     const merged = this.midTerm.concat(this.shortTerm);
@@ -64,7 +64,7 @@ class MemoryStore {
   }
   //// /经仓储落盘 ////
 
-  //// 淘汰超保留期的条目,再按时间保留最近 maxEntries 条 [@busybee 2026-06-13] ////
+  //// 淘汰超保留期的条目,再按时间保留最近 maxEntries 条 [@x380kkm 2026-06-13] ////
   _prune(entries) {
     const cutoff = this.now() - this.retentionMs;
     const fresh = entries.filter((e) => e.timestamp >= cutoff);

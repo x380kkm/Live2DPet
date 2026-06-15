@@ -9,7 +9,7 @@
 
 const { StepId } = require('../../shared/step-catalog');
 
-//// 把大模型返回的文本解析为帧索引数组:先整体解析,再退而抓首个方括号片段 [@busybee 2026-06-13] ////
+//// 把大模型返回的文本解析为帧索引数组:先整体解析,再退而抓首个方括号片段 [@x380kkm 2026-06-13] ////
 function parseFrameIndices(text, frameCount) {
   if (!text) return [];
   const accept = (arr) =>
@@ -30,7 +30,7 @@ function parseFrameIndices(text, frameCount) {
 //// /把大模型返回的文本解析为帧索引数组 ////
 
 class VlmExtractor {
-  //// 构造注入大模型客户端、关键帧缓冲、提示词与退避配置 [@busybee 2026-06-13] ////
+  //// 构造注入大模型客户端、关键帧缓冲、提示词与退避配置 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     this.llmClient = deps.llmClient;
     this.buffer = deps.buffer;
@@ -53,7 +53,7 @@ class VlmExtractor {
   }
   //// /构造注入大模型客户端、关键帧缓冲、提示词与退避配置 ////
 
-  //// 到退避区间且候选够数时,经大模型从缓冲选代表关键帧并并入选集 [@busybee 2026-06-13] ////
+  //// 到退避区间且候选够数时,经大模型从缓冲选代表关键帧并并入选集 [@x380kkm 2026-06-13] ////
   async selectKeyframes() {
     const now = this.now();
     if (now - this._lastSelectAt < this.selectIntervalMs) return this.selected;
@@ -85,7 +85,7 @@ class VlmExtractor {
   }
   //// /到退避区间且候选够数时,经大模型从缓冲选代表关键帧并并入选集 ////
 
-  //// 把候选帧组装成「逐帧文本加图像」的用户内容 [@busybee 2026-06-13] ////
+  //// 把候选帧组装成「逐帧文本加图像」的用户内容 [@x380kkm 2026-06-13] ////
   _buildSelectionContent(candidates) {
     const content = [];
     for (let i = 0; i < candidates.length; i++) {
@@ -99,7 +99,7 @@ class VlmExtractor {
     return content;
   }
 
-  //// 对一帧抽桌面态势摘要:受退避区间约束,产出态势文本或 null [@busybee 2026-06-13] ////
+  //// 对一帧抽桌面态势摘要:受退避区间约束,产出态势文本或 null [@x380kkm 2026-06-13] ////
   async extract(frame, background) {
     if (!frame || frame.image == null) return null;
     const now = this.now();
@@ -138,7 +138,7 @@ class VlmExtractor {
   }
   //// /对一帧抽桌面态势摘要 ////
 
-  //// 返回当前选出的关键帧集,最新在前 [@busybee 2026-06-13] ////
+  //// 返回当前选出的关键帧集,最新在前 [@x380kkm 2026-06-13] ////
   keyframes() {
     return this.selected.slice().reverse();
   }

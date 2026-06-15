@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { MachineSettings, GLOBAL_KEYS } = require('../../src/platform/config/machine-settings');
 
-//// 构造记录读写调用的 config-store mock [@busybee 2026-06-13] ////
+//// 构造记录读写调用的 config-store mock [@x380kkm 2026-06-13] ////
 function mockStore(globalSnapshot = {}) {
   const writes = [];
   return {

@@ -14,7 +14,7 @@ function makeFakePolicy() {
   return { calls: [], async reactTo(event, scope) { this.calls.push({ event, scope }); return { produced: true }; } };
 }
 
-//// 边界态事件触发反应策略,组装函数据事件搭提示词 [@busybee 2026-06-14] ////
+//// 边界态事件触发反应策略,组装函数据事件搭提示词 [@x380kkm 2026-06-14] ////
 test('ReactionDriver 收到边界态事件时调反应策略,带组装出的 scope', async () => {
   const bus = new EventBus();
   const policy = makeFakePolicy();
@@ -42,7 +42,7 @@ test('ReactionDriver stop 后不再驱动反应', async () => {
   assert.strictEqual(policy.calls.length, 0);
 });
 
-//// 状态机进入边界态时发出事件,反应驱动据此被触发,二者经总线对接 [@busybee 2026-06-14] ////
+//// 状态机进入边界态时发出事件,反应驱动据此被触发,二者经总线对接 [@x380kkm 2026-06-14] ////
 test('StateMachine 进入边界态发 StateReaction,ReactionDriver 据此驱动', async () => {
   const bus = new EventBus();
   const policy = makeFakePolicy();

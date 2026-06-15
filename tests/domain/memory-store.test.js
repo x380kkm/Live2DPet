@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { MemoryStore } = require('../../src/domain/perception/memory-store');
 
-//// 假仓储:内存 map 记录 put,get 命中即返回 [@busybee 2026-06-13] ////
+//// 假仓储:内存 map 记录 put,get 命中即返回 [@x380kkm 2026-06-13] ////
 function fakeRepository(initial = {}) {
   const store = { ...initial };
   return {
@@ -20,7 +20,7 @@ function fakeRepository(initial = {}) {
   };
 }
 
-//// 可控时钟 [@busybee 2026-06-13] ////
+//// 可控时钟 [@x380kkm 2026-06-13] ////
 function fakeClock(ref) {
   return () => ref.value;
 }

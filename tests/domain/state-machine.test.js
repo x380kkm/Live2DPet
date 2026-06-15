@@ -27,13 +27,13 @@ function definition() {
   };
 }
 
-//// 初始态取自定义 [@busybee 2026-06-13] ////
+//// 初始态取自定义 [@x380kkm 2026-06-13] ////
 test('current starts at the defined initial state', () => {
   const sm = new StateMachine(definition(), { eventBus: fakeBus() });
   assert.strictEqual(sm.current, 'idle');
 });
 
-//// 合法输入按表转移并推进当前态 [@busybee 2026-06-13] ////
+//// 合法输入按表转移并推进当前态 [@x380kkm 2026-06-13] ////
 test('transition follows the table and advances current', () => {
   const sm = new StateMachine(definition(), { eventBus: fakeBus() });
   const moved = sm.transition('wake');
@@ -41,7 +41,7 @@ test('transition follows the table and advances current', () => {
   assert.strictEqual(sm.current, 'active');
 });
 
-//// 转移成功向总线发布带 from/to/input 的状态事件 [@busybee 2026-06-13] ////
+//// 转移成功向总线发布带 from/to/input 的状态事件 [@x380kkm 2026-06-13] ////
 test('transition publishes a StateChanged event', () => {
   const bus = fakeBus();
   const sm = new StateMachine(definition(), { eventBus: bus });
@@ -50,7 +50,7 @@ test('transition publishes a StateChanged event', () => {
   assert.deepStrictEqual(changed, { type: 'StateChanged', from: 'idle', to: 'active', input: 'wake' });
 });
 
-//// 进入边界态额外发布反应事件 [@busybee 2026-06-13] ////
+//// 进入边界态额外发布反应事件 [@x380kkm 2026-06-13] ////
 test('entering a reactive state publishes a StateReaction event', () => {
   const bus = fakeBus();
   const sm = new StateMachine(definition(), { eventBus: bus });
@@ -59,7 +59,7 @@ test('entering a reactive state publishes a StateReaction event', () => {
   assert.deepStrictEqual(reaction, { type: 'StateReaction', state: 'active', from: 'idle', input: 'wake' });
 });
 
-//// 进入非边界态不发反应事件 [@busybee 2026-06-13] ////
+//// 进入非边界态不发反应事件 [@x380kkm 2026-06-13] ////
 test('entering a non-reactive state publishes no StateReaction', () => {
   const bus = fakeBus();
   const sm = new StateMachine(definition(), { eventBus: bus });
@@ -69,7 +69,7 @@ test('entering a non-reactive state publishes no StateReaction', () => {
   assert.strictEqual(reactions.length, 1);
 });
 
-//// 表外输入原地不动且不发任何事件 [@busybee 2026-06-13] ////
+//// 表外输入原地不动且不发任何事件 [@x380kkm 2026-06-13] ////
 test('undefined input keeps state and publishes nothing', () => {
   const bus = fakeBus();
   const sm = new StateMachine(definition(), { eventBus: bus });
@@ -79,7 +79,7 @@ test('undefined input keeps state and publishes nothing', () => {
   assert.strictEqual(bus.published.length, 0);
 });
 
-//// 进入处理器在转移落地后收到 from 与 input [@busybee 2026-06-13] ////
+//// 进入处理器在转移落地后收到 from 与 input [@x380kkm 2026-06-13] ////
 test('onEnter handler fires after transition with context', () => {
   const sm = new StateMachine(definition(), { eventBus: fakeBus() });
   const seen = [];
@@ -88,7 +88,7 @@ test('onEnter handler fires after transition with context', () => {
   assert.deepStrictEqual(seen, [{ from: 'idle', input: 'wake' }]);
 });
 
-//// 注销后进入处理器不再被调用 [@busybee 2026-06-13] ////
+//// 注销后进入处理器不再被调用 [@x380kkm 2026-06-13] ////
 test('unregistered onEnter handler stops firing', () => {
   const sm = new StateMachine(definition(), { eventBus: fakeBus() });
   let hits = 0;
@@ -100,7 +100,7 @@ test('unregistered onEnter handler stops firing', () => {
   assert.strictEqual(hits, 1);
 });
 
-//// 处理器内注销不打断本次回调 [@busybee 2026-06-13] ////
+//// 处理器内注销不打断本次回调 [@x380kkm 2026-06-13] ////
 test('unregistering during enter does not skip remaining handlers', () => {
   const sm = new StateMachine(definition(), { eventBus: fakeBus() });
   const order = [];

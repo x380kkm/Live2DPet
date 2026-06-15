@@ -7,12 +7,12 @@
 // 依赖经构造注入:router 为 ipc-router,gateway 为 capability-gateway,screenSource 为屏幕源,
 // activeWindow 为活动窗口查询器(封 active-win),scope 为门控作用域标识。
 
-//// 截屏两档的缩略尺寸与 JPEG 质量:标清 512/30,高清 768/40 [@busybee 2026-06-13] ////
+//// 截屏两档的缩略尺寸与 JPEG 质量:标清 512/30,高清 768/40 [@x380kkm 2026-06-13] ////
 const CAPTURE_DEFAULT = { thumbnailSize: { width: 512, height: 512 }, quality: 30 };
 const CAPTURE_HQ = { thumbnailSize: { width: 768, height: 768 }, quality: 40 };
 //// /截屏两档的缩略尺寸与 JPEG 质量 ////
 
-//// 在入口装配协作者并把屏幕感知通道注册到 ipc-router [@busybee 2026-06-13] ////
+//// 在入口装配协作者并把屏幕感知通道注册到 ipc-router [@x380kkm 2026-06-13] ////
 // gateway.invoke 负责重能力的逐次确认与执行委托;无害的空闲秒数与主屏尺寸不过网关。
 function registerPerceptionHandlers(deps) {
   const { router, gateway, screenSource } = deps;
@@ -34,7 +34,7 @@ function registerPerceptionHandlers(deps) {
 }
 //// /在入口装配协作者并把屏幕感知通道注册到 ipc-router ////
 
-//// 造一个把能力 id 派发到屏幕源与活动窗口查询的执行器,交网关在门控通过后调用 [@busybee 2026-06-13] ////
+//// 造一个把能力 id 派发到屏幕源与活动窗口查询的执行器,交网关在门控通过后调用 [@x380kkm 2026-06-13] ////
 // 网关只管门控,真正的采集落在这里;一处 switch 收敛 capabilityId 到具体采集动作。
 function makePerceptionExecutor(deps) {
   const { screenSource, activeWindow } = deps;

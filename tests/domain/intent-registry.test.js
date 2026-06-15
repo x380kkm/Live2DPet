@@ -9,12 +9,12 @@ const { Intent, TriggerWhen, intentFromDeclaration } = require('../../src/domain
 const { IntentRegistry } = require('../../src/domain/intent/intent-registry');
 const { builtinIntents } = require('../../src/domain/intent/builtin-intents');
 
-//// 构造一个已解析意图实例的小工厂,供注册用 [@busybee 2026-06-13] ////
+//// 构造一个已解析意图实例的小工厂,供注册用 [@x380kkm 2026-06-13] ////
 function makeIntent(id, trigger, origin) {
   return intentFromDeclaration({ id, trigger }, origin);
 }
 
-//// 出厂意图被逐条发现注入并可枚举 [@busybee 2026-06-13] ////
+//// 出厂意图被逐条发现注入并可枚举 [@x380kkm 2026-06-13] ////
 test('discoverBuiltins injects each builtin intent', () => {
   const registry = new IntentRegistry();
   registry.discoverBuiltins(builtinIntents());
@@ -23,7 +23,7 @@ test('discoverBuiltins injects each builtin intent', () => {
   assert.ok(all.some((i) => i.id === 'observe-response'));
 });
 
-//// 有视觉输入只取视觉触发的意图 [@busybee 2026-06-13] ////
+//// 有视觉输入只取视觉触发的意图 [@x380kkm 2026-06-13] ////
 test('candidates with visual input selects visual-input intents', () => {
   const registry = new IntentRegistry();
   registry.discoverBuiltins(builtinIntents());
@@ -33,7 +33,7 @@ test('candidates with visual input selects visual-input intents', () => {
   assert.deepStrictEqual(ids, ['observe-response']);
 });
 
-//// 无视觉输入只取空闲触发的意图 [@busybee 2026-06-13] ////
+//// 无视觉输入只取空闲触发的意图 [@x380kkm 2026-06-13] ////
 test('candidates without visual input selects idle intents', () => {
   const registry = new IntentRegistry();
   registry.discoverBuiltins(builtinIntents());
@@ -43,7 +43,7 @@ test('candidates without visual input selects idle intents', () => {
   assert.deepStrictEqual(ids, ['idle-chat']);
 });
 
-//// 从 mod 的数据声明发现注入,来源可追溯到 mod id [@busybee 2026-06-13] ////
+//// 从 mod 的数据声明发现注入,来源可追溯到 mod id [@x380kkm 2026-06-13] ////
 test('discoverFromMods resolves each mod intent declaration and tags the mod id as origin', () => {
   const registry = new IntentRegistry();
   // mock 一个 mod:只用纯数据声明,意图作为数据出现在 intents 数组
@@ -62,7 +62,7 @@ test('discoverFromMods resolves each mod intent declaration and tags the mod id 
   assert.strictEqual(candidates[0].origin, 'tic-tac-toe');
 });
 
-//// mod 已解析的意图实例直接注册不重复解析 [@busybee 2026-06-13] ////
+//// mod 已解析的意图实例直接注册不重复解析 [@x380kkm 2026-06-13] ////
 test('discoverFromMods registers an already-resolved Intent instance as-is', () => {
   const registry = new IntentRegistry();
   const resolved = makeIntent('preset', { when: TriggerWhen.Idle }, 'preset-origin');
@@ -74,7 +74,7 @@ test('discoverFromMods registers an already-resolved Intent instance as-is', () 
   assert.strictEqual(preset.origin, 'preset-origin');
 });
 
-//// 从角色的数据声明发现注入,来源可追溯到角色 id [@busybee 2026-06-13] ////
+//// 从角色的数据声明发现注入,来源可追溯到角色 id [@x380kkm 2026-06-13] ////
 test('discoverFromCharacter tags the character id as origin', () => {
   const registry = new IntentRegistry();
   const character = {
@@ -88,7 +88,7 @@ test('discoverFromCharacter tags the character id as origin', () => {
   assert.strictEqual(greet.origin, 'character:yuki');
 });
 
-//// 同 id 后注册者覆盖先注册者 [@busybee 2026-06-13] ////
+//// 同 id 后注册者覆盖先注册者 [@x380kkm 2026-06-13] ////
 test('registering the same id twice keeps the later one', () => {
   const registry = new IntentRegistry();
   registry.register(makeIntent('dup', { when: TriggerWhen.Idle }, 'first'));
@@ -100,7 +100,7 @@ test('registering the same id twice keeps the later one', () => {
   assert.strictEqual(dups[0].origin, 'second');
 });
 
-//// 具名 mod 事件只在该事件到达时触发 [@busybee 2026-06-13] ////
+//// 具名 mod 事件只在该事件到达时触发 [@x380kkm 2026-06-13] ////
 test('a mod-event intent is a candidate only when its event is present', () => {
   const registry = new IntentRegistry();
   registry.register(makeIntent('on-win', { when: TriggerWhen.ModEvent, event: 'game:win' }, 'mod:game'));
@@ -110,7 +110,7 @@ test('a mod-event intent is a candidate only when its event is present', () => {
   assert.strictEqual(registry.candidates({ signals: { modEvents: ['game:win'] } }).length, 1);
 });
 
-//// 缺 signals 的作用域不抛错,按无视觉输入处理 [@busybee 2026-06-13] ////
+//// 缺 signals 的作用域不抛错,按无视觉输入处理 [@x380kkm 2026-06-13] ////
 test('candidates tolerates a scope without signals', () => {
   const registry = new IntentRegistry();
   registry.discoverBuiltins(builtinIntents());
@@ -120,7 +120,7 @@ test('candidates tolerates a scope without signals', () => {
   assert.deepStrictEqual(ids, ['idle-chat']);
 });
 
-//// 注册缺 id 的意图报清晰错误 [@busybee 2026-06-13] ////
+//// 注册缺 id 的意图报清晰错误 [@x380kkm 2026-06-13] ////
 test('register rejects an intent without an id', () => {
   const registry = new IntentRegistry();
   assert.throws(() => registry.register({ trigger: { when: TriggerWhen.Idle } }), /缺少字符串 id/);

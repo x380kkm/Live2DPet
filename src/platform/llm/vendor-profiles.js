@@ -8,12 +8,12 @@
 // parseComplete 返回 { text, toolCalls } 的原始文本(清理交客户端);parseDelta 返回 { text, toolCalls, done }。
 // effort 映射到各家的推理强度字段;thinking 为 false 时映射到「关闭思考」的供应商写法,为对象时原样透传。
 
-//// 把请求里的覆盖值与解析出的默认值取并:请求级优先 [@busybee 2026-06-13] ////
+//// 把请求里的覆盖值与解析出的默认值取并:请求级优先 [@x380kkm 2026-06-13] ////
 function pick(request, params, key) {
   return request[key] !== undefined ? request[key] : params[key];
 }
 
-//// 从消息序列里抽出系统段与非系统段,供需要分离 system 的协议用 [@busybee 2026-06-13] ////
+//// 从消息序列里抽出系统段与非系统段,供需要分离 system 的协议用 [@x380kkm 2026-06-13] ////
 function splitSystem(messages) {
   const system = [];
   const rest = [];
@@ -168,7 +168,7 @@ const openaiResponses = {
 
 const PROFILES = { 'openai-chat': openaiChat, claude, 'openai-responses': openaiResponses };
 
-//// 按预设名取供应商预设,未知预设回退到 openai-chat [@busybee 2026-06-13] ////
+//// 按预设名取供应商预设,未知预设回退到 openai-chat [@x380kkm 2026-06-13] ////
 function profileFor(preset) {
   return PROFILES[preset] || openaiChat;
 }

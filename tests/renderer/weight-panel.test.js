@@ -10,7 +10,7 @@ const assert = require('node:assert');
 // weight-panel 是 ESM(渲染侧),用动态 import 载入。
 const loadPanel = () => import('../../src/renderer/settings/weight-panel.js');
 
-//// 造一个最小文档 mock:getElementById 自建元素,addEventListener 记下处理器供 click 触发 [@busybee 2026-06-14] ////
+//// 造一个最小文档 mock:getElementById 自建元素,addEventListener 记下处理器供 click 触发 [@x380kkm 2026-06-14] ////
 function mockDoc() {
   const elements = {};
   function makeEl(id) {
@@ -30,7 +30,7 @@ function mockDoc() {
   };
 }
 
-//// 造一份子面板上下文:数据模型、记录落盘与状态的网关与回调 [@busybee 2026-06-14] ////
+//// 造一份子面板上下文:数据模型、记录落盘与状态的网关与回调 [@x380kkm 2026-06-14] ////
 function makeCtx(config, saved, statuses) {
   return {
     doc: mockDoc(),

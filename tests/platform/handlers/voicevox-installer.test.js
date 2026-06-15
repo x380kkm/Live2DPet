@@ -6,10 +6,10 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { VoicevoxInstaller } = require('../../../src/platform/speech/voicevox-installer');
 
-//// 假 path.join:正斜杠拼接,便于断言路径片段 [@busybee 2026-06-13] ////
+//// 假 path.join:正斜杠拼接,便于断言路径片段 [@x380kkm 2026-06-13] ////
 const fakePath = { join: (...parts) => parts.join('/') };
 
-//// 假 fs:按一组已存在路径判定 existsSync,记录建目录、删文件、写文件 [@busybee 2026-06-13] ////
+//// 假 fs:按一组已存在路径判定 existsSync,记录建目录、删文件、写文件 [@x380kkm 2026-06-13] ////
 function fakeFs(existing = []) {
   const present = new Set(existing);
   const calls = { mkdir: [], unlink: [], written: [] };
@@ -24,7 +24,7 @@ function fakeFs(existing = []) {
   };
 }
 
-//// 假 runCommand:记录每次调用,默认成功,可指定某命令抛错 [@busybee 2026-06-13] ////
+//// 假 runCommand:记录每次调用,默认成功,可指定某命令抛错 [@x380kkm 2026-06-13] ////
 function fakeRun(failOn = null) {
   const calls = [];
   const run = async (cmd, args) => {
@@ -34,7 +34,7 @@ function fakeRun(failOn = null) {
   return { run, calls };
 }
 
-//// 资源全已装时 setup 不下载任何东西,每项上报 exists [@busybee 2026-06-13] ////
+//// 资源全已装时 setup 不下载任何东西,每项上报 exists [@x380kkm 2026-06-13] ////
 test('setup skips every resource that already exists', async () => {
   const fs = fakeFs([
     '/vv/c_api/voicevox_core-windows-x64-0.16.3/lib/voicevox_core.dll',
@@ -53,7 +53,7 @@ test('setup skips every resource that already exists', async () => {
   assert.ok(progress.every((p) => p.status === 'exists' || p.status === 'done'));
 });
 
-//// 缺失的归档资源走 curl 下载、按 zip/tgz 解压、删归档 [@busybee 2026-06-13] ////
+//// 缺失的归档资源走 curl 下载、按 zip/tgz 解压、删归档 [@x380kkm 2026-06-13] ////
 test('setup downloads, extracts and deletes archives for missing resources', async () => {
   const fs = fakeFs();
   const { run, calls } = fakeRun();
@@ -69,7 +69,7 @@ test('setup downloads, extracts and deletes archives for missing resources', asy
   assert.ok(fs.calls.unlink.some((p) => p.endsWith('.tgz')));
 });
 
-//// 缺失的默认模型走 curl 下载到 models 目录,不解压不删 [@busybee 2026-06-13] ////
+//// 缺失的默认模型走 curl 下载到 models 目录,不解压不删 [@x380kkm 2026-06-13] ////
 test('setup downloads the default vvm without extracting', async () => {
   const fs = fakeFs([
     '/vv/c_api/voicevox_core-windows-x64-0.16.3/lib/voicevox_core.dll',
@@ -86,7 +86,7 @@ test('setup downloads the default vvm without extracting', async () => {
   assert.strictEqual(calls.filter((c) => c.cmd === 'tar' || c.cmd === 'powershell').length, 0);
 });
 
-//// 安装进度逐步上报,首步下载到末步完成 [@busybee 2026-06-13] ////
+//// 安装进度逐步上报,首步下载到末步完成 [@x380kkm 2026-06-13] ////
 test('setup reports progress per step ending with done', async () => {
   const fs = fakeFs();
   const { run } = fakeRun();
@@ -98,7 +98,7 @@ test('setup reports progress per step ending with done', async () => {
   assert.strictEqual(progress[progress.length - 1].status, 'done');
 });
 
-//// 某步命令失败时 setup 归一成失败对象并上报 fail [@busybee 2026-06-13] ////
+//// 某步命令失败时 setup 归一成失败对象并上报 fail [@x380kkm 2026-06-13] ////
 test('setup returns a failure object and reports fail when a command throws', async () => {
   const fs = fakeFs();
   const { run } = fakeRun((cmd) => cmd === 'powershell');
@@ -111,7 +111,7 @@ test('setup returns a failure object and reports fail when a command throws', as
   assert.ok(progress.some((p) => p.status === 'fail'));
 });
 
-//// downloadVvm 拒绝非法文件名,不触发下载 [@busybee 2026-06-13] ////
+//// downloadVvm 拒绝非法文件名,不触发下载 [@x380kkm 2026-06-13] ////
 test('downloadVvm rejects an invalid filename without downloading', async () => {
   const fs = fakeFs();
   const { run, calls } = fakeRun();
@@ -121,7 +121,7 @@ test('downloadVvm rejects an invalid filename without downloading', async () => 
   assert.strictEqual(calls.length, 0);
 });
 
-//// downloadVvm 对已存在的模型直接返回成功不重下 [@busybee 2026-06-13] ////
+//// downloadVvm 对已存在的模型直接返回成功不重下 [@x380kkm 2026-06-13] ////
 test('downloadVvm skips a model that already exists', async () => {
   const fs = fakeFs(['/vv/models', '/vv/models/8.vvm']);
   const { run, calls } = fakeRun();
@@ -132,7 +132,7 @@ test('downloadVvm skips a model that already exists', async () => {
   assert.strictEqual(calls.length, 0);
 });
 
-//// downloadVvm 下载失败时清掉半成品并报错 [@busybee 2026-06-13] ////
+//// downloadVvm 下载失败时清掉半成品并报错 [@x380kkm 2026-06-13] ////
 test('downloadVvm cleans up the partial file and reports error on failure', async () => {
   const fs = fakeFs(['/vv/models']);
   const { run } = fakeRun((cmd) => cmd === 'curl');

@@ -29,7 +29,7 @@ function makeFakeFs(files) {
 }
 const fakePath = { join: (...parts) => parts.join('/') };
 
-//// list 逐目录读规格,信任级别由来源目录强制覆盖文件自报值 [@busybee 2026-06-14] ////
+//// list 逐目录读规格,信任级别由来源目录强制覆盖文件自报值 [@x380kkm 2026-06-14] ////
 test('createModSource 出厂目录标 Official、用户目录标 UserCustom,文件自报的 trust 被覆盖', () => {
   const fs = makeFakeFs({
     'sys/a.json': JSON.stringify({ id: 'a', emits: ['x'] }),

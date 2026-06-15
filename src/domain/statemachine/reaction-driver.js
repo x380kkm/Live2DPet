@@ -8,7 +8,7 @@
 const STATE_REACTION_TYPE = 'StateReaction';
 
 class ReactionDriver {
-  //// 构造注入事件总线、有界反应策略、反应提示词组装函数 [@busybee 2026-06-14] ////
+  //// 构造注入事件总线、有界反应策略、反应提示词组装函数 [@x380kkm 2026-06-14] ////
   // deps:{ eventBus, reactionPolicy(ReactionPolicy), composeScope(event) => { messages } }。
   constructor(deps = {}) {
     this.eventBus = deps.eventBus;
@@ -17,7 +17,7 @@ class ReactionDriver {
     this._unsub = null;
   }
 
-  //// 订阅边界态事件,重复启动无副作用 [@busybee 2026-06-14] ////
+  //// 订阅边界态事件,重复启动无副作用 [@x380kkm 2026-06-14] ////
   start() {
     if (this._unsub || !this.eventBus) return;
     this._unsub = this.eventBus.subscribe(STATE_REACTION_TYPE, (event) => {
@@ -26,12 +26,12 @@ class ReactionDriver {
   }
   //// /订阅边界态事件 ////
 
-  //// 取消订阅,重复停止无副作用 [@busybee 2026-06-14] ////
+  //// 取消订阅,重复停止无副作用 [@x380kkm 2026-06-14] ////
   stop() {
     if (this._unsub) { this._unsub(); this._unsub = null; }
   }
 
-  //// 把一个边界态事件组装成反应提示词,交反应策略产出有界反应 [@busybee 2026-06-14] ////
+  //// 把一个边界态事件组装成反应提示词,交反应策略产出有界反应 [@x380kkm 2026-06-14] ////
   async _react(event) {
     if (!event || !this.reactionPolicy) return null;
     const scope = this.composeScope ? this.composeScope(event) : { messages: [] };
@@ -40,7 +40,7 @@ class ReactionDriver {
   //// /把一个边界态事件组装成反应提示词 ////
 }
 
-//// 反应失败时记录,有 console 才打,无则静默 [@busybee 2026-06-14] ////
+//// 反应失败时记录,有 console 才打,无则静默 [@x380kkm 2026-06-14] ////
 function logReactError(error) {
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
     console.error('[ReactionDriver] 驱动反应失败:', error && error.message ? error.message : error);

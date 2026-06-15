@@ -10,21 +10,21 @@
 const GOLDEN_RATIO_CONJUGATE = 0.6180339887498949;
 
 class LowDiscrepancySequence {
-  //// 构造注入起始种子,缺省从 0 开始,种子先归一到 [0,1) [@busybee 2026-06-14] ////
+  //// 构造注入起始种子,缺省从 0 开始,种子先归一到 [0,1) [@x380kkm 2026-06-14] ////
   constructor(seed = 0) {
     const s = typeof seed === 'number' && Number.isFinite(seed) ? seed : 0;
     // 当前位置,落在 [0,1);每次 next 前进一个黄金比共轭再取小数部分。
     this._x = ((s % 1) + 1) % 1;
   }
 
-  //// 取序列的下一个值,落在 [0,1) [@busybee 2026-06-14] ////
+  //// 取序列的下一个值,落在 [0,1) [@x380kkm 2026-06-14] ////
   next() {
     this._x = (this._x + GOLDEN_RATIO_CONJUGATE) % 1;
     return this._x;
   }
 }
 
-//// 用一个 [0,1) 抽样值按权重选一个下标,累计权重的逆变换抽样 [@busybee 2026-06-14] ////
+//// 用一个 [0,1) 抽样值按权重选一个下标,累计权重的逆变换抽样 [@x380kkm 2026-06-14] ////
 // weights 为非负权重数组,负值按零计;u 为 [0,1) 抽样值;总权重为零时返回 0。
 function pickByWeight(weights, u) {
   const positive = weights.map((w) => (w > 0 ? w : 0));

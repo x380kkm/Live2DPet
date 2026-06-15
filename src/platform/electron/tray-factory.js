@@ -4,7 +4,7 @@
 // 不变量:electron 的 Tray 与 Menu 类型不越过本文件。
 // 上下文菜单弹出与托盘共用 Menu,故一并放在本文件。
 
-//// 用注入的 Tray 与 Menu 类建托盘,返回只暴露自有方法的托盘句柄 [@busybee 2026-06-13] ////
+//// 用注入的 Tray 与 Menu 类建托盘,返回只暴露自有方法的托盘句柄 [@x380kkm 2026-06-13] ////
 function createTray(spec) {
     const { Tray, Menu, iconPath, tooltip, onClick } = spec;
     if (typeof Tray !== 'function') {
@@ -28,7 +28,7 @@ function createTray(spec) {
 }
 //// /用注入的 Tray 与 Menu 类建托盘,返回只暴露自有方法的托盘句柄 ////
 
-//// 用注入的 Menu 类造上下文菜单弹出器,把 buildFromTemplate 与 popup 封在本文件 [@busybee 2026-06-13] ////
+//// 用注入的 Menu 类造上下文菜单弹出器,把 buildFromTemplate 与 popup 封在本文件 [@x380kkm 2026-06-13] ////
 function createMenuPopup(spec) {
     const { Menu } = spec;
     if (!Menu || typeof Menu.buildFromTemplate !== 'function') {

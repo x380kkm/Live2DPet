@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { StepModelConfig } = require('../../src/platform/llm/step-model-config');
 
-//// 一份大类齐全、步骤少量覆盖的样例配置 [@busybee 2026-06-13] ////
+//// 一份大类齐全、步骤少量覆盖的样例配置 [@x380kkm 2026-06-13] ////
 function sampleConfig() {
   return {
     categories: {

@@ -5,7 +5,7 @@
 
 import { PARAM_LABELS, sortParamCandidates } from './settings-model.js';
 
-//// 装配模型标签页的各项控件,绑定到配置数据模型与文件能力网关 [@busybee 2026-06-13] ////
+//// 装配模型标签页的各项控件,绑定到配置数据模型与文件能力网关 [@x380kkm 2026-06-13] ////
 export function mountModelPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
 
@@ -13,20 +13,20 @@ export function mountModelPanel(ctx) {
   updateModelCards(ctx);
   renderFromModel(ctx);
 
-  //// 切换模型模式仅改模型类型与卡片可见性 [@busybee 2026-06-13] ////
+  //// 切换模型模式仅改模型类型与卡片可见性 [@x380kkm 2026-06-13] ////
   doc.getElementById('model-type').addEventListener('change', () => {
     model.model().type = doc.getElementById('model-type').value;
     updateModelCards(ctx);
   });
 
-  //// 画布 Y 锚点滑块即时写回模型 [@busybee 2026-06-13] ////
+  //// 画布 Y 锚点滑块即时写回模型 [@x380kkm 2026-06-13] ////
   doc.getElementById('canvas-y-slider').addEventListener('input', (e) => {
     const value = parseFloat(e.target.value);
     doc.getElementById('canvas-y-val').textContent = value.toFixed(2);
     model.model().canvasYRatio = value;
   });
 
-  //// 图片裁剪滑块即时写回模型 [@busybee 2026-06-13] ////
+  //// 图片裁剪滑块即时写回模型 [@x380kkm 2026-06-13] ////
   doc.getElementById('image-crop-slider').addEventListener('input', (e) => {
     const value = parseFloat(e.target.value);
     doc.getElementById('image-crop-val').textContent = value.toFixed(2);
@@ -41,7 +41,7 @@ export function mountModelPanel(ctx) {
     showStatus('model-status', t('status.suggestedApplied'), 'success');
   });
 
-  //// 选择气泡框图片并落盘 [@busybee 2026-06-13] ////
+  //// 选择气泡框图片并落盘 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-select-bubble').addEventListener('click', async () => {
     const result = await gateway.model.selectBubbleImage();
     if (!result.success) return;
@@ -49,13 +49,13 @@ export function mountModelPanel(ctx) {
     await gateway.config.save({ bubble: { frameImagePath: result.filePath } });
   });
 
-  //// 清除气泡框图片 [@busybee 2026-06-13] ////
+  //// 清除气泡框图片 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-clear-bubble').addEventListener('click', async () => {
     doc.getElementById('bubble-info').textContent = '';
     await gateway.config.save({ bubble: { frameImagePath: null } });
   });
 
-  //// 选择应用图标并落盘 [@busybee 2026-06-13] ////
+  //// 选择应用图标并落盘 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-select-icon').addEventListener('click', async () => {
     const result = await gateway.model.selectAppIcon();
     if (!result.success) return;
@@ -70,7 +70,7 @@ export function mountModelPanel(ctx) {
   doc.getElementById('btn-clear-model').addEventListener('click', () => clearModel(ctx));
 }
 
-//// 按模型类型显隐 Live2D 与图片两组卡片 [@busybee 2026-06-13] ////
+//// 按模型类型显隐 Live2D 与图片两组卡片 [@x380kkm 2026-06-13] ////
 function updateModelCards(ctx) {
   const { doc } = ctx;
   const type = doc.getElementById('model-type').value;
@@ -80,7 +80,7 @@ function updateModelCards(ctx) {
   doc.getElementById('card-image').style.display = type === 'image' ? '' : 'none';
 }
 
-//// 由模型快照重建当前模式的只读视图 [@busybee 2026-06-13] ////
+//// 由模型快照重建当前模式的只读视图 [@x380kkm 2026-06-13] ////
 function renderFromModel(ctx) {
   const { doc, model, t } = ctx;
   const config = model.model();
@@ -101,7 +101,7 @@ function renderFromModel(ctx) {
   }
 }
 
-//// 选择文件夹、扫描模型、把结果写入模型后渲染各列表 [@busybee 2026-06-13] ////
+//// 选择文件夹、扫描模型、把结果写入模型后渲染各列表 [@x380kkm 2026-06-13] ////
 async function importLive2d(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const selected = await gateway.model.selectFolder();
@@ -150,7 +150,7 @@ async function importLive2d(ctx) {
   }
 }
 
-//// 选择图片文件夹、扫描图片、合并入模型后渲染列表 [@busybee 2026-06-13] ////
+//// 选择图片文件夹、扫描图片、合并入模型后渲染列表 [@x380kkm 2026-06-13] ////
 async function importImageFolder(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const selected = await gateway.model.selectImageFolder();
@@ -175,7 +175,7 @@ async function importImageFolder(ctx) {
   showStatus('model-status', t('status.imagesScanned').replace('{0}', scan.images.length), 'success');
 }
 
-//// 按模型快照与扫描候选渲染参数映射下拉,改动即写回模型 [@busybee 2026-06-13] ////
+//// 按模型快照与扫描候选渲染参数映射下拉,改动即写回模型 [@x380kkm 2026-06-13] ////
 function renderParamMapping(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('param-mapping-list');
@@ -205,7 +205,7 @@ function renderParamMapping(ctx) {
   });
 }
 
-//// 按模型快照渲染图片分类列表,情绪名输入随勾选显隐 [@busybee 2026-06-13] ////
+//// 按模型快照渲染图片分类列表,情绪名输入随勾选显隐 [@x380kkm 2026-06-13] ////
 function renderImageList(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('image-list');
@@ -237,7 +237,7 @@ function renderImageList(ctx) {
   });
 }
 
-//// 从图片列表 DOM 收集分类开关写回模型 [@busybee 2026-06-13] ////
+//// 从图片列表 DOM 收集分类开关写回模型 [@x380kkm 2026-06-13] ////
 function collectImageFiles(ctx) {
   const { doc, model } = ctx;
   const files = model.model().imageFiles || [];
@@ -252,7 +252,7 @@ function collectImageFiles(ctx) {
   });
 }
 
-//// 收集图片模式数据、由情绪名生成表情后落盘模型配置 [@busybee 2026-06-13] ////
+//// 收集图片模式数据、由情绪名生成表情后落盘模型配置 [@x380kkm 2026-06-13] ////
 async function saveModel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.model();
@@ -265,7 +265,7 @@ async function saveModel(ctx) {
   showStatus('model-status', t('status.modelSaved'), 'success');
 }
 
-//// 重置模型为缺省并刷新视图后落盘 [@busybee 2026-06-13] ////
+//// 重置模型为缺省并刷新视图后落盘 [@x380kkm 2026-06-13] ////
 async function clearModel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   model.resetModel();

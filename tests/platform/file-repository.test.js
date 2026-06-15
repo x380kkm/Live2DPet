@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { FileRepository } = require('../../src/platform/storage/file-repository');
 
-//// 用内存 map 假 fs:记录写入路径与内容,readFile 命中即返回 [@busybee 2026-06-13] ////
+//// 用内存 map 假 fs:记录写入路径与内容,readFile 命中即返回 [@x380kkm 2026-06-13] ////
 function fakeFs(initial = {}) {
   const files = { ...initial };
   const mkdirCalls = [];
@@ -26,7 +26,7 @@ function fakeFs(initial = {}) {
   };
 }
 
-//// 假 pathUtils:把键拼到固定的 userData 前缀下 [@busybee 2026-06-13] ////
+//// 假 pathUtils:把键拼到固定的 userData 前缀下 [@x380kkm 2026-06-13] ////
 function fakePathUtils() {
   return { resolve: (key) => `/user/data/${key}` };
 }

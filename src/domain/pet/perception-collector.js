@@ -8,7 +8,7 @@
 // tick(frame, background) 是采集源每次拿到新帧时调一次:投帧、选关键帧、抽态势、写记忆。
 
 class PerceptionCollector {
-  //// 构造注入关键帧缓冲、态势抽取器与记忆库 [@busybee 2026-06-13] ////
+  //// 构造注入关键帧缓冲、态势抽取器与记忆库 [@x380kkm 2026-06-13] ////
   constructor(deps = {}) {
     this.buffer = deps.buffer;
     this.extractor = deps.extractor;
@@ -16,7 +16,7 @@ class PerceptionCollector {
   }
   //// /构造注入关键帧缓冲、态势抽取器与记忆库 ////
 
-  //// 收一帧,跑一轮退避采集:投帧、选关键帧、对最新关键帧抽态势并落记忆 [@busybee 2026-06-13] ////
+  //// 收一帧,跑一轮退避采集:投帧、选关键帧、对最新关键帧抽态势并落记忆 [@x380kkm 2026-06-13] ////
   // 退避门在 extractor 内,本方法每帧直调;选帧与抽态势的实际频率由其退避区间裁定。
   // 抽出非空态势时返回该态势文本并写入记忆,否则返回 null;全程不向调用方抛错。
   async tick(frame, background) {
@@ -38,7 +38,7 @@ class PerceptionCollector {
   }
   //// /收一帧,跑一轮退避采集 ////
 
-  //// 取抽取器选出的最新关键帧,无则返回 null [@busybee 2026-06-13] ////
+  //// 取抽取器选出的最新关键帧,无则返回 null [@x380kkm 2026-06-13] ////
   _latestKeyframe() {
     if (!this.extractor || typeof this.extractor.keyframes !== 'function') {
       return null;
@@ -47,7 +47,7 @@ class PerceptionCollector {
     return frames && frames.length > 0 ? frames[0] : null;
   }
 
-  //// 把一条态势摘要连同窗口标题写入记忆短期缓冲 [@busybee 2026-06-13] ////
+  //// 把一条态势摘要连同窗口标题写入记忆短期缓冲 [@x380kkm 2026-06-13] ////
   _remember(situation, title) {
     if (!this.memoryStore || typeof this.memoryStore.append !== 'function') {
       return;

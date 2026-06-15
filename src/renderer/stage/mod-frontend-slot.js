@@ -4,7 +4,7 @@
 // 不变量:前端经沙箱宿主嵌入,槽本身不直接持有原始能力网关。
 
 export class ModFrontendSlot {
-  //// 经构造注入槽元素与沙箱宿主,槽初始为空 [@busybee 2026-06-13] ////
+  //// 经构造注入槽元素与沙箱宿主,槽初始为空 [@x380kkm 2026-06-13] ////
   // deps:{ slotElement, sandboxHost }。sandboxHost 实现 host/dispose,槽只见这层窄接口。
   constructor(deps) {
     this.slotElement = deps.slotElement;
@@ -13,7 +13,7 @@ export class ModFrontendSlot {
     this.frontendSpec = null;
   }
 
-  //// 嵌入一份前端规格:经沙箱宿主取受限框架,挂入槽并标记可见 [@busybee 2026-06-13] ////
+  //// 嵌入一份前端规格:经沙箱宿主取受限框架,挂入槽并标记可见 [@x380kkm 2026-06-13] ////
   embed(frontendSpec) {
     if (this.frame) this.clear();
     this.frontendSpec = frontendSpec;
@@ -26,7 +26,7 @@ export class ModFrontendSlot {
   }
   //// /嵌入一份前端规格 ////
 
-  //// 切换到另一份前端规格:同规格免动、不同则清旧嵌新 [@busybee 2026-06-13] ////
+  //// 切换到另一份前端规格:同规格免动、不同则清旧嵌新 [@x380kkm 2026-06-13] ////
   switchTo(frontendSpec) {
     if (this.frontendSpec && frontendSpec && this.frontendSpec.id === frontendSpec.id) {
       return this.frame;
@@ -34,7 +34,7 @@ export class ModFrontendSlot {
     return this.embed(frontendSpec);
   }
 
-  //// 清空槽:销毁当前沙箱框架、摘除元素、标记不可见 [@busybee 2026-06-13] ////
+  //// 清空槽:销毁当前沙箱框架、摘除元素、标记不可见 [@x380kkm 2026-06-13] ////
   clear() {
     if (this.frame) {
       if (this.frame.element && this.frame.element.parentNode) {
@@ -48,12 +48,12 @@ export class ModFrontendSlot {
   }
   //// /清空槽 ////
 
-  //// 查槽此刻是否已嵌入前端 [@busybee 2026-06-13] ////
+  //// 查槽此刻是否已嵌入前端 [@x380kkm 2026-06-13] ////
   hasFrontend() {
     return this.frame !== null;
   }
 
-  //// 切槽元素的可见类,缺元素时静默跳过 [@busybee 2026-06-13] ////
+  //// 切槽元素的可见类,缺元素时静默跳过 [@x380kkm 2026-06-13] ////
   _setVisible(visible) {
     const el = this.slotElement;
     if (!el || !el.classList) return;

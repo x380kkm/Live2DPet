@@ -11,13 +11,13 @@
 const MAX_RESULTS = 3;
 const MIN_SNIPPET_LENGTH = 10;
 
-//// 装配网络模块,产出按提供方分派的搜索查询 [@busybee 2026-06-13] ////
+//// 装配网络模块,产出按提供方分派的搜索查询 [@x380kkm 2026-06-13] ////
 function createSearchSource(deps = {}) {
   const http = deps.http;
   const https = deps.https;
   const userAgent = deps.userAgent || 'Live2DPet/2.0.0';
 
-  //// 发起一次 GET 并把响应体收齐,超时与错误折成 reject [@busybee 2026-06-13] ////
+  //// 发起一次 GET 并把响应体收齐,超时与错误折成 reject [@x380kkm 2026-06-13] ////
   function httpGet(url, timeout, extraHeaders) {
     return new Promise((resolve, reject) => {
       const mod = url.startsWith('https') ? https : http;
@@ -33,7 +33,7 @@ function createSearchSource(deps = {}) {
   }
   //// /发起一次 GET 并把响应体收齐 ////
 
-  //// 从 DuckDuckGo 的 HTML 抓取里提取若干文本片段,先取摘要再回退取链接文本 [@busybee 2026-06-13] ////
+  //// 从 DuckDuckGo 的 HTML 抓取里提取若干文本片段,先取摘要再回退取链接文本 [@x380kkm 2026-06-13] ////
   function parseDuckDuckGo(html) {
     const results = [];
     const snippetRegex = /class="result__snippet"[^>]*>([\s\S]*?)<\//gi;
@@ -52,7 +52,7 @@ function createSearchSource(deps = {}) {
   }
   //// /从 DuckDuckGo 的 HTML 抓取里提取若干文本片段 ////
 
-  //// 抓自定义 JSON 端点:拼查询参数、带可选鉴权,从常见字段挑片段,失败回退取原文片段 [@busybee 2026-06-13] ////
+  //// 抓自定义 JSON 端点:拼查询参数、带可选鉴权,从常见字段挑片段,失败回退取原文片段 [@x380kkm 2026-06-13] ////
   async function searchCustom(query, options) {
     const url = new URL(options.customUrl);
     url.searchParams.set('q', query);
@@ -78,7 +78,7 @@ function createSearchSource(deps = {}) {
   }
   //// /抓自定义 JSON 端点 ////
 
-  //// 抓 DuckDuckGo:编码查询、抓 HTML、解析片段,解析不出折成失败 [@busybee 2026-06-13] ////
+  //// 抓 DuckDuckGo:编码查询、抓 HTML、解析片段,解析不出折成失败 [@x380kkm 2026-06-13] ////
   async function searchDuckDuckGo(query) {
     const url = `https://html.duckduckgo.com/html/?q=${encodeURIComponent(query)}`;
     const result = await httpGet(url);
@@ -89,7 +89,7 @@ function createSearchSource(deps = {}) {
   }
   //// /抓 DuckDuckGo ////
 
-  //// 按提供方分派搜索:先清洗查询里的长串疑似密钥,空查询直接拒 [@busybee 2026-06-13] ////
+  //// 按提供方分派搜索:先清洗查询里的长串疑似密钥,空查询直接拒 [@x380kkm 2026-06-13] ////
   async function search(query, provider, options) {
     const opts = options || {};
     try {

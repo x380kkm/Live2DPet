@@ -15,7 +15,7 @@ const MODEL_FIELDS = ['preset', 'baseURL', 'apiKey', 'model'];
 // 行为参数字段:决定这一步怎么调,以步骤为先。
 const BEHAVIOR_FIELDS = ['temperature', 'maxTokens', 'effort', 'thinking'];
 
-//// 取第一个有定义的值,都没有则 undefined [@busybee 2026-06-13] ////
+//// 取第一个有定义的值,都没有则 undefined [@x380kkm 2026-06-13] ////
 function firstDefined(...values) {
   for (const value of values) {
     if (value !== undefined) {
@@ -25,13 +25,13 @@ function firstDefined(...values) {
   return undefined;
 }
 
-//// 把全局、大类、步骤三处的 system 注入按非空顺序拼成一段 [@busybee 2026-06-13] ////
+//// 把全局、大类、步骤三处的 system 注入按非空顺序拼成一段 [@x380kkm 2026-06-13] ////
 function mergeInjection(...texts) {
   return texts.filter((t) => typeof t === 'string' && t.length > 0).join('\n\n');
 }
 
 class StepModelConfig {
-  //// 构造注入大类配置表、步骤覆盖表与全局 system 注入 [@busybee 2026-06-13] ////
+  //// 构造注入大类配置表、步骤覆盖表与全局 system 注入 [@x380kkm 2026-06-13] ////
   constructor(config = {}) {
     this.categories = config.categories || {};
     this.steps = config.steps || {};
@@ -39,7 +39,7 @@ class StepModelConfig {
     this.systemInjection = config.systemInjection || '';
   }
 
-  //// 解析某步该用的模型与参数:模型身份跟随大类、行为参数以步骤为先 [@busybee 2026-06-13] ////
+  //// 解析某步该用的模型与参数:模型身份跟随大类、行为参数以步骤为先 [@x380kkm 2026-06-13] ////
   resolve(stepId) {
     const category = STEP_CATEGORY[stepId];
     if (!category) {

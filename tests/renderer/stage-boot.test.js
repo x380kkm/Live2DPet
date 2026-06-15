@@ -9,7 +9,7 @@ const assert = require('node:assert');
 // stage-boot 是 ESM(渲染侧),用动态 import 载入;一处缓存供各用例复用。
 const loadBoot = () => import('../../src/renderer/boot/stage-boot.js');
 
-//// resolveModelPlan:按类型与校验结果定渲染适配种类与模型目录 [@busybee 2026-06-13] ////
+//// resolveModelPlan:按类型与校验结果定渲染适配种类与模型目录 [@x380kkm 2026-06-13] ////
 test('resolveModelPlan 对 live2d 校验通过给出 live2d 计划与解析目录', async () => {
   const { resolveModelPlan } = await loadBoot();
   const plan = resolveModelPlan(
@@ -41,7 +41,7 @@ test('resolveModelPlan 无 modelDir 时回退到配置 folderPath', async () => 
 });
 //// /resolveModelPlan ////
 
-//// resolveSizeStep 与 sizeIndexOf:档位仲裁与邻接状态 [@busybee 2026-06-13] ////
+//// resolveSizeStep 与 sizeIndexOf:档位仲裁与邻接状态 [@x380kkm 2026-06-13] ////
 test('resolveSizeStep 变大时下标与尺寸前进一档并报可否继续', async () => {
   const { resolveSizeStep } = await loadBoot();
   const step = resolveSizeStep(1, 1);
@@ -68,7 +68,7 @@ test('sizeIndexOf 把合法尺寸映射到下标、非法尺寸回退默认档',
 });
 //// /resolveSizeStep 与 sizeIndexOf ////
 
-//// trackVector:光标与窗口边界折成钳在 -1 到 1 的跟踪坐标 [@busybee 2026-06-13] ////
+//// trackVector:光标与窗口边界折成钳在 -1 到 1 的跟踪坐标 [@x380kkm 2026-06-13] ////
 test('trackVector 以窗口中心为原点按半径归一化', async () => {
   const { trackVector } = await loadBoot();
   const bounds = { x: 0, y: 0, width: 200, height: 200 };
@@ -87,7 +87,7 @@ test('trackVector 把超出半径的偏移钳到 -1 或 1', async () => {
 });
 //// /trackVector ////
 
-//// dragTargetPosition:光标位移一比一叠加到起点窗口位置(screenX 与窗口坐标同为 DIP,实测确证) [@busybee 2026-06-14] ////
+//// dragTargetPosition:光标位移一比一叠加到起点窗口位置(screenX 与窗口坐标同为 DIP,实测确证) [@x380kkm 2026-06-14] ////
 test('dragTargetPosition 把光标位移一比一叠加到起点窗口位置', async () => {
   const { dragTargetPosition } = await loadBoot();
   // 起点窗口 (1143,455);光标从 (1290,622) 移到 (897,289),左移 393、上移 333,窗口同量平移
@@ -103,7 +103,7 @@ test('dragTargetPosition 光标不动时窗口位置不变', async () => {
   assert.strictEqual(t.y, 200);
 });
 
-//// classifyGesture:把一次指针抬起判定成点击、长按或拖拽 [@busybee 2026-06-13] ////
+//// classifyGesture:把一次指针抬起判定成点击、长按或拖拽 [@x380kkm 2026-06-13] ////
 test('classifyGesture 位移超阈判为拖拽', async () => {
   const { classifyGesture } = await loadBoot();
   const g = classifyGesture(
@@ -125,7 +125,7 @@ test('classifyGesture 原地短停判为点击、原地久停判为长按', asyn
 });
 //// /classifyGesture ////
 
-//// movementExceeds:指针位移是否过拖动阈值,决定轻点与拖动的分界 [@busybee 2026-06-14] ////
+//// movementExceeds:指针位移是否过拖动阈值,决定轻点与拖动的分界 [@x380kkm 2026-06-14] ////
 test('movementExceeds 任一轴位移超过阈值即为真,微小抖动为假', async () => {
   const { movementExceeds } = await loadBoot();
   assert.strictEqual(movementExceeds({ x: 0, y: 0 }, { x: 6, y: 0 }, 5), true);
@@ -135,7 +135,7 @@ test('movementExceeds 任一轴位移超过阈值即为真,微小抖动为假', 
 });
 //// /movementExceeds ////
 
-//// applyPokeEffect:加 poked 类触发回弹动画,到时移除以便再次触发 [@busybee 2026-06-14] ////
+//// applyPokeEffect:加 poked 类触发回弹动画,到时移除以便再次触发 [@x380kkm 2026-06-14] ////
 test('applyPokeEffect 加 poked 类并在到时回调里移除', async () => {
   const { applyPokeEffect } = await loadBoot();
   // 假元素记录类的增删;假 view 把 setTimeout 回调存起来供手动触发
@@ -157,7 +157,7 @@ test('applyPokeEffect 对缺失元素静默跳过,不抛错', async () => {
 });
 //// /applyPokeEffect ////
 
-//// actionNameForMotion:旧式 (group, index) 反查语义动作名 [@busybee 2026-06-13] ////
+//// actionNameForMotion:旧式 (group, index) 反查语义动作名 [@x380kkm 2026-06-13] ////
 test('actionNameForMotion 命中配置项时返回语义名、未命中返回空', async () => {
   const { actionNameForMotion } = await loadBoot();
   const config = { motionEmotions: [{ name: 'wave', group: 'TapBody', index: 1 }] };
@@ -218,7 +218,7 @@ function makeFakeTimers() {
   };
 }
 
-//// bootStage 装配:挂头部、订阅信号、释放 [@busybee 2026-06-13] ////
+//// bootStage 装配:挂头部、订阅信号、释放 [@x380kkm 2026-06-13] ////
 test('bootStage 读配置造适配并挂上 stage 头部', async () => {
   const { bootStage } = await loadBoot();
   const adapter = makeFakeAdapter();

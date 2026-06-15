@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const { ContextSource } = require('../../../src/domain/pet/context-source');
 const { VisualMemorySource } = require('../../../src/domain/pet/sources/visual-memory-source');
 
-//// 假记忆库:记录 recall 的时间窗,返回预置记忆 [@busybee 2026-06-13] ////
+//// 假记忆库:记录 recall 的时间窗,返回预置记忆 [@x380kkm 2026-06-13] ////
 function fakeMemory(entries) {
   const calls = [];
   return {

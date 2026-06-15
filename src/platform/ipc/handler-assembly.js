@@ -20,7 +20,7 @@ const { registerUtilHandlers, makeUtilExecutor } = require('./handlers/util-hand
 const GLOBAL_LAYER = 'global';
 const GLOBAL_SCOPE = 'global';
 
-//// 把真实 ConfigStore 适配成「读写整份全局配置」的扁平窄接口 [@busybee 2026-06-13] ////
+//// 把真实 ConfigStore 适配成「读写整份全局配置」的扁平窄接口 [@x380kkm 2026-06-13] ////
 // 渲染侧 load-config/save-config 与 character/model 处理器都读写同一份全局配置;
 // load 读出整份(缺省给空对象),save 整份覆盖写回。
 function makeFlatConfig(configStore) {
@@ -36,7 +36,7 @@ function makeFlatConfig(configStore) {
 }
 //// /把真实 ConfigStore 适配成扁平窄接口 ////
 
-//// 把扁平全局配置适配成角色花名册的 read/write:read 取快照,write 浅合并补丁后整份写回 [@busybee 2026-06-13] ////
+//// 把扁平全局配置适配成角色花名册的 read/write:read 取快照,write 浅合并补丁后整份写回 [@x380kkm 2026-06-13] ////
 // character-handlers 与 model-handlers 期待 config.read() 返回含 characters/activeCharacterId/model 的快照,
 // config.write(patch) 把补丁浅合并进整份配置;此处把这两个动作落到同一份全局配置上。
 function makeRosterConfig(flatConfig) {
@@ -53,7 +53,7 @@ function makeRosterConfig(flatConfig) {
 }
 //// /把扁平全局配置适配成角色花名册的 read/write ////
 
-//// 装配并注册全部 IPC 处理器,返回被注册的通道名集合供入口补齐剩余通道 [@busybee 2026-06-13] ////
+//// 装配并注册全部 IPC 处理器,返回被注册的通道名集合供入口补齐剩余通道 [@x380kkm 2026-06-13] ////
 // deps 携带已造好的 platform 与 domain 对象,以及第三方门面(fs、path、dialog、shell、app 等)。
 // 网关执行器在此组合:屏幕能力走感知执行器,外发与文件能力走工具执行器,一个能力 id 命中其一。
 function registerAllHandlers(router, gateway, deps) {
@@ -131,7 +131,7 @@ function registerAllHandlers(router, gateway, deps) {
 }
 //// /装配并注册全部 IPC 处理器 ////
 
-//// 把按通道名索引的处理器表逐项注册,跳过非通道键(如迁移钩子) [@busybee 2026-06-13] ////
+//// 把按通道名索引的处理器表逐项注册,跳过非通道键(如迁移钩子) [@x380kkm 2026-06-13] ////
 function registerHandlerTable(router, table) {
   for (const [channel, handler] of Object.entries(table)) {
     if (channelRegistry.isKnown(channel) && typeof handler === 'function') {
@@ -141,7 +141,7 @@ function registerHandlerTable(router, table) {
 }
 //// /把按通道名索引的处理器表逐项注册 ////
 
-//// 组合屏幕、外发、文件三域重能力的统一执行器,交能力网关在门控通过后调用 [@busybee 2026-06-13] ////
+//// 组合屏幕、外发、文件三域重能力的统一执行器,交能力网关在门控通过后调用 [@x380kkm 2026-06-13] ////
 // 感知执行器认屏幕能力,工具执行器认外发与文件能力;按能力 id 先问感知、未命中再问工具。
 function makeCapabilityExecutor(deps) {
   const perceptionExecute = makePerceptionExecutor({

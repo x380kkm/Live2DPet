@@ -5,10 +5,10 @@
 
 const { intentFromDeclaration, TriggerWhen, ProductKind } = require('./intent');
 
-//// 出厂意图来源标识 [@busybee 2026-06-13] ////
+//// 出厂意图来源标识 [@x380kkm 2026-06-13] ////
 const BUILTIN_ORIGIN = 'builtin';
 
-//// 观察回应:有视觉输入时纳入候选,引视觉记忆与态势上下文源 [@busybee 2026-06-13] ////
+//// 观察回应:有视觉输入时纳入候选,引视觉记忆与态势上下文源 [@x380kkm 2026-06-13] ////
 const OBSERVE_RESPONSE = {
   id: 'observe-response',
   trigger: { when: TriggerWhen.VisualInput },
@@ -27,7 +27,7 @@ const OBSERVE_RESPONSE = {
   product: { kind: ProductKind.UseTemplate, templateId: 'reply-bubble' },
 };
 
-//// 空闲闲聊:无输入时纳入候选,引空闲与反重复上下文源 [@busybee 2026-06-13] ////
+//// 空闲闲聊:无输入时纳入候选,引空闲与反重复上下文源 [@x380kkm 2026-06-13] ////
 const IDLE_CHAT = {
   id: 'idle-chat',
   trigger: { when: TriggerWhen.Idle },
@@ -36,7 +36,7 @@ const IDLE_CHAT = {
   product: { kind: ProductKind.UseTemplate, templateId: 'reply-bubble' },
 };
 
-//// 把两条出厂数据声明解析成意图实例,带来源可追溯 [@busybee 2026-06-13] ////
+//// 把两条出厂数据声明解析成意图实例,带来源可追溯 [@x380kkm 2026-06-13] ////
 function builtinIntents() {
   return [
     intentFromDeclaration(OBSERVE_RESPONSE, BUILTIN_ORIGIN),

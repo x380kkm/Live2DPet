@@ -10,7 +10,7 @@ const assert = require('node:assert');
 // stage-boot 是渲染侧 ESM,用动态 import 载入。
 const loadBoot = () => import('../../src/renderer/boot/stage-boot.js');
 
-//// 记录被挂头部的适配,setTrack 收到的跟踪坐标存起来 [@busybee 2026-06-13] ////
+//// 记录被挂头部的适配,setTrack 收到的跟踪坐标存起来 [@x380kkm 2026-06-13] ////
 function recordingAdapter() {
   return {
     tracks: [],
@@ -25,12 +25,12 @@ function recordingAdapter() {
   };
 }
 
-//// 记录 mountHead 的假 stage,屏蔽真实 DOM 装配 [@busybee 2026-06-13] ////
+//// 记录 mountHead 的假 stage,屏蔽真实 DOM 装配 [@x380kkm 2026-06-13] ////
 function recordingStage() {
   return { mounted: null, mountHead(a) { this.mounted = a; } };
 }
 
-//// 假定时器:不真正计时,只把回调存起来供用例手动驱动 [@busybee 2026-06-13] ////
+//// 假定时器:不真正计时,只把回调存起来供用例手动驱动 [@x380kkm 2026-06-13] ////
 function fakeTimers() {
   let nextId = 1;
   const active = new Map();
@@ -41,7 +41,7 @@ function fakeTimers() {
   };
 }
 
-//// 假窄接口:loadConfig 给定模型配置,光标与窗口边界给定值 [@busybee 2026-06-13] ////
+//// 假窄接口:loadConfig 给定模型配置,光标与窗口边界给定值 [@x380kkm 2026-06-13] ////
 function narrowApi(modelConfig, validation) {
   return {
     loadConfig: async () => ({ model: modelConfig }),
@@ -51,7 +51,7 @@ function narrowApi(modelConfig, validation) {
   };
 }
 
-//// live2d 配置经校验后:解析出 live2d 计划、挂头部、启动跟踪 [@busybee 2026-06-13] ////
+//// live2d 配置经校验后:解析出 live2d 计划、挂头部、启动跟踪 [@x380kkm 2026-06-13] ////
 test('live2d 配置经 mountModel 解析出 live2d 计划、挂头部并启动跟踪', async () => {
   const { bootStage } = await loadBoot();
   const adapter = recordingAdapter();
@@ -84,7 +84,7 @@ test('live2d 配置经 mountModel 解析出 live2d 计划、挂头部并启动�
   assert.deepStrictEqual(adapter.tracks, [[0.5, 0]], 'setTrack 收到归一化跟踪坐标');
 });
 
-//// none 配置:降级为空适配,不启动跟踪 [@busybee 2026-06-13] ////
+//// none 配置:降级为空适配,不启动跟踪 [@x380kkm 2026-06-13] ////
 test('none 配置降级为无跟踪并仍挂上头部', async () => {
   const { bootStage } = await loadBoot();
   const adapter = recordingAdapter();
@@ -106,7 +106,7 @@ test('none 配置降级为无跟踪并仍挂上头部', async () => {
   assert.strictEqual(timers.active.size, 0, 'none 不应起跟踪定时器');
 });
 
-//// live2d 配置校验失败:降级为 none,不启动跟踪 [@busybee 2026-06-13] ////
+//// live2d 配置校验失败:降级为 none,不启动跟踪 [@x380kkm 2026-06-13] ////
 test('live2d 配置校验失败时降级为 none 并不启动跟踪', async () => {
   const { bootStage } = await loadBoot();
   const stage = recordingStage();

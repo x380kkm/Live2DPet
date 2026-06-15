@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { PromptComposer } = require('../../src/domain/pet/prompt-composer');
 
-//// 造一个记录调用、按角色回固定轮次的 few-shot 解析器替身 [@busybee 2026-06-13] ////
+//// 造一个记录调用、按角色回固定轮次的 few-shot 解析器替身 [@x380kkm 2026-06-13] ////
 function fakeResolver(turnsByCharacter) {
   const calls = [];
   return {
@@ -29,7 +29,7 @@ const PERSONA = {
   useLanguageTemplate: 'Reply in {0}.'
 };
 
-//// 系统提示按人格段序拼装,缺字段不出现 [@busybee 2026-06-13] ////
+//// 系统提示按人格段序拼装,缺字段不出现 [@x380kkm 2026-06-13] ////
 test('system content assembles persona parts in order', () => {
   const composer = new PromptComposer({ persona: PERSONA, fewShotResolver: fakeResolver({}) });
   const { messages } = composer.compose({ id: 'idle-chat', fewShotRefs: [] }, { text: '' }, {});
@@ -44,14 +44,14 @@ test('system content assembles persona parts in order', () => {
   assert.strictEqual(system, expected);
 });
 
-//// 缺人格字段时该段略过,不留空行 [@busybee 2026-06-13] ////
+//// 缺人格字段时该段略过,不留空行 [@x380kkm 2026-06-13] ////
 test('absent persona fields are skipped', () => {
   const composer = new PromptComposer({ persona: { description: 'You are Yuki.' }, fewShotResolver: fakeResolver({}) });
   const { messages } = composer.compose({ id: 'x', fewShotRefs: [] }, { text: '' }, {});
   assert.strictEqual(messages[0].content, 'You are Yuki.');
 });
 
-//// 已组装上下文以分隔线接在规则之后 [@busybee 2026-06-13] ////
+//// 已组装上下文以分隔线接在规则之后 [@x380kkm 2026-06-13] ////
 test('assembled context is appended after rules with a separator', () => {
   const composer = new PromptComposer({
     persona: { description: 'You are Yuki.', rules: 'NO emoji.' },
@@ -62,7 +62,7 @@ test('assembled context is appended after rules with a separator', () => {
   assert.strictEqual(messages[0].content, expected);
 });
 
-//// few-shot 轮次按角色解析后插在系统提示与意图指令之间 [@busybee 2026-06-13] ////
+//// few-shot 轮次按角色解析后插在系统提示与意图指令之间 [@x380kkm 2026-06-13] ////
 test('few-shot turns sit between system prompt and intent instruction', () => {
   const resolver = fakeResolver({
     yuki: [
@@ -86,7 +86,7 @@ test('few-shot turns sit between system prompt and intent instruction', () => {
   assert.deepStrictEqual(resolver.calls[0], { refs: ['structure/observe-response'], characterId: 'yuki' });
 });
 
-//// 无角色 id 时按空角色解析,跨角色不借文风 [@busybee 2026-06-13] ////
+//// 无角色 id 时按空角色解析,跨角色不借文风 [@x380kkm 2026-06-13] ////
 test('missing character id resolves with empty character', () => {
   const resolver = fakeResolver({});
   const composer = new PromptComposer({ persona: {}, fewShotResolver: resolver });
@@ -94,7 +94,7 @@ test('missing character id resolves with empty character', () => {
   assert.strictEqual(resolver.calls[0].characterId, '');
 });
 
-//// few-shot 预算从前往后累加,超预算丢其后全部轮次 [@busybee 2026-06-13] ////
+//// few-shot 预算从前往后累加,超预算丢其后全部轮次 [@x380kkm 2026-06-13] ////
 test('few-shot budget keeps a prefix and drops the rest', () => {
   const resolver = fakeResolver({
     yuki: [
@@ -115,7 +115,7 @@ test('few-shot budget keeps a prefix and drops the rest', () => {
   assert.strictEqual(messages[2].content, 'bbbb');
 });
 
-//// 预算未给定时全数保留样例轮次 [@busybee 2026-06-13] ////
+//// 预算未给定时全数保留样例轮次 [@x380kkm 2026-06-13] ////
 test('without a budget all few-shot turns are kept', () => {
   const resolver = fakeResolver({
     yuki: [{ role: 'user', content: 'x'.repeat(40) }, { role: 'assistant', content: 'y'.repeat(40) }]
@@ -125,7 +125,7 @@ test('without a budget all few-shot turns are kept', () => {
   assert.strictEqual(messages.length, 4);
 });
 
-//// 收尾指令带意图 id,态势改由 situationDigest 上下文源进上文、不在指令里重复 [@busybee 2026-06-13] ////
+//// 收尾指令带意图 id,态势改由 situationDigest 上下文源进上文、不在指令里重复 [@x380kkm 2026-06-13] ////
 test('intent instruction carries intent id but not the situation digest', () => {
   const composer = new PromptComposer({ persona: {}, fewShotResolver: fakeResolver({}) });
   const { messages } = composer.compose(
@@ -139,14 +139,14 @@ test('intent instruction carries intent id but not the situation digest', () => 
   assert.ok(!instruction.content.includes('在看文档'));
 });
 
-//// 无解析器时不产出样例轮次也不报错 [@busybee 2026-06-13] ////
+//// 无解析器时不产出样例轮次也不报错 [@x380kkm 2026-06-13] ////
 test('no resolver yields no few-shot turns', () => {
   const composer = new PromptComposer({ persona: { description: 'P' } });
   const { messages } = composer.compose({ id: 'x', fewShotRefs: ['s'] }, { text: '' }, { characterId: 'yuki' });
   assert.strictEqual(messages.length, 2);
 });
 
-//// 可注入自定义 token 估算函数 [@busybee 2026-06-13] ////
+//// 可注入自定义 token 估算函数 [@x380kkm 2026-06-13] ////
 test('a custom token estimator drives budget trimming', () => {
   const resolver = fakeResolver({
     yuki: [{ role: 'user', content: 'a' }, { role: 'assistant', content: 'b' }]
@@ -161,7 +161,7 @@ test('a custom token estimator drives budget trimming', () => {
   assert.strictEqual(messages[1].content, 'a');
 });
 
-//// composeReaction:状态边界反应复用人格系统提示,收尾给反应指令 [@busybee 2026-06-14] ////
+//// composeReaction:状态边界反应复用人格系统提示,收尾给反应指令 [@x380kkm 2026-06-14] ////
 test('composeReaction 把人格作系统提示在前,状态边界描述与反应指令作用户消息收尾', () => {
   const composer = new PromptComposer({ persona: { description: 'You are Yuki.', personality: 'Warm.' } });
   const { messages } = composer.composeReaction({ state: 'won', from: 'playing', input: 'score' });

@@ -11,7 +11,7 @@
 const { Mod } = require('./mod');
 
 class ModRegistry {
-  //// 构造注入 mod 仓储与两级启用声明 [@busybee 2026-06-13] ////
+  //// 构造注入 mod 仓储与两级启用声明 [@x380kkm 2026-06-13] ////
   // deps.source 提供 list();deps.globalEnabled 是全局默认启用 id 数组;
   // deps.characterExtra 是 { characterId: [modId] } 的角色额外开启表。
   constructor(deps) {
@@ -23,7 +23,7 @@ class ModRegistry {
     this._byId = new Map();
   }
 
-  //// 从仓储发现 mod 规格并物化成按 id 索引的 Mod 实例 [@busybee 2026-06-13] ////
+  //// 从仓储发现 mod 规格并物化成按 id 索引的 Mod 实例 [@x380kkm 2026-06-13] ////
   discover() {
     this._byId.clear();
     const specs = this._source.list();
@@ -36,7 +36,7 @@ class ModRegistry {
     return [...this._byId.values()];
   }
 
-  //// 合并全局默认与角色额外开启,返回该角色实际启用的 mod 列表 [@busybee 2026-06-13] ////
+  //// 合并全局默认与角色额外开启,返回该角色实际启用的 mod 列表 [@x380kkm 2026-06-13] ////
   // 两级启用只在此一处合并;以发现到的 id 为准,未发现的启用 id 直接跳过。
   enabledFor(characterId) {
     const extra = this._characterExtra[characterId] || [];
@@ -52,7 +52,7 @@ class ModRegistry {
   }
   //// /合并全局默认与角色额外开启 ////
 
-  //// 把全局默认与角色额外两级 id 并集成有序去重清单 [@busybee 2026-06-13] ////
+  //// 把全局默认与角色额外两级 id 并集成有序去重清单 [@x380kkm 2026-06-13] ////
   // 保留全局默认在前、角色额外在后的顺序,重复 id 只取首次出现。
   _mergeEnabledIds(globalIds, extraIds) {
     const merged = [];

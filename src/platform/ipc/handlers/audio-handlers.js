@@ -10,14 +10,14 @@ const GLOBAL_SCOPE = 'global';
 // 预合成片段文件名前缀,按短语序号编号。
 const CLIP_PREFIX = 'default_';
 
-//// 清空目录下已有的 WAV 片段,使每次生成都是全量重写 [@busybee 2026-06-13] ////
+//// 清空目录下已有的 WAV 片段,使每次生成都是全量重写 [@x380kkm 2026-06-13] ////
 function clearClips(fs, path, audioDir) {
   for (const name of fs.readdirSync(audioDir)) {
     if (name.endsWith('.wav')) fs.unlinkSync(path.join(audioDir, name));
   }
 }
 
-//// 用指定风格逐条合成默认短语并写成 WAV 文件,合成后恢复原风格 [@busybee 2026-06-13] ////
+//// 用指定风格逐条合成默认短语并写成 WAV 文件,合成后恢复原风格 [@x380kkm 2026-06-13] ////
 async function generate(deps, phrases, styleId) {
   const { speechBackend, configStore, resolveDefaultAudioDir, fs, path } = deps;
   if (!speechBackend || !speechBackend.isAvailable()) {
@@ -54,7 +54,7 @@ async function generate(deps, phrases, styleId) {
 }
 //// /用指定风格逐条合成默认短语 ////
 
-//// 读回目录下全部预合成片段,每个转成 base64 [@busybee 2026-06-13] ////
+//// 读回目录下全部预合成片段,每个转成 base64 [@x380kkm 2026-06-13] ////
 function load(deps) {
   const { resolveDefaultAudioDir, fs, path } = deps;
   const audioDir = resolveDefaultAudioDir();
@@ -68,7 +68,7 @@ function load(deps) {
   return { success: true, files };
 }
 
-//// 把默认音频的生成与加载通道经 ipc-router 注册到契约目录里的对应通道 [@busybee 2026-06-13] ////
+//// 把默认音频的生成与加载通道经 ipc-router 注册到契约目录里的对应通道 [@x380kkm 2026-06-13] ////
 // generate-default-audio 为多参通道,沿用 ipc-router 约定:payload 为 [phrases, styleId] 位置数组。
 function registerAudioHandlers(deps) {
   const { router } = deps;

@@ -98,7 +98,7 @@ const { ModIntroductionSource } = require('./src/domain/pet/sources/mod-introduc
 // 渲染侧向主进程推送进度的通道名:单向 send,不在 invoke 契约里,故直引字面量。
 const VOICEVOX_PROGRESS_CHANNEL = 'voicevox-setup-progress';
 
-//// 按依赖序装配 platform 地基,产出业务侧只见接口的能力集 [@busybee 2026-06-13] ////
+//// 按依赖序装配 platform 地基,产出业务侧只见接口的能力集 [@x380kkm 2026-06-13] ////
 // app 在 whenReady 后才能取路径与版本,故装配分两段:此段只建不依赖 app 的纯地基。
 function assemblePlatform() {
   const eventBus = new EventBus();
@@ -125,7 +125,7 @@ function assemblePlatform() {
 }
 //// /按依赖序装配 platform 地基 ////
 
-//// 用全局层配置造步骤模型路由,按大类与步骤两层选模型,供应商细节止于 llm-client [@busybee 2026-06-13] ////
+//// 用全局层配置造步骤模型路由,按大类与步骤两层选模型,供应商细节止于 llm-client [@x380kkm 2026-06-13] ////
 // 路由与 LlmClient 同接口,直接顶替原来的单客户端注入点;makeClient 按解析出的配置造对应预设的客户端。
 // 有 modelConfig 用两层配置,否则退回单模型;fetch 与文本清理经 deps 注入,业务侧不见供应商 SDK。
 function assembleModelRouter(global) {
@@ -143,7 +143,7 @@ function assembleModelRouter(global) {
 }
 //// /用全局层配置造步骤模型路由 ////
 
-//// 从环境变量直配 Live2D 模型:设了 LIVE2DPET_MODEL_* 就产出一份 model 配置,否则返回 null [@busybee 2026-06-14] ////
+//// 从环境变量直配 Live2D 模型:设了 LIVE2DPET_MODEL_* 就产出一份 model 配置,否则返回 null [@x380kkm 2026-06-14] ////
 // 给「不想在界面里填」的用户一条直配通道:模型类型与路径经环境变量给定,渲染侧 load-config 取到后加载。
 function envModelOverride(env) {
   const e = env || {};
@@ -159,7 +159,7 @@ function envModelOverride(env) {
 }
 //// /从环境变量直配 Live2D 模型 ////
 
-//// 按依赖序装配 domain 角色层,经构造注入串起感知到发言的编排 [@busybee 2026-06-13] ////
+//// 按依赖序装配 domain 角色层,经构造注入串起感知到发言的编排 [@x380kkm 2026-06-13] ////
 // platform 为已装配的地基;llmClient 为统一模型客户端;global 为全局层配置快照(取人格)。
 // providers 携带六个上下文源的取数函数与标题压缩、略过判定;languageState 给上下文源的成品措辞。
 // 返回有状态子系统与上下文源、连接件供生命周期与事件订阅使用。
@@ -259,14 +259,14 @@ function assembleDomain(platform, llmClient, global, providers, languageState) {
 }
 //// /按依赖序装配 domain 角色层 ////
 
-//// 按策略名造决策器:main 取合并策略,其余取拆分策略 [@busybee 2026-06-14] ////
+//// 按策略名造决策器:main 取合并策略,其余取拆分策略 [@x380kkm 2026-06-14] ////
 // 拆分策略让选意图走轻量路由步、台词走干净主模型,是默认;合并策略把两者并进一次主模型调用,供对比。
 function makeDecider(strategy, deps) {
   return strategy === 'main' ? new MainLlmDecider(deps) : new SplitIntentDecider(deps);
 }
 //// /按策略名造决策器 ////
 
-//// 装配八个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@busybee 2026-06-13] ////
+//// 装配八个命名上下文源,各以意图引用名为 id,缺数据时 render 返回 null 由组装器跳过 [@x380kkm 2026-06-13] ////
 // situationDigest 与 visualMemory 接感知抽取器与记忆;focusInfo/idleInfo/recentReplies/layoutInfo/
 // petPosition 接 providers 里的取数函数;成品措辞由 languageState 在装配期按当前语言注入。
 // toneHint 暂无下一句情绪的数据源,provider 留空时其 render 返回 null。
@@ -308,7 +308,7 @@ function assembleContextSources(deps) {
 }
 //// /装配八个命名上下文源 ////
 
-//// 把反重复源的外壳与各模式名按当前语言取出,组成其标签集 [@busybee 2026-06-13] ////
+//// 把反重复源的外壳与各模式名按当前语言取出,组成其标签集 [@x380kkm 2026-06-13] ////
 // recentReplies 源的 render 用 shell 外壳套 {0},各模式名是命中重复时填入的措辞,分隔符固定顿号。
 function antiRepetitionLabels(mt) {
   return {
@@ -324,7 +324,7 @@ function antiRepetitionLabels(mt) {
 }
 //// /把反重复源的外壳与各模式名按当前语言取出 ////
 
-//// 装配提示词组装器:few-shot 银行与解析器加角色人格,合并用户额外 system 注入 [@busybee 2026-06-13] ////
+//// 装配提示词组装器:few-shot 银行与解析器加角色人格,合并用户额外 system 注入 [@x380kkm 2026-06-13] ////
 // 银行暂无样例入库(磁盘 fewshot 目录为空),解析器对空引用返回空轮次;人格取自激活角色卡的 data。
 // system 注入取台词步解析出的(全局加 llm 大类),与人格规则合并;无路由时为空串。
 function assemblePromptComposer(global, llmClient) {
@@ -338,7 +338,7 @@ function assemblePromptComposer(global, llmClient) {
 }
 //// /装配提示词组装器 ////
 
-//// 按 id 取命名上下文源的注册表:管线据此把意图的源引用解析成实例 [@busybee 2026-06-13] ////
+//// 按 id 取命名上下文源的注册表:管线据此把意图的源引用解析成实例 [@x380kkm 2026-06-13] ////
 // sources 为已装配的上下文源数组;get 命中返回实例、未命中返回 null。
 function makeSourceRegistry(sources) {
   const byId = new Map(sources.map((source) => [source.id, source]));
@@ -351,7 +351,7 @@ const SKIP_APP_FRAGMENTS = ['desktop-pet', 'electron', 'live2dpet'];
 // 窗口标题压短的默认长度上限,超出截断并补省略号。
 const TITLE_MAX_LEN = 30;
 
-//// 装配感知运行态:给调度器一个 capture() 取帧,并维护六个上下文源的取数缓存 [@busybee 2026-06-13] ////
+//// 装配感知运行态:给调度器一个 capture() 取帧,并维护六个上下文源的取数缓存 [@x380kkm 2026-06-13] ////
 // 上下文源的 render 是同步的,而活动窗口、空闲秒数、开窗列表都需异步取;故在每拍异步的 capture()
 // 里刷新这些缓存,provider 同步读缓存。capture 截主屏产 base64 JPEG 帧,并据当前活动窗口累计焦点秒数。
 function makePerceptionRuntime(deps) {
@@ -367,7 +367,7 @@ function makePerceptionRuntime(deps) {
     recentReplies: []
   };
 
-  //// 截主屏产 base64 JPEG 帧,顺带刷新空闲、开窗与焦点缓存;失败回 null [@busybee 2026-06-13] ////
+  //// 截主屏产 base64 JPEG 帧,顺带刷新空闲、开窗与焦点缓存;失败回 null [@x380kkm 2026-06-13] ////
   async function capture() {
     await refreshCaches();
     const image = await screenSource.captureScreen({});
@@ -377,7 +377,7 @@ function makePerceptionRuntime(deps) {
     return { image, title: activeTitle(), background: null };
   }
 
-  //// 异步刷新三类缓存:空闲秒数、开窗列表、当前活动窗口的焦点累计 [@busybee 2026-06-13] ////
+  //// 异步刷新三类缓存:空闲秒数、开窗列表、当前活动窗口的焦点累计 [@x380kkm 2026-06-13] ////
   // 任一查询失败只跳过该项,不抛进调度器单拍;焦点按拍累加,粒度即调度间隔秒数。
   async function refreshCaches() {
     try { state.idleSeconds = screenSource.idleTime(); } catch {}
@@ -390,7 +390,7 @@ function makePerceptionRuntime(deps) {
     await accumulateFocus();
   }
 
-  //// 取当前活动窗口,非略过应用则把其停留秒数按调度间隔累加进焦点统计 [@busybee 2026-06-13] ////
+  //// 取当前活动窗口,非略过应用则把其停留秒数按调度间隔累加进焦点统计 [@x380kkm 2026-06-13] ////
   async function accumulateFocus() {
     try {
       const result = await activeWindow.current();
@@ -425,7 +425,7 @@ function makePerceptionRuntime(deps) {
     shortenTitle
   };
 
-  //// 记一条刚说出的发言,只留最近若干条供反重复源检测 [@busybee 2026-06-13] ////
+  //// 记一条刚说出的发言,只留最近若干条供反重复源检测 [@x380kkm 2026-06-13] ////
   function recordReply(text) {
     if (!text) {
       return;
@@ -447,7 +447,7 @@ const PET_WINDOW_SIZE = 300;
 // 反重复源保留的最近发言条数上限。
 const RECENT_REPLIES_KEEP = 8;
 
-//// 判一个应用名是否略过:命中略过片段即不计入焦点与布局 [@busybee 2026-06-13] ////
+//// 判一个应用名是否略过:命中略过片段即不计入焦点与布局 [@x380kkm 2026-06-13] ////
 function shouldSkipApp(appName) {
   if (!appName) {
     return true;
@@ -457,7 +457,7 @@ function shouldSkipApp(appName) {
 }
 //// /判一个应用名是否略过 ////
 
-//// 把窗口标题压短:剥常见浏览器与编辑器后缀再截断 [@busybee 2026-06-13] ////
+//// 把窗口标题压短:剥常见浏览器与编辑器后缀再截断 [@x380kkm 2026-06-13] ////
 function shortenTitle(title) {
   if (!title) {
     return '';
@@ -470,7 +470,7 @@ function shortenTitle(title) {
 }
 //// /把窗口标题压短 ////
 
-//// 把领域事件经 IPC 转发到渲染窗口:发言进气泡与说话态、选定情绪进表情 [@busybee 2026-06-13] ////
+//// 把领域事件经 IPC 转发到渲染窗口:发言进气泡与说话态、选定情绪进表情 [@x380kkm 2026-06-13] ////
 // 情绪连接件订阅发言产物已在 domain 装配;此处补两条把领域事件桥到宠物窗口的转发,死窗口由总线过滤。
 function subscribeRenderForwarders(eventBus, getPetWindow, bubble) {
   // 发言产物:文本进独立气泡窗口,并把说话态切到开,供图片帧与表情联动
@@ -498,7 +498,7 @@ function subscribeRenderForwarders(eventBus, getPetWindow, bubble) {
 }
 //// /把领域事件经 IPC 转发到渲染窗口 ////
 
-//// 从两种发言产物载荷里取出刚说出的话 [@busybee 2026-06-13] ////
+//// 从两种发言产物载荷里取出刚说出的话 [@x380kkm 2026-06-13] ////
 // utterance-session 发 { utterance:{ text } };pet 编排器发 { text }。
 function spokenTextOf(event) {
   if (!event) return '';
@@ -507,7 +507,7 @@ function spokenTextOf(event) {
 }
 //// /从两种发言产物载荷里取出刚说出的话 ////
 
-//// 装配自动化操纵通道:把调度、交互注入、取近期发言、合成与窗口快照接到回环套接字 [@busybee 2026-06-14] ////
+//// 装配自动化操纵通道:把调度、交互注入、取近期发言、合成与窗口快照接到回环套接字 [@x380kkm 2026-06-14] ////
 // 命令与转发事件走回环套接字;选中端口经标准输出一行 JSON 回报(打包 GUI 里标准输出可写而标准输入不可靠)。
 function mountAutomationChannel(platform, perceptionRuntime) {
   runtime.automation = mountAutomation({
@@ -528,7 +528,7 @@ function mountAutomationChannel(platform, perceptionRuntime) {
 }
 //// /装配自动化操纵通道 ////
 
-//// 经 TTS 处理器合成一段语音,回是否有音频与字节数,供自动化断言链路打通 [@busybee 2026-06-14] ////
+//// 经 TTS 处理器合成一段语音,回是否有音频与字节数,供自动化断言链路打通 [@x380kkm 2026-06-14] ////
 async function automationSynthesize(platform, text) {
   const result = await ttsSynthesize({
     speechBackend: platform.speechBackend,
@@ -544,7 +544,7 @@ async function automationSynthesize(platform, text) {
 }
 //// /经 TTS 处理器合成一段语音 ////
 
-//// 把契约目录里仍未被处理器模块注册的通道补齐:窗口控制走窗口表,其余归一成可判定失败 [@busybee 2026-06-13] ////
+//// 把契约目录里仍未被处理器模块注册的通道补齐:窗口控制走窗口表,其余归一成可判定失败 [@x380kkm 2026-06-13] ////
 // 处理器模块已注册角色、模型、TTS、音频、感知、情绪、工具诸通道;此处只补窗口控制与尚无处理器的通道,
 // 再把每个通道桥到 electron 的 ipcMain.handle。register 重复会抛错,故先判定通道是否已注册。
 function registerRemainingIpc(handlers) {
@@ -566,7 +566,7 @@ function registerRemainingIpc(handlers) {
 }
 //// /把契约目录里仍未被处理器模块注册的通道补齐 ////
 
-//// 装配主进程窗口控制的处理器表,均经 platform 工厂建第三方对象 [@busybee 2026-06-13] ////
+//// 装配主进程窗口控制的处理器表,均经 platform 工厂建第三方对象 [@x380kkm 2026-06-13] ////
 // runtime 持有窗口句柄等可变状态;返回按通道名索引的无害 UI 控制处理器。
 function makeWindowHandlers(runtime) {
   return {
@@ -613,7 +613,7 @@ function makeWindowHandlers(runtime) {
 }
 //// /装配主进程窗口控制的处理器表 ////
 
-//// 装配展示与交互处理器所需的窄接口:取窗口句柄、菜单弹出器、存活判断与翻译 [@busybee 2026-06-13] ////
+//// 装配展示与交互处理器所需的窄接口:取窗口句柄、菜单弹出器、存活判断与翻译 [@x380kkm 2026-06-13] ////
 // ui-handlers 经窗口工厂句柄的 send/setSize/openDevTools/close/show/focus 转发,故这里给工厂句柄而非裸窗口;
 // menuPopup 由 tray-factory 用 electron.Menu 造,Menu 第三方类型止于工厂;角色数据初值取激活卡的 data。
 function makeUiHandlerDeps(runtime, global) {
@@ -632,7 +632,7 @@ function makeUiHandlerDeps(runtime, global) {
 }
 //// /装配展示与交互处理器所需的窄接口 ////
 
-//// 建桌宠主窗口加载 desktop-pet.html,已在则聚焦 [@busybee 2026-06-13] ////
+//// 建桌宠主窗口加载 desktop-pet.html,已在则聚焦 [@x380kkm 2026-06-13] ////
 // 透明无边覆盖窗,置顶到屏保层,关闭时清空句柄;窗口经 platform 工厂创建,第三方类型不外泄。
 function ensurePetWindow(runtime) {
   if (windowFactory.isAlive(runtime.petWindow)) { runtime.petWindow.focus(); return runtime.petWindow; }
@@ -658,7 +658,7 @@ const BUBBLE_GAP = 8;
 const BUBBLE_INIT_WIDTH = 260;
 const BUBBLE_INIT_HEIGHT = 90;
 
-//// 建独立对话气泡窗口加载 pet-chat-bubble.html:透明无边、置顶、不抢焦点、初始隐藏 [@busybee 2026-06-14] ////
+//// 建独立对话气泡窗口加载 pet-chat-bubble.html:透明无边、置顶、不抢焦点、初始隐藏 [@x380kkm 2026-06-14] ////
 // 气泡是独立窗口,浮在桌宠上方;随桌宠启动而建、随关闭而销毁。
 function ensureChatBubbleWindow(runtime) {
   if (windowFactory.isAlive(runtime.chatBubbleWindow)) { return runtime.chatBubbleWindow; }
@@ -676,7 +676,7 @@ function ensureChatBubbleWindow(runtime) {
 }
 //// /建独立对话气泡窗口 ////
 
-//// 造气泡控制器:把气泡窗口的「建窗、显示发言、改尺寸、隐藏」收成几个动作,定位与就绪排队逻辑只此一处 [@busybee 2026-06-14] ////
+//// 造气泡控制器:把气泡窗口的「建窗、显示发言、改尺寸、隐藏」收成几个动作,定位与就绪排队逻辑只此一处 [@x380kkm 2026-06-14] ////
 // 气泡始终浮在桌宠正上方、水平居中;显示发言时先按当前尺寸定位再推文本,渲染侧量好文本后经 resize 重定尺寸与位置。
 // 渲染未就绪(窗口刚建、还没订阅消息通道)时,先把最新一条发言存住,等 ready-to-show 再补发,避免发言早于订阅而丢失。
 function makeBubbleController(runtime) {
@@ -738,7 +738,7 @@ const MOD_FRONTEND_GAP = 8;
 const MOD_FRONTEND_INIT_WIDTH = 280;
 const MOD_FRONTEND_INIT_HEIGHT = 200;
 
-//// 建独立 mod 前端窗口加载 mod-frontend.html:透明无边、置顶、可交互、初始隐藏 [@busybee 2026-06-14] ////
+//// 建独立 mod 前端窗口加载 mod-frontend.html:透明无边、置顶、可交互、初始隐藏 [@x380kkm 2026-06-14] ////
 // 与气泡窗口并列的第二个表达区占用者,承载 mod 前端;它须能获焦点(气泡不可),供用户点击交互。
 function ensureModFrontendWindow(runtime) {
   if (windowFactory.isAlive(runtime.modFrontendWindow)) { return runtime.modFrontendWindow; }
@@ -756,7 +756,7 @@ function ensureModFrontendWindow(runtime) {
 }
 //// /建独立 mod 前端窗口 ////
 
-//// 造 mod 前端控制器:把 mod 前端窗口的建窗、挂载、改尺寸、隐藏收成几个动作,定位与就绪排队只此一处 [@busybee 2026-06-14] ////
+//// 造 mod 前端控制器:把 mod 前端窗口的建窗、挂载、改尺寸、隐藏收成几个动作,定位与就绪排队只此一处 [@x380kkm 2026-06-14] ////
 // mod 前端浮在桌宠正上方、水平居中(与气泡同位,同一时刻至多一个占主导由主进程仲裁保证);
 // 渲染未就绪时把最新一次挂载存住,等 ready-to-show 再补发。挂载内容(纯数据模板或 iframe 沙箱前端)由 mod 承载器渲染。
 function makeModFrontendController(runtime) {
@@ -812,7 +812,7 @@ function makeModFrontendController(runtime) {
 }
 //// /造 mod 前端控制器 ////
 
-//// 把生成器产出的前端规格转成 mod 承载器认的沙箱形态:运行期生成即执行的前端一律沙箱化 [@busybee 2026-06-14] ////
+//// 把生成器产出的前端规格转成 mod 承载器认的沙箱形态:运行期生成即执行的前端一律沙箱化 [@x380kkm 2026-06-14] ////
 // 生成器产出 { html, css, js };承载器认 { kind:'sandboxed', srcdoc }。已是沙箱形状则原样返回。
 function generatedFrontendToSandbox(spec) {
   if (!spec) return { kind: 'sandboxed', srcdoc: '' };
@@ -823,7 +823,7 @@ function generatedFrontendToSandbox(spec) {
 }
 //// /把生成器产出的前端规格转成沙箱形态 ////
 
-//// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@busybee 2026-06-13] ////
+//// 包 child_process.execFile 成安装器期待的 runCommand:成功 resolve、失败 reject [@x380kkm 2026-06-13] ////
 // 第三方进程调用在此一处适配;安装器只见 (cmd, args, options) => Promise 这一窄接口。
 function runCommand(cmd, args, options) {
   return new Promise((resolve, reject) => {
@@ -838,7 +838,7 @@ function runCommand(cmd, args, options) {
 // 当前界面语言的显式载体,语言据全局配置在就绪期设定。
 const languageState = new LanguageState({ table: I18N });
 
-//// 取一个翻译串:据当前语言查表,未命中逐级回退 [@busybee 2026-06-13] ////
+//// 取一个翻译串:据当前语言查表,未命中逐级回退 [@x380kkm 2026-06-13] ////
 function mt(key) {
   return languageState.mt(key);
 }
@@ -858,7 +858,7 @@ const runtime = {
   automation: null
 };
 
-//// 在 app 就绪后完成依赖 app 的装配,建窗与托盘,注册 IPC [@busybee 2026-06-13] ////
+//// 在 app 就绪后完成依赖 app 的装配,建窗与托盘,注册 IPC [@x380kkm 2026-06-13] ////
 app.whenReady().then(async () => {
   const platform = assemblePlatform();
   runtime.platform = platform;
@@ -1000,7 +1000,7 @@ app.whenReady().then(async () => {
 });
 //// /在 app 就绪后完成依赖 app 的装配 ////
 
-//// 读激活角色卡:从 assets/prompts 下按激活 id 取卡,缺失返回空 [@busybee 2026-06-13] ////
+//// 读激活角色卡:从 assets/prompts 下按激活 id 取卡,缺失返回空 [@x380kkm 2026-06-13] ////
 // 人格只读卡的 data 段;卡文件先查用户数据目录,缺省回退到内置卡目录。
 async function loadActiveCard(platform, global) {
   const id = global.activeCharacterId;
@@ -1014,7 +1014,7 @@ async function loadActiveCard(platform, global) {
 }
 //// /读激活角色卡 ////
 
-//// 装配 IPC 处理器所需的全部窄接口与门面,交给处理器装配模块 [@busybee 2026-06-13] ////
+//// 装配 IPC 处理器所需的全部窄接口与门面,交给处理器装配模块 [@x380kkm 2026-06-13] ////
 // 第三方门面(fs、path、dialog、shell、app)在此就地注入;窗口取值返回裸 BrowserWindow 供转发判存活。
 function makeHandlerDeps(platform, global) {
   return {
@@ -1054,7 +1054,7 @@ function makeHandlerDeps(platform, global) {
 }
 //// /装配 IPC 处理器所需的全部窄接口与门面 ////
 
-//// 角色卡文件存储窄接口:卡文件落在用户数据目录的 characters 下,异步读写 [@busybee 2026-06-13] ////
+//// 角色卡文件存储窄接口:卡文件落在用户数据目录的 characters 下,异步读写 [@x380kkm 2026-06-13] ////
 function makeCardStore(platform) {
   const dir = () => path.join(platform.pathUtils.userDataDir(), 'characters');
   const file = (id) => path.join(dir(), `${id}.json`);
@@ -1085,7 +1085,7 @@ function makeCardStore(platform) {
 }
 //// /角色卡文件存储窄接口 ////
 
-//// 内置卡源:从 assets/prompts 读出厂卡,版本经用户数据目录里的标记文件记 [@busybee 2026-06-13] ////
+//// 内置卡源:从 assets/prompts 读出厂卡,版本经用户数据目录里的标记文件记 [@x380kkm 2026-06-13] ////
 function makeBundledCards(platform, global) {
   const promptsDir = path.join(__dirname, 'assets', 'prompts');
   const versionFile = path.join(platform.pathUtils.userDataDir(), 'bundled-cards-version.txt');
@@ -1106,7 +1106,7 @@ function makeBundledCards(platform, global) {
 }
 //// /内置卡源 ////
 
-//// 文件选择框窄接口:包 electron.dialog 的目录与文件选择,产出平直 { canceled, paths } [@busybee 2026-06-13] ////
+//// 文件选择框窄接口:包 electron.dialog 的目录与文件选择,产出平直 { canceled, paths } [@x380kkm 2026-06-13] ////
 function makePicker() {
   return {
     async pickDirectory(opts) {
@@ -1119,7 +1119,7 @@ function makePicker() {
 }
 //// /文件选择框窄接口 ////
 
-//// 选若干文件并读出其文本内容:供角色卡导入,取消返回空数组 [@busybee 2026-06-13] ////
+//// 选若干文件并读出其文本内容:供角色卡导入,取消返回空数组 [@x380kkm 2026-06-13] ////
 async function chooseFiles(opts) {
   const result = await electron.dialog.showOpenDialog({ filters: opts && opts.filters, properties: ['openFile', 'multiSelections'] });
   if (result.canceled || !result.filePaths || result.filePaths.length === 0) return [];
@@ -1131,7 +1131,7 @@ async function chooseFiles(opts) {
 }
 //// /选若干文件并读出其文本内容 ////
 
-//// 文件系统门面:模型处理器期待的异步文件接口加同步纯路径助手 [@busybee 2026-06-13] ////
+//// 文件系统门面:模型处理器期待的异步文件接口加同步纯路径助手 [@x380kkm 2026-06-13] ////
 function makeFilesFacade() {
   return {
     join: (...parts) => path.join(...parts),
@@ -1151,7 +1151,7 @@ function makeFilesFacade() {
 }
 //// /文件系统门面 ////
 
-//// 增强数据存储:经仓储读写一份 enhance 数据,网关执行体据此落盘 [@busybee 2026-06-13] ////
+//// 增强数据存储:经仓储读写一份 enhance 数据,网关执行体据此落盘 [@x380kkm 2026-06-13] ////
 function makeEnhanceStore(platform) {
   return {
     async save(data) { await platform.repository.put('enhance-data', data); return { success: true }; },
@@ -1160,25 +1160,25 @@ function makeEnhanceStore(platform) {
 }
 //// /增强数据存储 ////
 
-//// 取裸宠物窗口供转发判存活,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+//// 取裸宠物窗口供转发判存活,窗口未建或已毁返回 null [@x380kkm 2026-06-13] ////
 function petWindowRaw(rt) {
   return windowFactory.isAlive(rt.petWindow) ? rt.petWindow._raw : null;
 }
 //// /取裸宠物窗口供转发判存活 ////
 
-//// 取裸设置窗口供转发判存活,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+//// 取裸设置窗口供转发判存活,窗口未建或已毁返回 null [@x380kkm 2026-06-13] ////
 function settingsWindowRaw(rt) {
   return windowFactory.isAlive(rt.settingsWindow) ? rt.settingsWindow._raw : null;
 }
 //// /取裸设置窗口供转发判存活 ////
 
-//// 取宠物窗口在屏幕上的边界供 petPosition 源,窗口未建或已毁返回 null [@busybee 2026-06-13] ////
+//// 取宠物窗口在屏幕上的边界供 petPosition 源,窗口未建或已毁返回 null [@x380kkm 2026-06-13] ////
 function petBounds(rt) {
   return windowFactory.isAlive(rt.petWindow) ? rt.petWindow.getBounds() : null;
 }
 //// /取宠物窗口边界供 petPosition 源 ////
 
-//// 算 voicevox 资源根:优先用户数据目录,缺省回退安装目录,均无返回 null [@busybee 2026-06-13] ////
+//// 算 voicevox 资源根:优先用户数据目录,缺省回退安装目录,均无返回 null [@x380kkm 2026-06-13] ////
 function resolveVoicevoxDir(platform) {
   const userDir = path.join(platform.pathUtils.userDataDir(), 'voicevox_core');
   const fallbackDir = path.join(__dirname, 'voicevox_core');
@@ -1188,14 +1188,14 @@ function resolveVoicevoxDir(platform) {
 }
 //// /算 voicevox 资源根 ////
 
-//// 判定一个外发地址是合法 http/https 链接,供工具执行器门控外链 [@busybee 2026-06-13] ////
+//// 判定一个外发地址是合法 http/https 链接,供工具执行器门控外链 [@x380kkm 2026-06-13] ////
 function isValidHttpUrl(url) {
   try { const u = new URL(url); return u.protocol === 'http:' || u.protocol === 'https:'; }
   catch { return false; }
 }
 //// /判定一个外发地址是合法 http/https 链接 ////
 
-//// 在不阻塞就绪的前提下初始化语音后端,缺运行时文件则保持禁用 [@busybee 2026-06-13] ////
+//// 在不阻塞就绪的前提下初始化语音后端,缺运行时文件则保持禁用 [@x380kkm 2026-06-13] ////
 function initSpeechBackend(platform) {
   setImmediate(() => {
     const dir = resolveVoicevoxDir(platform);
@@ -1209,13 +1209,13 @@ function initSpeechBackend(platform) {
 }
 //// /在不阻塞就绪的前提下初始化语音后端 ////
 
-//// 全窗关闭时若无托盘常驻则退出,macOS 例外 [@busybee 2026-06-13] ////
+//// 全窗关闭时若无托盘常驻则退出,macOS 例外 [@x380kkm 2026-06-13] ////
 app.on('window-all-closed', () => {
   if (runtime.tray) return;
   if (process.platform !== 'darwin') app.quit();
 });
 
-//// 退出前让有状态子系统优雅关闭:落盘记忆、释放语音后端句柄 [@busybee 2026-06-13] ////
+//// 退出前让有状态子系统优雅关闭:落盘记忆、释放语音后端句柄 [@x380kkm 2026-06-13] ////
 app.on('before-quit', async (event) => {
   runtime.isQuitting = true;
   if (runtime._shutdownDone || !runtime.domain) return;

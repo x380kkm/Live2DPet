@@ -7,7 +7,7 @@ const { createWindow, isAlive } = require('../../../src/platform/electron/window
 const { createMenuPopup } = require('../../../src/platform/electron/tray-factory');
 const { registerUiHandlers, RENDER_CHANNEL, PET_SIZES } = require('../../../src/platform/ipc/handlers/ui-handlers');
 
-// 造一个记录调用、可标记销毁的假 BrowserWindow 类,代替真实 electron 类型 [@busybee 2026-06-13]
+// 造一个记录调用、可标记销毁的假 BrowserWindow 类,代替真实 electron 类型 [@x380kkm 2026-06-13]
 function makeFakeBrowserWindowClass() {
   const instances = [];
   class FakeBrowserWindow {
@@ -28,7 +28,7 @@ function makeFakeBrowserWindowClass() {
   return { FakeBrowserWindow, instances };
 }
 
-// 造一个记录弹出模板与目标的假 Menu 类,经真实 createMenuPopup 包装 [@busybee 2026-06-13]
+// 造一个记录弹出模板与目标的假 Menu 类,经真实 createMenuPopup 包装 [@x380kkm 2026-06-13]
 function makeMenuPopup() {
   const popped = [];
   const Menu = {
@@ -39,7 +39,7 @@ function makeMenuPopup() {
   return { popup: createMenuPopup({ Menu }), popped };
 }
 
-// 把真实 router、真实窗口工厂与菜单工厂装好,注入取窗口的取值函数与翻译 [@busybee 2026-06-13]
+// 把真实 router、真实窗口工厂与菜单工厂装好,注入取窗口的取值函数与翻译 [@x380kkm 2026-06-13]
 function setup(opts = {}) {
   router.reset();
   const { FakeBrowserWindow, instances } = makeFakeBrowserWindowClass();
@@ -68,7 +68,7 @@ function setup(opts = {}) {
   return { pet, settings, menu, created, instances, bubble };
 }
 
-// 取一个窗口句柄底层假实例,断言其推送与调用 [@busybee 2026-06-13]
+// 取一个窗口句柄底层假实例,断言其推送与调用 [@x380kkm 2026-06-13]
 function rawOf(handle) {
   return handle._raw;
 }

@@ -8,10 +8,10 @@
 // configStore 给出配置读写,appInfo 给出应用路径,enhanceStore 给出增强数据读写,
 // logSink 接收渲染侧日志,scope 为门控作用域标识。
 
-//// 配置保存后对外发布的领域事件类型:订阅方据此热重载 [@busybee 2026-06-13] ////
+//// 配置保存后对外发布的领域事件类型:订阅方据此热重载 [@x380kkm 2026-06-13] ////
 const CONFIG_SAVED = 'ConfigSaved';
 
-//// 装配协作者并把工具通道注册到 ipc-router [@busybee 2026-06-13] ////
+//// 装配协作者并把工具通道注册到 ipc-router [@x380kkm 2026-06-13] ////
 function registerUtilHandlers(deps) {
   const { router } = deps;
   registerConfigChannels(router, deps);
@@ -21,7 +21,7 @@ function registerUtilHandlers(deps) {
 }
 //// /装配协作者 ////
 
-//// 配置读写:读直放,写落盘后把保存事件发上总线供订阅方热重载 [@busybee 2026-06-13] ////
+//// 配置读写:读直放,写落盘后把保存事件发上总线供订阅方热重载 [@x380kkm 2026-06-13] ////
 function registerConfigChannels(router, deps) {
   const { configStore, bus } = deps;
 
@@ -35,7 +35,7 @@ function registerConfigChannels(router, deps) {
 }
 //// /配置读写 ////
 
-//// 系统信息与渲染日志:应用路径、性别称谓、渲染侧日志按级别落到日志槽 [@busybee 2026-06-13] ////
+//// 系统信息与渲染日志:应用路径、性别称谓、渲染侧日志按级别落到日志槽 [@x380kkm 2026-06-13] ////
 function registerSystemChannels(router, deps) {
   const { appInfo, logSink } = deps;
 
@@ -51,7 +51,7 @@ function registerSystemChannels(router, deps) {
 }
 //// /系统信息与渲染日志 ////
 
-//// 外发:打开外链与网络搜索均为外发重能力,经网关门控后委托执行 [@busybee 2026-06-13] ////
+//// 外发:打开外链与网络搜索均为外发重能力,经网关门控后委托执行 [@x380kkm 2026-06-13] ////
 function registerOutboundChannels(router, deps) {
   const { gateway } = deps;
   const scope = deps.scope || 'util';
@@ -64,7 +64,7 @@ function registerOutboundChannels(router, deps) {
 }
 //// /外发 ////
 
-//// 文件:增强数据读写为文件重能力,经网关门控后委托执行 [@busybee 2026-06-13] ////
+//// 文件:增强数据读写为文件重能力,经网关门控后委托执行 [@x380kkm 2026-06-13] ////
 function registerFileChannels(router, deps) {
   const { gateway } = deps;
   const scope = deps.scope || 'util';
@@ -77,7 +77,7 @@ function registerFileChannels(router, deps) {
 }
 //// /文件 ////
 
-//// 造一个把外发与文件能力 id 派发到具体源的执行器,交网关在门控通过后调用 [@busybee 2026-06-13] ////
+//// 造一个把外发与文件能力 id 派发到具体源的执行器,交网关在门控通过后调用 [@x380kkm 2026-06-13] ////
 // 一处 switch 收敛 capabilityId 到外链、搜索与增强数据读写。
 function makeUtilExecutor(deps) {
   const { shell, searchSource, enhanceStore, isValidUrl } = deps;

@@ -5,7 +5,7 @@ const assert = require('node:assert');
 const { ModelRouter } = require('../../src/platform/llm/model-router');
 const { StepModelConfig } = require('../../src/platform/llm/step-model-config');
 
-//// 造一个记录自己配置与收到请求的假客户端 [@busybee 2026-06-13] ////
+//// 造一个记录自己配置与收到请求的假客户端 [@x380kkm 2026-06-13] ////
 function fakeClient(cfg) {
   return {
     cfg,

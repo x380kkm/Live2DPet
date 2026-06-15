@@ -8,7 +8,7 @@
 
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
-//// 缺省模式标签:中性占位,成品措辞由调用方按语言注入 [@busybee 2026-06-13] ////
+//// 缺省模式标签:中性占位,成品措辞由调用方按语言注入 [@x380kkm 2026-06-13] ////
 function defaultLabels() {
   return {
     shell: '近期回复重复:{0}',
@@ -24,7 +24,7 @@ function defaultLabels() {
 //// /缺省模式标签 ////
 
 class RecentRepliesSource extends ContextSource {
-  //// 构造注入近期回复源与可覆盖的标识、优先级、检测窗、标签 [@busybee 2026-06-13] ////
+  //// 构造注入近期回复源与可覆盖的标识、优先级、检测窗、标签 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.recentRepliesProvider = deps.recentRepliesProvider;
@@ -48,7 +48,7 @@ class RecentRepliesSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取最近回复检出重复句式,折成反重复提示;无回复或无模式返回 null [@busybee 2026-06-13] ////
+  //// 取最近回复检出重复句式,折成反重复提示;无回复或无模式返回 null [@x380kkm 2026-06-13] ////
   render() {
     const replies = this._recentReplies();
     if (replies.length < 2) {
@@ -62,7 +62,7 @@ class RecentRepliesSource extends ContextSource {
   }
   //// /取最近回复检出重复句式 ////
 
-  //// 检出反复发问、开头结尾雷同、长度雷同、叹号省略号过多等重复模式 [@busybee 2026-06-13] ////
+  //// 检出反复发问、开头结尾雷同、长度雷同、叹号省略号过多等重复模式 [@x380kkm 2026-06-13] ////
   _detectPatterns(replies) {
     const patterns = [];
 
@@ -105,7 +105,7 @@ class RecentRepliesSource extends ContextSource {
   }
   //// /检出反复发问、开头结尾雷同、长度雷同、叹号省略号过多等重复模式 ////
 
-  //// 取最近回复文本数组,滤掉非字符串项 [@busybee 2026-06-13] ////
+  //// 取最近回复文本数组,滤掉非字符串项 [@x380kkm 2026-06-13] ////
   _recentReplies() {
     if (typeof this.recentRepliesProvider !== 'function') {
       return [];

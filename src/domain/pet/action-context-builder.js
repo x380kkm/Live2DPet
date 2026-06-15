@@ -5,7 +5,7 @@
 
 const { ContextAssembler } = require('./context-source');
 
-//// 按意图的源引用从源数组取出对应源,意图为空时取全部源 [@busybee 2026-06-14] ////
+//// 按意图的源引用从源数组取出对应源,意图为空时取全部源 [@x380kkm 2026-06-14] ////
 function collectSources(sources, intent) {
   if (!intent) {
     return sources.slice();
@@ -23,7 +23,7 @@ function collectSources(sources, intent) {
 }
 //// /按意图的源引用取出对应源 ////
 
-//// 造一个上下文构造函数:收集源、组装、回拼好的上下文文本 [@busybee 2026-06-14] ////
+//// 造一个上下文构造函数:收集源、组装、回拼好的上下文文本 [@x380kkm 2026-06-14] ////
 // sources 为命名上下文源数组;budget 为 token 预算上限;assembler 缺省用默认 ContextAssembler。
 function makeContextBuilder({ sources, assembler, budget } = {}) {
   const list = Array.isArray(sources) ? sources : [];

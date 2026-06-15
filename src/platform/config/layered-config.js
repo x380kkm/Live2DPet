@@ -37,17 +37,17 @@ const KEY_FLOOR = {
 const DEFAULT_FLOOR = 'character';
 
 class ScopeResolver {
-  //// 构造注入一份已解析的三层快照 [@busybee 2026-06-13] ////
+  //// 构造注入一份已解析的三层快照 [@x380kkm 2026-06-13] ////
   constructor(resolvedScope) {
     this.scope = resolvedScope;
   }
 
-  //// 返回某键允许下沉到的最低层 [@busybee 2026-06-13] ////
+  //// 返回某键允许下沉到的最低层 [@x380kkm 2026-06-13] ////
   lockedLayer(key) {
     return KEY_FLOOR[key] || DEFAULT_FLOOR;
   }
 
-  //// 就近覆盖向上回退取键值,低于 floor 的层无效 [@busybee 2026-06-13] ////
+  //// 就近覆盖向上回退取键值,低于 floor 的层无效 [@x380kkm 2026-06-13] ////
   resolve(key, characterId, intentId) {
     const floor = this.lockedLayer(key);
     const floorDepth = LAYER_DEPTH[floor];

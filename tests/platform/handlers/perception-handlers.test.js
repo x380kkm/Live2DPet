@@ -6,7 +6,7 @@ const router = require('../../../src/platform/ipc/ipc-router');
 const gateway = require('../../../src/platform/ipc/capability-gateway');
 const { registerPerceptionHandlers, makePerceptionExecutor } = require('../../../src/platform/ipc/handlers/perception-handlers');
 
-// 造记录调用的假屏幕源:captureScreen 回显入参,idleTime 给定值 [@busybee 2026-06-13]
+// 造记录调用的假屏幕源:captureScreen 回显入参,idleTime 给定值 [@x380kkm 2026-06-13]
 function makeScreenSource(idle) {
   const calls = [];
   return {
@@ -18,7 +18,7 @@ function makeScreenSource(idle) {
   };
 }
 
-// 造记录调用的假活动窗口查询器 [@busybee 2026-06-13]
+// 造记录调用的假活动窗口查询器 [@x380kkm 2026-06-13]
 function makeActiveWindow() {
   return {
     activeWindow: {
@@ -28,7 +28,7 @@ function makeActiveWindow() {
   };
 }
 
-// 把真实 router 与真实网关装好,网关用自动确认并以感知执行器作执行体 [@busybee 2026-06-13]
+// 把真实 router 与真实网关装好,网关用自动确认并以感知执行器作执行体 [@x380kkm 2026-06-13]
 function setup({ idle = 7 } = {}) {
   router.reset();
   const { screenSource, calls } = makeScreenSource(idle);

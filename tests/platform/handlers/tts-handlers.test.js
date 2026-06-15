@@ -10,7 +10,7 @@ const { TtsOrchestrator } = require('../../../src/domain/tts/tts-orchestrator');
 
 const WAV_HEADER_BYTES = 44;
 
-//// 造一个含可算时长的最小 WAV:24kHz 单声道 16 位,PCM 字节用 0xab 填 [@busybee 2026-06-13] ////
+//// 造一个含可算时长的最小 WAV:24kHz 单声道 16 位,PCM 字节用 0xab 填 [@x380kkm 2026-06-13] ////
 function makeWav(pcmLen) {
   const buf = Buffer.alloc(WAV_HEADER_BYTES + pcmLen);
   buf.writeUInt16LE(1, 22);
@@ -21,7 +21,7 @@ function makeWav(pcmLen) {
   return buf;
 }
 
-//// 造一个可控可用性、记录合成调用的后端模拟 [@busybee 2026-06-13] ////
+//// 造一个可控可用性、记录合成调用的后端模拟 [@x380kkm 2026-06-13] ////
 function makeBackend(overrides = {}) {
   return {
     initialized: true,
@@ -41,7 +41,7 @@ function makeBackend(overrides = {}) {
   };
 }
 
-//// 造一个内存配置存储模拟,记录最后写入的值 [@busybee 2026-06-13] ////
+//// 造一个内存配置存储模拟,记录最后写入的值 [@x380kkm 2026-06-13] ////
 function makeConfigStore(initial = {}) {
   const state = { global: initial };
   return {
@@ -51,7 +51,7 @@ function makeConfigStore(initial = {}) {
   };
 }
 
-//// 装配一份 deps,绑定真实编排器,注册前先复位 router [@busybee 2026-06-13] ////
+//// 装配一份 deps,绑定真实编排器,注册前先复位 router [@x380kkm 2026-06-13] ////
 function setup(overrides = {}) {
   router.reset();
   const backend = overrides.backend || makeBackend();
@@ -76,7 +76,7 @@ function setup(overrides = {}) {
   return { deps, backend, installer };
 }
 
-//// 合成经译者转日语、经编排器拼接,产出 base64 的 WAV 与日语文本 [@busybee 2026-06-13] ////
+//// 合成经译者转日语、经编排器拼接,产出 base64 的 WAV 与日语文本 [@x380kkm 2026-06-13] ////
 test('tts-synthesize translates and returns base64 wav', async () => {
   const calls = [];
   setup({ translate: async (t) => { calls.push(t); return `JA:${t}`; } });
@@ -88,7 +88,7 @@ test('tts-synthesize translates and returns base64 wav', async () => {
   assert.deepStrictEqual(calls, ['你好']);
 });
 
-//// 后端不可用时合成安全失败 [@busybee 2026-06-13] ////
+//// 后端不可用时合成安全失败 [@x380kkm 2026-06-13] ////
 test('tts-synthesize fails safely when backend unavailable', async () => {
   setup({ backend: makeBackend({ available: false }) });
   const result = await router.dispatch('tts-synthesize', '你好');
@@ -96,7 +96,7 @@ test('tts-synthesize fails safely when backend unavailable', async () => {
   assert.match(result.error, /not available/);
 });
 
-//// 无译者时直接用原文合成 [@busybee 2026-06-13] ////
+//// 无译者时直接用原文合成 [@x380kkm 2026-06-13] ////
 test('tts-synthesize uses raw text when no translator injected', async () => {
   setup();
   const result = await router.dispatch('tts-synthesize', 'こんにちは');
@@ -104,7 +104,7 @@ test('tts-synthesize uses raw text when no translator injected', async () => {
   assert.strictEqual(result.jaText, 'こんにちは');
 });
 
-//// 状态汇报初始化、可用、风格与译者就绪 [@busybee 2026-06-13] ////
+//// 状态汇报初始化、可用、风格与译者就绪 [@x380kkm 2026-06-13] ////
 test('tts-get-status reports backend and translator readiness', async () => {
   setup({ translate: async (t) => t });
   const result = await router.dispatch('tts-get-status', null);
@@ -113,7 +113,7 @@ test('tts-get-status reports backend and translator readiness', async () => {
   assert.strictEqual(result.translationConfigured, true);
 });
 
-//// 设置配置写入后端并持久化到全局配置的 tts 段 [@busybee 2026-06-13] ////
+//// 设置配置写入后端并持久化到全局配置的 tts 段 [@x380kkm 2026-06-13] ////
 test('tts-set-config applies to backend and persists to config', async () => {
   const configStore = makeConfigStore({ apiKey: 'k' });
   const { backend } = setup({ configStore });
@@ -126,7 +126,7 @@ test('tts-set-config applies to backend and persists to config', async () => {
   assert.strictEqual(configStore.state.global.apiKey, 'k');
 });
 
-//// 重启按持久化配置重新初始化后端 [@busybee 2026-06-13] ////
+//// 重启按持久化配置重新初始化后端 [@x380kkm 2026-06-13] ////
 test('tts-restart disposes then re-inits from persisted config', async () => {
   const configStore = makeConfigStore({ tts: { gpuMode: true, vvmFiles: ['0.vvm'] } });
   let initArgs = null;
@@ -140,7 +140,7 @@ test('tts-restart disposes then re-inits from persisted config', async () => {
   assert.strictEqual(initArgs.opts.gpuMode, true);
 });
 
-//// 资源目录缺失时重启报错 [@busybee 2026-06-13] ////
+//// 资源目录缺失时重启报错 [@x380kkm 2026-06-13] ////
 test('tts-restart errors when voicevox dir is missing', async () => {
   setup({ fs: { existsSync: () => false } });
   const result = await router.dispatch('tts-restart', null);
@@ -148,14 +148,14 @@ test('tts-restart errors when voicevox dir is missing', async () => {
   assert.match(result.error, /not found/);
 });
 
-//// 元数据与可用模型列举委托给后端 [@busybee 2026-06-13] ////
+//// 元数据与可用模型列举委托给后端 [@x380kkm 2026-06-13] ////
 test('tts-get-metas and tts-get-available-vvms delegate to backend', async () => {
   setup();
   assert.deepStrictEqual(await router.dispatch('tts-get-metas', null), [{ name: 'meta' }]);
   assert.deepStrictEqual(await router.dispatch('tts-get-available-vvms', null), ['0.vvm']);
 });
 
-//// 下载模型委托给安装器并带上资源根 [@busybee 2026-06-13] ////
+//// 下载模型委托给安装器并带上资源根 [@x380kkm 2026-06-13] ////
 test('download-vvm delegates to installer with resolved dir', async () => {
   const calls = [];
   const installer = {
@@ -168,7 +168,7 @@ test('download-vvm delegates to installer with resolved dir', async () => {
   assert.deepStrictEqual(calls, [{ dir: '/vv', filename: '8.vvm' }]);
 });
 
-//// 安装委托给安装器并传入进度上报回调 [@busybee 2026-06-13] ////
+//// 安装委托给安装器并传入进度上报回调 [@x380kkm 2026-06-13] ////
 test('setup-voicevox delegates to installer with progress notifier', async () => {
   let gotNotify = null;
   const installer = {
@@ -183,7 +183,7 @@ test('setup-voicevox delegates to installer with progress notifier', async () =>
   assert.strictEqual(gotNotify.notify, notifyProgress);
 });
 
-//// 重启应用通道触发注入的 relaunch [@busybee 2026-06-13] ////
+//// 重启应用通道触发注入的 relaunch [@x380kkm 2026-06-13] ////
 test('app-relaunch invokes the injected relaunch', async () => {
   let relaunched = false;
   setup({ relaunch: () => { relaunched = true; } });

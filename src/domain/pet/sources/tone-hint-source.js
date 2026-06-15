@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class ToneHintSource extends ContextSource {
-  //// 构造注入情绪取数函数与可覆盖的标识、优先级、标签模板 [@busybee 2026-06-13] ////
+  //// 构造注入情绪取数函数与可覆盖的标识、优先级、标签模板 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.toneProvider = deps.toneProvider;
@@ -32,7 +32,7 @@ class ToneHintSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取下一句话预定情绪代入标签模板;无预定情绪返回 null [@busybee 2026-06-13] ////
+  //// 取下一句话预定情绪代入标签模板;无预定情绪返回 null [@x380kkm 2026-06-13] ////
   render(scope) {
     const emotion = this._nextEmotion(scope);
     if (!emotion) {
@@ -42,7 +42,7 @@ class ToneHintSource extends ContextSource {
   }
   //// /取下一句话预定情绪代入标签模板 ////
 
-  //// 取下一句话情绪标签:优先注入的取数函数,退而取作用域字段;不是非空字符串时返回 null [@busybee 2026-06-13] ////
+  //// 取下一句话情绪标签:优先注入的取数函数,退而取作用域字段;不是非空字符串时返回 null [@x380kkm 2026-06-13] ////
   _nextEmotion(scope) {
     let value = null;
     if (typeof this.toneProvider === 'function') {

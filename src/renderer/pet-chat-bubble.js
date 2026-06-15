@@ -22,7 +22,7 @@ class PetChatBubble {
         this.setupEventListeners();
     }
 
-    //// 读配置:给了自定义边框图就切到 framed 模式用整图作框,否则保持 CSS 原生气泡 [@busybee 2026-06-14] ////
+    //// 读配置:给了自定义边框图就切到 framed 模式用整图作框,否则保持 CSS 原生气泡 [@x380kkm 2026-06-14] ////
     async loadBubbleFrame() {
         try {
             if (this.config.loadConfig) {
@@ -39,14 +39,14 @@ class PetChatBubble {
         }
     }
 
-    //// 订阅气泡消息通道,收到即显示 [@busybee 2026-06-14] ////
+    //// 订阅气泡消息通道,收到即显示 [@x380kkm 2026-06-14] ////
     setupEventListeners() {
         if (this.events.onChatBubbleMessage) {
             this.events.onChatBubbleMessage((data) => this.showMessage(data.message, data.autoCloseTime));
         }
     }
 
-    //// 显示一条发言:写文本、量尺寸、淡入,到时淡出 [@busybee 2026-06-14] ////
+    //// 显示一条发言:写文本、量尺寸、淡入,到时淡出 [@x380kkm 2026-06-14] ////
     showMessage(message, autoCloseTime = 8000) {
         this.messageElement.textContent = message;
         this.messageElement.classList.remove('text-in');
@@ -62,7 +62,7 @@ class PetChatBubble {
         }
     }
 
-    //// 按文本量算目标宽高,请主进程把气泡窗口改到该尺寸并重定位 [@busybee 2026-06-14] ////
+    //// 按文本量算目标宽高,请主进程把气泡窗口改到该尺寸并重定位 [@x380kkm 2026-06-14] ////
     adjustWindowSize() {
         const textEl = this.messageElement;
         if (!textEl) return;
@@ -78,7 +78,7 @@ class PetChatBubble {
         });
     }
 
-    //// 淡出动画后请主进程隐藏气泡窗口 [@busybee 2026-06-14] ////
+    //// 淡出动画后请主进程隐藏气泡窗口 [@x380kkm 2026-06-14] ////
     fadeOut() {
         const frame = document.querySelector('.chat-frame');
         frame.classList.add('fade-out');

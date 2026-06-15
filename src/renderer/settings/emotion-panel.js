@@ -5,7 +5,7 @@
 
 import { msToSeconds } from './settings-model.js';
 
-//// 装配情绪标签页的频率、表情、动作三块并绑定到配置数据模型 [@busybee 2026-06-13] ////
+//// 装配情绪标签页的频率、表情、动作三块并绑定到配置数据模型 [@x380kkm 2026-06-13] ////
 export function mountEmotionPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.config;
@@ -22,7 +22,7 @@ export function mountEmotionPanel(ctx) {
   renderExpressionList(ctx);
   renderMotionList(ctx);
 
-  //// 保存表情频率与同时表现开关 [@busybee 2026-06-13] ////
+  //// 保存表情频率与同时表现开关 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-save-emotion-freq').addEventListener('click', async () => {
     config.emotionFrequency = parseInt(doc.getElementById('emotion-frequency').value);
     config.allowSimultaneous = doc.getElementById('allow-simultaneous').checked;
@@ -31,7 +31,7 @@ export function mountEmotionPanel(ctx) {
     showStatus('emotion-status', t('status.saved'), 'success');
   });
 
-  //// 追加一个新表情项到模型并刷新列表 [@busybee 2026-06-13] ////
+  //// 追加一个新表情项到模型并刷新列表 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-add-expr').addEventListener('click', () => {
     const m = model.model();
     if (!m.expressions) m.expressions = [];
@@ -40,7 +40,7 @@ export function mountEmotionPanel(ctx) {
     renderExpressionList(ctx);
   });
 
-  //// 追加一个新动作项到模型并刷新列表 [@busybee 2026-06-13] ////
+  //// 追加一个新动作项到模型并刷新列表 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-add-motion').addEventListener('click', () => {
     const m = model.model();
     if (!m.motionEmotions) m.motionEmotions = [];
@@ -52,7 +52,7 @@ export function mountEmotionPanel(ctx) {
   doc.getElementById('btn-save-expressions').addEventListener('click', () => saveEmotions(ctx));
 }
 
-//// 按模型快照渲染表情列表,缺省时长留空作占位 [@busybee 2026-06-13] ////
+//// 按模型快照渲染表情列表,缺省时长留空作占位 [@x380kkm 2026-06-13] ////
 export function renderExpressionList(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('expression-list');
@@ -85,7 +85,7 @@ export function renderExpressionList(ctx) {
   });
 }
 
-//// 按模型快照渲染动作列表,分组下拉取自扫描结果 [@busybee 2026-06-13] ////
+//// 按模型快照渲染动作列表,分组下拉取自扫描结果 [@x380kkm 2026-06-13] ////
 export function renderMotionList(ctx) {
   const { doc, model, t } = ctx;
   const container = doc.getElementById('motion-list');
@@ -125,7 +125,7 @@ export function renderMotionList(ctx) {
   });
 }
 
-//// 从两份列表 DOM 收集编辑项,经模型并入再落盘并通知情绪系统 [@busybee 2026-06-13] ////
+//// 从两份列表 DOM 收集编辑项,经模型并入再落盘并通知情绪系统 [@x380kkm 2026-06-13] ////
 async function saveEmotions(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const edits = {
@@ -140,7 +140,7 @@ async function saveEmotions(ctx) {
   showStatus('save-emotion-status', t('status.exprSaved'), 'success');
 }
 
-//// 从表情列表 DOM 收集名字、时长、启用,对齐模型里既有的文件名 [@busybee 2026-06-13] ////
+//// 从表情列表 DOM 收集名字、时长、启用,对齐模型里既有的文件名 [@x380kkm 2026-06-13] ////
 function collectExpressionEdits(doc, model) {
   const container = doc.getElementById('expression-list');
   const names = container.querySelectorAll('.expr-name');
@@ -161,7 +161,7 @@ function collectExpressionEdits(doc, model) {
   return edits;
 }
 
-//// 从动作列表 DOM 收集名字、分组、下标、时长、启用 [@busybee 2026-06-13] ////
+//// 从动作列表 DOM 收集名字、分组、下标、时长、启用 [@x380kkm 2026-06-13] ////
 function collectMotionEdits(doc) {
   const container = doc.getElementById('motion-list');
   const names = container.querySelectorAll('.motion-name');

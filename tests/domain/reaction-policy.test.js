@@ -41,7 +41,7 @@ function deferredClient() {
 const event = { type: 'StateReaction', state: 'active', from: 'idle', input: 'wake' };
 const scope = { messages: [{ role: 'user', content: 'q' }] };
 
-//// 事件触发一次 LLM 调用并透传 scope 的消息 [@busybee 2026-06-13] ////
+//// 事件触发一次 LLM 调用并透传 scope 的消息 [@x380kkm 2026-06-13] ////
 test('reactTo makes one bounded LLM call with the scope messages', async () => {
   const client = fakeClient('hi');
   const policy = new ReactionPolicy({ llmClient: client, eventBus: fakeBus() });
@@ -51,7 +51,7 @@ test('reactTo makes one bounded LLM call with the scope messages', async () => {
   assert.deepStrictEqual(client.calls[0], { messages: scope.messages, step: 'reaction' });
 });
 
-//// 成功调用向总线发布带状态与文本的产物事件 [@busybee 2026-06-13] ////
+//// 成功调用向总线发布带状态与文本的产物事件 [@x380kkm 2026-06-13] ////
 test('reactTo publishes a ReactionProduced event on success', async () => {
   const bus = fakeBus();
   const policy = new ReactionPolicy({ llmClient: fakeClient('  你好  '), eventBus: bus });
@@ -60,7 +60,7 @@ test('reactTo publishes a ReactionProduced event on success', async () => {
   assert.deepStrictEqual(bus.published, [{ type: 'ReactionProduced', state: 'active', text: '你好' }]);
 });
 
-//// 空文本不发布产物 [@busybee 2026-06-13] ////
+//// 空文本不发布产物 [@x380kkm 2026-06-13] ////
 test('reactTo does not publish on empty text', async () => {
   const bus = fakeBus();
   const policy = new ReactionPolicy({ llmClient: fakeClient('   '), eventBus: bus });
@@ -70,7 +70,7 @@ test('reactTo does not publish on empty text', async () => {
   assert.strictEqual(bus.published.length, 0);
 });
 
-//// 调用失败不发布产物并透出失败标记 [@busybee 2026-06-13] ////
+//// 调用失败不发布产物并透出失败标记 [@x380kkm 2026-06-13] ////
 test('reactTo does not publish when the call fails', async () => {
   const bus = fakeBus();
   const failing = {
@@ -84,7 +84,7 @@ test('reactTo does not publish when the call fails', async () => {
   assert.strictEqual(bus.published.length, 0);
 });
 
-//// 后发调用作废先前在途的,只有最新一次发布产物 [@busybee 2026-06-13] ////
+//// 后发调用作废先前在途的,只有最新一次发布产物 [@x380kkm 2026-06-13] ////
 test('a later call supersedes an in-flight earlier one', async () => {
   const bus = fakeBus();
   const client = deferredClient();

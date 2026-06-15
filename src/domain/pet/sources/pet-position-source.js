@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class PetPositionSource extends ContextSource {
-  //// 构造注入边界取数函数与可覆盖的标识、优先级、标签模板 [@busybee 2026-06-13] ////
+  //// 构造注入边界取数函数与可覆盖的标识、优先级、标签模板 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.boundsProvider = deps.boundsProvider;
@@ -32,7 +32,7 @@ class PetPositionSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取宠物窗口边界代入标签模板的坐标与尺寸占位符;无边界返回 null [@busybee 2026-06-13] ////
+  //// 取宠物窗口边界代入标签模板的坐标与尺寸占位符;无边界返回 null [@x380kkm 2026-06-13] ////
   render() {
     const bounds = this._bounds();
     if (!bounds) {
@@ -46,7 +46,7 @@ class PetPositionSource extends ContextSource {
   }
   //// /取宠物窗口边界代入标签模板 ////
 
-  //// 取宠物窗口边界:四字段齐备且都为有限数才采纳,否则返回 null [@busybee 2026-06-13] ////
+  //// 取宠物窗口边界:四字段齐备且都为有限数才采纳,否则返回 null [@x380kkm 2026-06-13] ////
   _bounds() {
     if (typeof this.boundsProvider !== 'function') {
       return null;

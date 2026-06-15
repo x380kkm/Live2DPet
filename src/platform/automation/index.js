@@ -14,7 +14,7 @@ const FORWARDED_EVENTS = ['UtteranceProduced', 'UtteranceEnded', 'EmotionSelecte
 // 支持的操作名,随就绪事件回报给驱动方。
 const SUPPORTED_OPS = ['ping', 'schedule-tick', 'inject-interaction', 'fetch-recent-reply', 'trigger-tts', 'list-windows'];
 
-//// 把领域事件压成可安全行化的纯数据摘要:剥掉音频缓冲等大字段 [@busybee 2026-06-14] ////
+//// 把领域事件压成可安全行化的纯数据摘要:剥掉音频缓冲等大字段 [@x380kkm 2026-06-14] ////
 function summarize(event) {
   if (!event || typeof event !== 'object') {
     return event;
@@ -32,7 +32,7 @@ function summarize(event) {
 }
 //// /把领域事件压成纯数据摘要 ////
 
-//// 装配自动化通道:回环套接字接控制器,关键事件转发到连接,返回可停的句柄 [@busybee 2026-06-14] ////
+//// 装配自动化通道:回环套接字接控制器,关键事件转发到连接,返回可停的句柄 [@x380kkm 2026-06-14] ////
 // deps:{ caps(注入控制器的能力), eventBus, host?, announce(端口回报), log }。
 function mountAutomation(deps) {
   const { caps, eventBus, host = '127.0.0.1', announce, log } = deps || {};

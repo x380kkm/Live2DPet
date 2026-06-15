@@ -11,7 +11,7 @@ const DICT_VERSION = '1.11';
 // 单步下载的默认超时毫秒,词典源较慢单独放宽。
 const DOWNLOAD_TIMEOUT_MS = 300000;
 
-//// 声明一项官方资源:下载产物、解压后用于判定是否已装的标志文件、下载与解压步骤 [@busybee 2026-06-13] ////
+//// 声明一项官方资源:下载产物、解压后用于判定是否已装的标志文件、下载与解压步骤 [@x380kkm 2026-06-13] ////
 function resourceCatalog(baseDir, path) {
   const cApiDir = path.join(baseDir, 'c_api');
   const modelsDir = path.join(baseDir, 'models');
@@ -65,7 +65,7 @@ function resourceCatalog(baseDir, path) {
 }
 //// /声明一项官方资源 ////
 
-//// 安装器:把官方资源下载并解压进 voicevox 目录,逐步上报进度 [@busybee 2026-06-13] ////
+//// 安装器:把官方资源下载并解压进 voicevox 目录,逐步上报进度 [@x380kkm 2026-06-13] ////
 class VoicevoxInstaller {
   constructor({ fs, path, runCommand } = {}) {
     this.fs = fs;
@@ -74,7 +74,7 @@ class VoicevoxInstaller {
     this.runCommand = runCommand;
   }
 
-  //// 按某资源的产物地址用 curl 下载,再按解压方式落地 [@busybee 2026-06-13] ////
+  //// 按某资源的产物地址用 curl 下载,再按解压方式落地 [@x380kkm 2026-06-13] ////
   async _downloadArchive(resource) {
     await this.runCommand('curl', ['-L', '-o', resource.archive, resource.url], { timeout: DOWNLOAD_TIMEOUT_MS });
     if (resource.extract === 'zip') {
@@ -87,7 +87,7 @@ class VoicevoxInstaller {
   }
   //// /按某资源的产物地址用 curl 下载 ////
 
-  //// 下载一个语音模型文件到 models 目录,文件名先校验、已存在则跳过 [@busybee 2026-06-13] ////
+  //// 下载一个语音模型文件到 models 目录,文件名先校验、已存在则跳过 [@x380kkm 2026-06-13] ////
   async downloadVvm(voicevoxDir, filename) {
     const { fs, path } = this;
     if (!filename || !/^[\w.-]+\.vvm$/.test(filename)) {
@@ -108,7 +108,7 @@ class VoicevoxInstaller {
   }
   //// /下载一个语音模型文件到 models 目录 ////
 
-  //// 按目录现状逐项装齐官方资源:已装的跳过,缺的下载解压,经 notify 上报进度 [@busybee 2026-06-13] ////
+  //// 按目录现状逐项装齐官方资源:已装的跳过,缺的下载解压,经 notify 上报进度 [@x380kkm 2026-06-13] ////
   async setup(voicevoxDir, notify = () => {}) {
     const { fs, path } = this;
     const catalog = resourceCatalog(voicevoxDir, path);

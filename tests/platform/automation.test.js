@@ -15,7 +15,7 @@ const { snapshotWindows } = require('../../src/platform/automation/window-snapsh
 const { mountAutomation, summarize } = require('../../src/platform/automation');
 const { EventBus } = require('../../src/platform/bus/event-bus');
 
-//// 内存可写流:把写入的字符串逐段收集,可按行取回 [@busybee 2026-06-14] ////
+//// 内存可写流:把写入的字符串逐段收集,可按行取回 [@x380kkm 2026-06-14] ////
 function memoryOutput() {
   const chunks = [];
   return {
@@ -25,7 +25,7 @@ function memoryOutput() {
   };
 }
 
-//// 控制器按操作派发到注入能力 [@busybee 2026-06-14] ////
+//// 控制器按操作派发到注入能力 [@x380kkm 2026-06-14] ////
 test('控制器派发各操作并回结果', async () => {
   const log = [];
   const controller = new AutomationController({
@@ -57,7 +57,7 @@ test('控制器派发各操作并回结果', async () => {
   assert.deepStrictEqual(windows.result.windows, [{ name: 'pet', alive: true }]);
 });
 
-//// 未知操作回错误结果不抛 [@busybee 2026-06-14] ////
+//// 未知操作回错误结果不抛 [@x380kkm 2026-06-14] ////
 test('控制器对未知操作回错误,对能力异常收敛成错误', async () => {
   const controller = new AutomationController({
     runTick: async () => { throw new Error('调度炸了'); }
@@ -77,7 +77,7 @@ test('控制器对未知操作回错误,对能力异常收敛成错误', async (
   assert.match(missing.error, /未注入能力/);
 });
 
-//// 行协议逐行解析命令交处理器,把结果写回输出 [@busybee 2026-06-14] ////
+//// 行协议逐行解析命令交处理器,把结果写回输出 [@x380kkm 2026-06-14] ////
 test('行协议解析命令、回结果、解析失败回错误行', async () => {
   const input = new EventEmitter();
   input.resume = () => {};
@@ -110,7 +110,7 @@ test('行协议解析命令、回结果、解析失败回错误行', async () =>
   assert.strictEqual(output.lines().length, 3);
 });
 
-//// 窗口快照折成纯数据,死窗标记不存活 [@busybee 2026-06-14] ////
+//// 窗口快照折成纯数据,死窗标记不存活 [@x380kkm 2026-06-14] ////
 test('窗口快照取名称、存活、可见与边界', () => {
   const live = { isVisible: () => true, getBounds: () => ({ x: 1, y: 2, width: 300, height: 300 }), isDestroyed: () => false };
   const dead = { isDestroyed: () => true };
@@ -121,13 +121,13 @@ test('窗口快照取名称、存活、可见与边界', () => {
   assert.deepStrictEqual(snap[2], { name: 'settings', alive: false, visible: false, bounds: null });
 });
 
-//// 摘要剥掉大字段只留纯数据,发言取 utterance.text [@busybee 2026-06-14] ////
+//// 摘要剥掉大字段只留纯数据,发言取 utterance.text [@x380kkm 2026-06-14] ////
 test('事件摘要只留可安全行化的纯数据', () => {
   const summary = summarize({ type: 'UtteranceProduced', utterance: { text: '你好', audioAlignment: { audio: Buffer.alloc(1000) } }, bubbleDurationMs: 8000 });
   assert.deepStrictEqual(summary, { type: 'UtteranceProduced', text: '你好', bubbleDurationMs: 8000 });
 });
 
-//// 装配在回环套接字上接受连接、回命令结果并转发领域事件 [@busybee 2026-06-14] ////
+//// 装配在回环套接字上接受连接、回命令结果并转发领域事件 [@x380kkm 2026-06-14] ////
 test('装配在回环套接字上回结果并转发领域事件', async () => {
   const bus = new EventBus();
   const ticks = [];
@@ -172,7 +172,7 @@ test('装配在回环套接字上回结果并转发领域事件', async () => {
   mounted.stop();
 });
 
-//// 轮询等一个条件成立或超时 [@busybee 2026-06-14] ////
+//// 轮询等一个条件成立或超时 [@x380kkm 2026-06-14] ////
 function waitUntil(predicate, timeoutMs, label) {
   return new Promise((resolve, reject) => {
     const start = Date.now();

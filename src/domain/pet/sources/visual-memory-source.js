@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class VisualMemorySource extends ContextSource {
-  //// 构造注入记忆库、时钟与可覆盖的标识、优先级、回看窗、上限 [@busybee 2026-06-13] ////
+  //// 构造注入记忆库、时钟与可覆盖的标识、优先级、回看窗、上限 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.memoryStore = deps.memoryStore;
@@ -35,7 +35,7 @@ class VisualMemorySource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 把近窗记忆的态势逐行折成带标签的片段;无记忆返回 null [@busybee 2026-06-13] ////
+  //// 把近窗记忆的态势逐行折成带标签的片段;无记忆返回 null [@x380kkm 2026-06-13] ////
   render() {
     const lines = this._recentMemory()
       .map((entry) => entry && entry.situation)
@@ -48,7 +48,7 @@ class VisualMemorySource extends ContextSource {
   }
   //// /把近窗记忆的态势逐行折成带标签的片段 ////
 
-  //// 经记忆库按回看窗读最近若干条记忆 [@busybee 2026-06-13] ////
+  //// 经记忆库按回看窗读最近若干条记忆 [@x380kkm 2026-06-13] ////
   _recentMemory() {
     if (!this.memoryStore || typeof this.memoryStore.recall !== 'function') {
       return [];

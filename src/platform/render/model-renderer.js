@@ -4,7 +4,7 @@
 // 不变量:对外只暴露语义动作名,PIXI 与 Cubism 私有字段访问全部收在 live2d-renderer 一处,不外泄;
 // Live2D 实现与图片实现共用本接口。
 
-//// 把语义动作名解析成表情或动作两种底层形态,供两实现共用 [@busybee 2026-06-13] ////
+//// 把语义动作名解析成表情或动作两种底层形态,供两实现共用 [@x380kkm 2026-06-13] ////
 // 动作表的一项:表情形态为 { name, kind:'expression' },动作形态为 { name, kind:'motion', group, index }。
 export function resolveAction(actionTable, name) {
   const entry = actionTable[name];
@@ -15,7 +15,7 @@ export function resolveAction(actionTable, name) {
   return { kind: 'expression', name };
 }
 
-//// 把按开合度的口型值限制在 0 到 1,供两实现共用 [@busybee 2026-06-13] ////
+//// 把按开合度的口型值限制在 0 到 1,供两实现共用 [@x380kkm 2026-06-13] ////
 export function clampOpenness(openness) {
   if (typeof openness !== 'number' || Number.isNaN(openness)) return 0;
   if (openness < 0) return 0;

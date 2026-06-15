@@ -32,7 +32,7 @@ class LlmClient {
     this.sleep = deps.sleep ?? ((ms) => new Promise((resolve) => setTimeout(resolve, ms)));
   }
 
-  //// 发起一次非流式补全,失败按重试次数退避重试,返回供应商无关响应 [@busybee 2026-06-13] ////
+  //// 发起一次非流式补全,失败按重试次数退避重试,返回供应商无关响应 [@x380kkm 2026-06-13] ////
   async complete(request) {
     return this._withRetry(async () => {
       const response = await this._send(request, false);
@@ -41,13 +41,13 @@ class LlmClient {
     });
   }
 
-  //// 发起一次流式请求,解析 SSE 增量并逐块产出 [@busybee 2026-06-13] ////
+  //// 发起一次流式请求,解析 SSE 增量并逐块产出 [@x380kkm 2026-06-13] ////
   async *stream(request) {
     const response = await this._send(request, true);
     yield* this._readSseDeltas(response);
   }
 
-  //// 把请求里的覆盖值叠到客户端默认上,得到本次调用的参数 [@busybee 2026-06-13] ////
+  //// 把请求里的覆盖值叠到客户端默认上,得到本次调用的参数 [@x380kkm 2026-06-13] ////
   _params(request) {
     return {
       model: request.model !== undefined ? request.model : this.model,
@@ -59,7 +59,7 @@ class LlmClient {
     };
   }
 
-  //// 在超时与重试控制下执行一次请求,经所选预设组装请求体与鉴权头 [@busybee 2026-06-13] ////
+  //// 在超时与重试控制下执行一次请求,经所选预设组装请求体与鉴权头 [@x380kkm 2026-06-13] ////
   async _send(request, isStream) {
     const controller = new AbortController();
     const timeoutId = setTimeout(() => controller.abort(), this.timeoutMs);
@@ -90,7 +90,7 @@ class LlmClient {
     }
   }
 
-  //// 反复执行操作直到成功或耗尽重试次数,每次失败后退避等待 [@busybee 2026-06-13] ////
+  //// 反复执行操作直到成功或耗尽重试次数,每次失败后退避等待 [@x380kkm 2026-06-13] ////
   async _withRetry(operation) {
     let lastError;
     for (let attempt = 0; attempt <= this.maxRetries; attempt++) {
@@ -106,14 +106,14 @@ class LlmClient {
     throw lastError;
   }
 
-  //// 把供应商响应折叠为无关响应:经预设解析再清理文本,透出工具调用与原始数据 [@busybee 2026-06-13] ////
+  //// 把供应商响应折叠为无关响应:经预设解析再清理文本,透出工具调用与原始数据 [@x380kkm 2026-06-13] ////
   _toResult(data) {
     const parsed = this.profile.parseComplete(data);
     const text = parsed.text ? this.cleanResponse(parsed.text.trim()) : '';
     return { text, toolCalls: parsed.toolCalls || [], raw: data };
   }
 
-  //// 逐行读取 SSE 流,把每个 data 块解析为增量并产出,遇 [DONE] 收尾 [@busybee 2026-06-13] ////
+  //// 逐行读取 SSE 流,把每个 data 块解析为增量并产出,遇 [DONE] 收尾 [@x380kkm 2026-06-13] ////
   async *_readSseDeltas(response) {
     const reader = response.body.getReader();
     const decoder = new TextDecoder();
@@ -144,7 +144,7 @@ class LlmClient {
   }
   //// /逐行读取 SSE 流 ////
 
-  //// 把单个 SSE data 负载经所选预设解析为文本与工具调用增量 [@busybee 2026-06-13] ////
+  //// 把单个 SSE data 负载经所选预设解析为文本与工具调用增量 [@x380kkm 2026-06-13] ////
   _toDelta(payload) {
     const parsed = JSON.parse(payload);
     return this.profile.parseDelta(parsed);

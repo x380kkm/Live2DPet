@@ -7,12 +7,12 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { ModRegistry } = require('../../src/domain/mod/mod-registry');
 
-//// 用规格数组构造一个最简注入仓储 [@busybee 2026-06-13] ////
+//// 用规格数组构造一个最简注入仓储 [@x380kkm 2026-06-13] ////
 function fakeSource(specs) {
   return { list() { return specs; } };
 }
 
-//// 发现把仓储规格物化成按 id 索引的 mod [@busybee 2026-06-13] ////
+//// 发现把仓储规格物化成按 id 索引的 mod [@x380kkm 2026-06-13] ////
 test('discover materializes specs indexed by id', () => {
   const registry = new ModRegistry({
     source: fakeSource([{ id: 'a' }, { id: 'b' }])
@@ -21,7 +21,7 @@ test('discover materializes specs indexed by id', () => {
   assert.deepStrictEqual(discovered.map((m) => m.id), ['a', 'b']);
 });
 
-//// 全局默认在所有角色生效 [@busybee 2026-06-13] ////
+//// 全局默认在所有角色生效 [@x380kkm 2026-06-13] ////
 test('global default enabled applies to every character', () => {
   const registry = new ModRegistry({
     source: fakeSource([{ id: 'a' }, { id: 'b' }]),
@@ -31,7 +31,7 @@ test('global default enabled applies to every character', () => {
   assert.deepStrictEqual(registry.enabledFor('anyone').map((m) => m.id), ['a']);
 });
 
-//// 角色额外开启叠加在全局默认之后 [@busybee 2026-06-13] ////
+//// 角色额外开启叠加在全局默认之后 [@x380kkm 2026-06-13] ////
 test('character extra stacks after the global default', () => {
   const registry = new ModRegistry({
     source: fakeSource([{ id: 'a' }, { id: 'b' }, { id: 'c' }]),
@@ -44,7 +44,7 @@ test('character extra stacks after the global default', () => {
   assert.deepStrictEqual(registry.enabledFor('other').map((m) => m.id), ['a']);
 });
 
-//// 两级重复的 id 合并后只保留一份且保序 [@busybee 2026-06-13] ////
+//// 两级重复的 id 合并后只保留一份且保序 [@x380kkm 2026-06-13] ////
 test('an id enabled at both levels is merged once in order', () => {
   const registry = new ModRegistry({
     source: fakeSource([{ id: 'a' }, { id: 'b' }]),
@@ -55,7 +55,7 @@ test('an id enabled at both levels is merged once in order', () => {
   assert.deepStrictEqual(registry.enabledFor('lily').map((m) => m.id), ['a', 'b']);
 });
 
-//// 未发现的启用 id 被跳过 [@busybee 2026-06-13] ////
+//// 未发现的启用 id 被跳过 [@x380kkm 2026-06-13] ////
 test('enabled ids without a discovered mod are skipped', () => {
   const registry = new ModRegistry({
     source: fakeSource([{ id: 'a' }]),

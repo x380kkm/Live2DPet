@@ -5,12 +5,12 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { createPathUtils } = require('../../src/platform/storage/path-utils');
 
-//// 用记录调用的假 path,断言 join 拼接行为 [@busybee 2026-06-13] ////
+//// 用记录调用的假 path,断言 join 拼接行为 [@x380kkm 2026-06-13] ////
 function fakePath() {
   return { join: (...parts) => parts.join('/') };
 }
 
-//// 构造一个打包态 app:assetsDir 取安装目录,userDataDir 取 userData [@busybee 2026-06-13] ////
+//// 构造一个打包态 app:assetsDir 取安装目录,userDataDir 取 userData [@x380kkm 2026-06-13] ////
 function packagedApp() {
   return {
     isPackaged: true,

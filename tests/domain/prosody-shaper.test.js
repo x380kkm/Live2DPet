@@ -17,7 +17,7 @@ function query(phrases) {
   return { accent_phrases: phrases, speedScale: 1, pitchScale: 0, prePhonemeLength: 0.1, postPhonemeLength: 0.1 };
 }
 
-//// contour 大于 1 放大句内起伏,小于 1 压平 [@busybee 2026-06-14] ////
+//// contour 大于 1 放大句内起伏,小于 1 压平 [@x380kkm 2026-06-14] ////
 test('contour 放大或压平句内起伏', () => {
   const moras = () => [mora(5.4), mora(6.0), mora(5.6)];
   const base = analyze(query([phrase(moras())]));
@@ -27,7 +27,7 @@ test('contour 放大或压平句内起伏', () => {
   assert.ok(flat.pitchStd < base.pitchStd, 'contour 小应起伏更小');
 });
 
-//// pauseMul 按倍率缩放句间停顿,不覆盖 [@busybee 2026-06-14] ////
+//// pauseMul 按倍率缩放句间停顿,不覆盖 [@x380kkm 2026-06-14] ////
 test('pauseMul 按倍率缩放句间停顿', () => {
   const q = shape(query([phrase([mora(5.5)], 0.5), phrase([mora(5.6)], 0.2)]), { pauseMul: 0.5 });
   // 两句都是锚点(首末),强度 1,自然停顿减半。
@@ -35,7 +35,7 @@ test('pauseMul 按倍率缩放句间停顿', () => {
   assert.ok(Math.abs(q.accent_phrases[1].pause_mora.vowel_length - 0.1) < 1e-9);
 });
 
-//// 陈述句末句尾降并延长,疑问句末句尾升 [@busybee 2026-06-14] ////
+//// 陈述句末句尾降并延长,疑问句末句尾升 [@x380kkm 2026-06-14] ////
 test('陈述句末句尾降并延长,疑问句末句尾升', () => {
   const decl = shape(query([phrase([mora(5.5), mora(5.8)])]), { endFall: 0.2, endLengthen: 1.3 });
   const lastDecl = decl.accent_phrases[0].moras[1];
@@ -46,7 +46,7 @@ test('陈述句末句尾降并延长,疑问句末句尾升', () => {
   assert.ok(ques.accent_phrases[0].moras[1].pitch > 5.8, '疑问句末应升');
 });
 
-//// 无 tone 时不改 query [@busybee 2026-06-14] ////
+//// 无 tone 时不改 query [@x380kkm 2026-06-14] ////
 test('无 tone 时不改 query', () => {
   const q = query([phrase([mora(5.5), mora(5.8)])]);
   const before = JSON.stringify(q);
@@ -54,7 +54,7 @@ test('无 tone 时不改 query', () => {
   assert.strictEqual(JSON.stringify(q), before);
 });
 
-//// 情绪按包络集中在锚点,中段保持平直 [@busybee 2026-06-14] ////
+//// 情绪按包络集中在锚点,中段保持平直 [@x380kkm 2026-06-14] ////
 test('情绪按包络集中在锚点,中段更平直', () => {
   const moras = () => [mora(5.2), mora(6.0), mora(5.4)];
   const q = query([phrase(moras()), phrase(moras()), phrase(moras()), phrase(moras()), phrase(moras())]);
@@ -68,7 +68,7 @@ test('情绪按包络集中在锚点,中段更平直', () => {
   assert.ok(std(q.accent_phrases[0]) > std(q.accent_phrases[2]), '首句锚点应比中段更起伏');
 });
 
-//// applyNarration:句内音高下倾,句界后重置 [@busybee 2026-06-14] ////
+//// applyNarration:句内音高下倾,句界后重置 [@x380kkm 2026-06-14] ////
 test('applyNarration 句内下倾、句界后重置', () => {
   const two = () => [mora(5.7), mora(5.7)];
   const head = (p) => p.moras[0].pitch;

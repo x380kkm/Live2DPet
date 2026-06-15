@@ -14,7 +14,7 @@ const { Utterance } = require('../../src/domain/speech/utterance');
 // WAV 头长度与拼接函数里一致
 const WAV_HEADER_BYTES = 44;
 
-//// 造一个指定格式与 PCM 字节数的最小 WAV 缓冲,头字段足以算时长与拼接 [@busybee 2026-06-13] ////
+//// 造一个指定格式与 PCM 字节数的最小 WAV 缓冲,头字段足以算时长与拼接 [@x380kkm 2026-06-13] ////
 function makeWav({ sampleRate = 24000, numChannels = 1, bitsPerSample = 16, pcmLen = 0 } = {}) {
   const blockAlign = numChannels * (bitsPerSample / 8);
   const byteRate = sampleRate * blockAlign;
@@ -37,7 +37,7 @@ function makeWav({ sampleRate = 24000, numChannels = 1, bitsPerSample = 16, pcmL
   return buf;
 }
 
-//// 造一个记录合成请求的后端模拟,按文本长度返回对应 PCM 字节数的 WAV [@busybee 2026-06-13] ////
+//// 造一个记录合成请求的后端模拟,按文本长度返回对应 PCM 字节数的 WAV [@x380kkm 2026-06-13] ////
 function makeBackend(overrides = {}) {
   const calls = { synthesized: [] };
   const backend = {
@@ -51,13 +51,13 @@ function makeBackend(overrides = {}) {
   return { backend, calls };
 }
 
-//// 短文本不分句,原样作为单段 [@busybee 2026-06-13] ////
+//// 短文本不分句,原样作为单段 [@x380kkm 2026-06-13] ////
 test('segment leaves short text as a single chunk', () => {
   const orch = new TtsOrchestrator({ speechBackend: null, maxChunkLen: 80 });
   assert.deepStrictEqual(orch.segment('短い文'), ['短い文']);
 });
 
-//// 超长文本在句末标点后切,过短的相邻段合并到上限内 [@busybee 2026-06-13] ////
+//// 超长文本在句末标点后切,过短的相邻段合并到上限内 [@x380kkm 2026-06-13] ////
 test('segment splits at sentence punctuation and merges short pieces', () => {
   const orch = new TtsOrchestrator({ speechBackend: null, maxChunkLen: 6 });
   const chunks = orch.segment('あ。い。うえお。か');
@@ -67,20 +67,20 @@ test('segment splits at sentence punctuation and merges short pieces', () => {
   assert.strictEqual(chunks.join(''), 'あ。い。うえお。か');
 });
 
-//// 连续句末标点与其后装饰符算作同一段不被拆开 [@busybee 2026-06-13] ////
+//// 连续句末标点与其后装饰符算作同一段不被拆开 [@x380kkm 2026-06-13] ////
 test('segment keeps trailing decorative chars with their sentence', () => {
   const orch = new TtsOrchestrator({ speechBackend: null, maxChunkLen: 4 });
   const chunks = orch.segment('やった！！♡そうね');
   assert.ok(chunks[0].startsWith('やった！！♡'));
 });
 
-//// 单个 WAV 缓冲拼接原样返回 [@busybee 2026-06-13] ////
+//// 单个 WAV 缓冲拼接原样返回 [@x380kkm 2026-06-13] ////
 test('concatWavBuffers returns a single buffer unchanged', () => {
   const wav = makeWav({ pcmLen: 8 });
   assert.strictEqual(concatWavBuffers([wav]), wav);
 });
 
-//// 多个 WAV 拼接:PCM 相连、头里 data 长度为合计 [@busybee 2026-06-13] ////
+//// 多个 WAV 拼接:PCM 相连、头里 data 长度为合计 [@x380kkm 2026-06-13] ////
 test('concatWavBuffers merges PCM and rewrites the data length', () => {
   const a = makeWav({ pcmLen: 8 });
   const b = makeWav({ pcmLen: 12 });
@@ -90,7 +90,7 @@ test('concatWavBuffers merges PCM and rewrites the data length', () => {
   assert.strictEqual(out.readUInt32LE(4), 36 + 20);
 });
 
-//// 给分隔 PCM 时插在各段之间,用于断句气音 [@busybee 2026-06-14] ////
+//// 给分隔 PCM 时插在各段之间,用于断句气音 [@x380kkm 2026-06-14] ////
 test('concatWavBuffers inserts a separator PCM between chunks', () => {
   const a = makeWav({ pcmLen: 8 });
   const b = makeWav({ pcmLen: 12 });
@@ -103,19 +103,19 @@ test('concatWavBuffers inserts a separator PCM between chunks', () => {
   assert.strictEqual(out[WAV_HEADER_BYTES + 8], 0xcd);
 });
 
-//// 按 WAV 头字节率把 PCM 字节数换算成毫秒 [@busybee 2026-06-13] ////
+//// 按 WAV 头字节率把 PCM 字节数换算成毫秒 [@x380kkm 2026-06-13] ////
 test('wavDurationMs derives milliseconds from byte rate and PCM length', () => {
   // 24000 采样率、单声道、16 位:字节率 48000;PCM 48000 字节恰好一秒
   const wav = makeWav({ sampleRate: 24000, pcmLen: 48000 });
   assert.strictEqual(wavDurationMs(wav), 1000);
 });
 
-//// 只有头没有 PCM 时时长为零 [@busybee 2026-06-13] ////
+//// 只有头没有 PCM 时时长为零 [@x380kkm 2026-06-13] ////
 test('wavDurationMs is zero for a header-only buffer', () => {
   assert.strictEqual(wavDurationMs(makeWav({ pcmLen: 0 })), 0);
 });
 
-//// 合成把发言逐句送后端、拼接、算时长后回填音频对齐 [@busybee 2026-06-13] ////
+//// 合成把发言逐句送后端、拼接、算时长后回填音频对齐 [@x380kkm 2026-06-13] ////
 test('synthesize fills the utterance audio alignment from synthesized chunks', () => {
   const { backend, calls } = makeBackend();
   const orch = new TtsOrchestrator({ speechBackend: backend, maxChunkLen: 4 });
@@ -128,7 +128,7 @@ test('synthesize fills the utterance audio alignment from synthesized chunks', (
   assert.ok(utterance.audioAlignment.durationMs > 0);
 });
 
-//// 后端缺失时合成不改发言,留无音频 [@busybee 2026-06-13] ////
+//// 后端缺失时合成不改发言,留无音频 [@x380kkm 2026-06-13] ////
 test('synthesize leaves the utterance untouched when no backend is injected', () => {
   const orch = new TtsOrchestrator({ speechBackend: null });
   const utterance = Utterance.of('text');
@@ -136,7 +136,7 @@ test('synthesize leaves the utterance untouched when no backend is injected', ()
   assert.strictEqual(utterance.audioAlignment, null);
 });
 
-//// 所有分句合成都失败时不回填音频对齐 [@busybee 2026-06-13] ////
+//// 所有分句合成都失败时不回填音频对齐 [@x380kkm 2026-06-13] ////
 test('synthesize leaves no alignment when every chunk fails', () => {
   const { backend } = makeBackend({ synthesize: () => null });
   const orch = new TtsOrchestrator({ speechBackend: backend });
@@ -145,7 +145,7 @@ test('synthesize leaves no alignment when every chunk fails', () => {
   assert.strictEqual(utterance.audioAlignment, null);
 });
 
-//// 部分分句合成失败时只拼接成功的那些 [@busybee 2026-06-13] ////
+//// 部分分句合成失败时只拼接成功的那些 [@x380kkm 2026-06-13] ////
 test('synthesize concatenates only the chunks that succeeded', () => {
   let nth = 0;
   const { backend } = makeBackend({

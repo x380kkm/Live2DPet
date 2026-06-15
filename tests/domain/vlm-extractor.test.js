@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { VlmExtractor } = require('../../src/domain/perception/vlm-extractor');
 
-//// 假 llmClient:按队列依次返回文本,记录每次的 messages [@busybee 2026-06-13] ////
+//// 假 llmClient:按队列依次返回文本,记录每次的 messages [@x380kkm 2026-06-13] ////
 function fakeLlm(texts) {
   const queue = texts.slice();
   const calls = [];
@@ -21,12 +21,12 @@ function fakeLlm(texts) {
   };
 }
 
-//// 假缓冲:sample 返回预置候选帧 [@busybee 2026-06-13] ////
+//// 假缓冲:sample 返回预置候选帧 [@x380kkm 2026-06-13] ////
 function fakeBuffer(frames) {
   return { async sample() { return frames; } };
 }
 
-//// 可控时钟 [@busybee 2026-06-13] ////
+//// 可控时钟 [@x380kkm 2026-06-13] ////
 function fakeClock(ref) {
   return () => ref.value;
 }

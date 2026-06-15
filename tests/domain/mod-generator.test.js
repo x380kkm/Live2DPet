@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { ModGenerator, STRUCTURE_FEWSHOT } = require('../../src/domain/mod/mod-generator');
 
-//// 用预设回复构造一个最简注入 LLM,顺带记录请求 [@busybee 2026-06-13] ////
+//// 用预设回复构造一个最简注入 LLM,顺带记录请求 [@x380kkm 2026-06-13] ////
 function fakeLlm(text, captured) {
   return {
     async complete(request) {
@@ -17,7 +17,7 @@ function fakeLlm(text, captured) {
   };
 }
 
-//// 合法产物被物化成 mod [@busybee 2026-06-13] ////
+//// 合法产物被物化成 mod [@x380kkm 2026-06-13] ////
 test('generate materializes a valid behavior-only product into a mod', async () => {
   const produced = { id: 'pat', emits: ['click'], hostApi: ['playAction'], intents: [{ id: 'react', trigger: 'click' }] };
   const generator = new ModGenerator({ llm: fakeLlm(JSON.stringify(produced)) });
@@ -29,7 +29,7 @@ test('generate materializes a valid behavior-only product into a mod', async () 
   assert.deepStrictEqual(mod.hostApi, ['playAction']);
 });
 
-//// 请求只示范结构且明令禁写人格与成品措辞 [@busybee 2026-06-13] ////
+//// 请求只示范结构且明令禁写人格与成品措辞 [@x380kkm 2026-06-13] ////
 test('request demonstrates only structure and forbids persona or finished wording', async () => {
   const captured = {};
   const produced = { id: 'pat', emits: [], intents: [] };
@@ -44,21 +44,21 @@ test('request demonstrates only structure and forbids persona or finished wordin
   assert.ok(user.includes(JSON.stringify(STRUCTURE_FEWSHOT)));
 });
 
-//// 产物含人格键时拒绝写入 [@busybee 2026-06-13] ////
+//// 产物含人格键时拒绝写入 [@x380kkm 2026-06-13] ////
 test('a product carrying a persona field is rejected', async () => {
   const produced = { id: 'pat', persona: '害羞的猫', emits: [] };
   const generator = new ModGenerator({ llm: fakeLlm(JSON.stringify(produced)) });
   await assert.rejects(() => generator.generate({ kind: 'tap-toy' }), /人格或成品措辞/);
 });
 
-//// 嵌套深处的成品措辞键也被拒绝 [@busybee 2026-06-13] ////
+//// 嵌套深处的成品措辞键也被拒绝 [@x380kkm 2026-06-13] ////
 test('finished wording nested deep in the product is also rejected', async () => {
   const produced = { id: 'pat', frontendSpec: { js: 'x', phrases: ['你好呀'] } };
   const generator = new ModGenerator({ llm: fakeLlm(JSON.stringify(produced)) });
   await assert.rejects(() => generator.generate({ kind: 'tap-toy' }), /人格或成品措辞/);
 });
 
-//// 注入的解析器被用来解出产物 [@busybee 2026-06-13] ////
+//// 注入的解析器被用来解出产物 [@x380kkm 2026-06-13] ////
 test('the injected parser is used to parse the model text', async () => {
   let parsedFrom = null;
   const generator = new ModGenerator({

@@ -14,7 +14,7 @@
 
 const { isValidUUID } = require('../../../main/validators');
 
-//// 渲染参数到常见模型参数 id 的模糊候选表:扫描时据它给映射建议 [@busybee 2026-06-13] ////
+//// 渲染参数到常见模型参数 id 的模糊候选表:扫描时据它给映射建议 [@x380kkm 2026-06-13] ////
 const PARAM_FUZZY_MAP = {
   angleX:     ['ParamAngleX', 'ParamX', 'Angle_X', 'PARAM_ANGLE_X', 'AngleX'],
   angleY:     ['ParamAngleY', 'ParamY', 'Angle_Y', 'PARAM_ANGLE_Y', 'AngleY'],
@@ -24,7 +24,7 @@ const PARAM_FUZZY_MAP = {
   eyeBallY:   ['ParamEyeBallY', 'EyeBallY', 'PARAM_EYE_BALL_Y', 'ParamEyeY']
 };
 
-//// 按模糊候选表把模型暴露的参数 id 匹配成渲染参数建议,无匹配填 null [@busybee 2026-06-13] ////
+//// 按模糊候选表把模型暴露的参数 id 匹配成渲染参数建议,无匹配填 null [@x380kkm 2026-06-13] ////
 function suggestParamMapping(parameterIds) {
   const suggested = {};
   for (const [key, candidates] of Object.entries(PARAM_FUZZY_MAP)) {
@@ -38,11 +38,11 @@ function suggestParamMapping(parameterIds) {
   return suggested;
 }
 
-//// 装配模型处理器:取注入的窄接口,返回按通道名索引的处理器表 [@busybee 2026-06-13] ////
+//// 装配模型处理器:取注入的窄接口,返回按通道名索引的处理器表 [@x380kkm 2026-06-13] ////
 function createModelHandlers(deps) {
   const { picker, files, config, paths, mt } = deps;
 
-  //// 在一个目录里找含 model3.json 的实际模型目录:本层没有就下探一层子目录 [@busybee 2026-06-13] ////
+  //// 在一个目录里找含 model3.json 的实际模型目录:本层没有就下探一层子目录 [@x380kkm 2026-06-13] ////
   async function locateModelFolder(folderPath) {
     const entries = await files.listDir(folderPath);
     const here = entries.filter((f) => f.endsWith('.model3.json'));
@@ -57,7 +57,7 @@ function createModelHandlers(deps) {
     return { folder: folderPath, modelFiles: [] };
   }
 
-  //// 选模型文件夹:下探定位含 model3.json 的目录,找不到报错 [@busybee 2026-06-13] ////
+  //// 选模型文件夹:下探定位含 model3.json 的目录,找不到报错 [@x380kkm 2026-06-13] ////
   async function selectModelFolder() {
     const picked = await picker.pickDirectory({ title: mt('main.selectL2d') });
     if (picked.canceled || !picked.paths.length) return { success: false, error: 'cancelled' };
@@ -66,7 +66,7 @@ function createModelHandlers(deps) {
     return { success: true, folderPath: located.folder, modelFiles: located.modelFiles };
   }
 
-  //// 扫一张 model3.json:汇总参数 id、表情、动作、命中区与资源校验 [@busybee 2026-06-13] ////
+  //// 扫一张 model3.json:汇总参数 id、表情、动作、命中区与资源校验 [@x380kkm 2026-06-13] ////
   async function scanModelInfo(folderPath, modelJsonFile) {
     const modelJsonPath = files.join(folderPath, modelJsonFile);
     if (!(await files.exists(modelJsonPath))) return { success: false, error: mt('main.model3NotExist') };
@@ -86,7 +86,7 @@ function createModelHandlers(deps) {
     };
   }
 
-  //// 从 Groups 与 cdi3.json 汇总并去重参数 id [@busybee 2026-06-13] ////
+  //// 从 Groups 与 cdi3.json 汇总并去重参数 id [@x380kkm 2026-06-13] ////
   async function collectParameterIds(modelJson, folderPath) {
     const ids = [];
     if (modelJson.Groups) {
@@ -103,7 +103,7 @@ function createModelHandlers(deps) {
     return [...new Set(ids)];
   }
 
-  //// 取表情:先读 model3.json 声明,没有就扫目录里的 exp3.json [@busybee 2026-06-13] ////
+  //// 取表情:先读 model3.json 声明,没有就扫目录里的 exp3.json [@x380kkm 2026-06-13] ////
   async function collectExpressions(modelJson, folderPath) {
     const declared = modelJson.FileReferences && modelJson.FileReferences.Expressions;
     if (declared) return declared.map((e) => ({ name: e.Name, file: e.File }));
@@ -112,7 +112,7 @@ function createModelHandlers(deps) {
       .map((f) => ({ name: f.replace('.exp3.json', ''), file: f }));
   }
 
-  //// 取动作:先读 model3.json 声明,没有就把目录里的 motion3.json 归到 Default 组 [@busybee 2026-06-13] ////
+  //// 取动作:先读 model3.json 声明,没有就把目录里的 motion3.json 归到 Default 组 [@x380kkm 2026-06-13] ////
   async function collectMotions(modelJson, folderPath) {
     const declared = modelJson.FileReferences && modelJson.FileReferences.Motions;
     if (declared) {
@@ -127,7 +127,7 @@ function createModelHandlers(deps) {
     return motionFiles.length > 0 ? { Default: motionFiles.map((f) => ({ file: f })) } : {};
   }
 
-  //// 校验 moc 与贴图文件都在位 [@busybee 2026-06-13] ////
+  //// 校验 moc 与贴图文件都在位 [@x380kkm 2026-06-13] ////
   async function validateResources(modelJson, folderPath) {
     const refs = modelJson.FileReferences || {};
     let mocValid = false;
@@ -142,7 +142,7 @@ function createModelHandlers(deps) {
     return { mocValid, texturesValid };
   }
 
-  //// 选一张静态图片 [@busybee 2026-06-13] ////
+  //// 选一张静态图片 [@x380kkm 2026-06-13] ////
   async function selectStaticImage() {
     const picked = await picker.pickFile({
       title: mt('main.selectImage'),
@@ -152,14 +152,14 @@ function createModelHandlers(deps) {
     return { success: true, filePath: picked.paths[0] };
   }
 
-  //// 选一个图片文件夹 [@busybee 2026-06-13] ////
+  //// 选一个图片文件夹 [@x380kkm 2026-06-13] ////
   async function selectImageFolder() {
     const picked = await picker.pickDirectory({ title: mt('main.selectImageFolder') });
     if (picked.canceled || !picked.paths.length) return { success: false, error: 'cancelled' };
     return { success: true, folderPath: picked.paths[0] };
   }
 
-  //// 扫一个图片文件夹,列出受支持扩展名的图片 [@busybee 2026-06-13] ////
+  //// 扫一个图片文件夹,列出受支持扩展名的图片 [@x380kkm 2026-06-13] ////
   async function scanImageFolder(folderPath) {
     const imageExts = ['.png', '.jpg', '.jpeg', '.webp'];
     const entries = await files.listDir(folderPath);
@@ -169,7 +169,7 @@ function createModelHandlers(deps) {
     return { success: true, images };
   }
 
-  //// 选一张气泡框图片 [@busybee 2026-06-13] ////
+  //// 选一张气泡框图片 [@x380kkm 2026-06-13] ////
   async function selectBubbleImage() {
     const picked = await picker.pickFile({
       title: mt('main.selectBubble'),
@@ -179,7 +179,7 @@ function createModelHandlers(deps) {
     return { success: true, filePath: picked.paths[0] };
   }
 
-  //// 选一张应用图标并复制进用户数据目录 [@busybee 2026-06-13] ////
+  //// 选一张应用图标并复制进用户数据目录 [@x380kkm 2026-06-13] ////
   async function selectAppIcon() {
     const picked = await picker.pickFile({
       title: mt('main.selectIcon'),
@@ -192,7 +192,7 @@ function createModelHandlers(deps) {
     return { success: true, iconPath: destPath };
   }
 
-  //// 把模型目录复制进用户数据目录的 models 下,返回相对与绝对路径 [@busybee 2026-06-13] ////
+  //// 把模型目录复制进用户数据目录的 models 下,返回相对与绝对路径 [@x380kkm 2026-06-13] ////
   async function copyModelToUserData(folderPath, modelName) {
     const dirName = modelName || files.basename(folderPath);
     const destDir = files.join(paths.userDataDir(), 'models', dirName);
@@ -200,7 +200,7 @@ function createModelHandlers(deps) {
     return { success: true, userDataModelPath: files.join('models', dirName), absolutePath: destDir };
   }
 
-  //// 校验当前配置里的模型路径是否仍可用,按模型类型分别判定 [@busybee 2026-06-13] ////
+  //// 校验当前配置里的模型路径是否仍可用,按模型类型分别判定 [@x380kkm 2026-06-13] ////
   async function validateModelPaths() {
     const cfg = await config.read();
     const model = (cfg && cfg.model) || {};
@@ -241,7 +241,7 @@ function createModelHandlers(deps) {
   }
   //// /校验当前配置里的模型路径是否仍可用 ////
 
-  //// 删一个外观档:校验 id 后递归删除其目录 [@busybee 2026-06-13] ////
+  //// 删一个外观档:校验 id 后递归删除其目录 [@x380kkm 2026-06-13] ////
   async function deleteProfile(profileId) {
     if (!isValidUUID(profileId)) return { success: false, error: 'invalid profile ID' };
     const profileDir = files.join(paths.userDataDir(), 'profiles', profileId);

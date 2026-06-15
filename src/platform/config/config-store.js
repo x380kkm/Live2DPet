@@ -14,7 +14,7 @@ const ENCRYPTED_FIELDS = [
 
 const LAYERS = ['global', 'character', 'intent'];
 
-//// 按点分路径取一个嵌套字段,缺失返回 undefined [@busybee 2026-06-13] ////
+//// 按点分路径取一个嵌套字段,缺失返回 undefined [@x380kkm 2026-06-13] ////
 function getPath(obj, dotted) {
   const parts = dotted.split('.');
   let cursor = obj;
@@ -25,7 +25,7 @@ function getPath(obj, dotted) {
   return cursor;
 }
 
-//// 按点分路径写一个嵌套字段,中途缺失的对象就地补建 [@busybee 2026-06-13] ////
+//// 按点分路径写一个嵌套字段,中途缺失的对象就地补建 [@x380kkm 2026-06-13] ////
 function setPath(obj, dotted, value) {
   const parts = dotted.split('.');
   let cursor = obj;
@@ -37,7 +37,7 @@ function setPath(obj, dotted, value) {
   cursor[parts[parts.length - 1]] = value;
 }
 
-//// 把一层、一个作用域 id 映射成仓储里的存储键 [@busybee 2026-06-13] ////
+//// 把一层、一个作用域 id 映射成仓储里的存储键 [@x380kkm 2026-06-13] ////
 function storageKey(layer, scopeId) {
   if (!LAYERS.includes(layer)) throw new Error(`未知配置层:${layer}`);
   // 全局层只有一份,忽略 scopeId;角色层与意图层按 id 分桶。
@@ -46,7 +46,7 @@ function storageKey(layer, scopeId) {
 }
 
 class ConfigStore {
-  //// 构造注入仓储与加解密函数,第三方类型不进本层 [@busybee 2026-06-13] ////
+  //// 构造注入仓储与加解密函数,第三方类型不进本层 [@x380kkm 2026-06-13] ////
   constructor(repository, options = {}) {
     this.repository = repository;
     // 加解密由调用方注入,默认两者透传。
@@ -54,7 +54,7 @@ class ConfigStore {
     this.decrypt = options.decrypt || ((v) => v);
   }
 
-  //// 读一层配置并就地解密声明过的字段 [@busybee 2026-06-13] ////
+  //// 读一层配置并就地解密声明过的字段 [@x380kkm 2026-06-13] ////
   async read(layer, scopeId) {
     const stored = await this.repository.get(storageKey(layer, scopeId));
     if (stored == null) return null;
@@ -64,14 +64,14 @@ class ConfigStore {
     return value;
   }
 
-  //// 加密声明过的字段后写一层配置 [@busybee 2026-06-13] ////
+  //// 加密声明过的字段后写一层配置 [@x380kkm 2026-06-13] ////
   async write(layer, scopeId, value) {
     const toStore = JSON.parse(JSON.stringify(value));
     this._encryptFields(toStore);
     await this.repository.put(storageKey(layer, scopeId), toStore);
   }
 
-  //// 把声明过的字段逐个解密 [@busybee 2026-06-13] ////
+  //// 把声明过的字段逐个解密 [@x380kkm 2026-06-13] ////
   _decryptFields(value) {
     for (const field of ENCRYPTED_FIELDS) {
       const current = getPath(value, field);
@@ -79,7 +79,7 @@ class ConfigStore {
     }
   }
 
-  //// 把声明过的字段逐个加密 [@busybee 2026-06-13] ////
+  //// 把声明过的字段逐个加密 [@x380kkm 2026-06-13] ////
   _encryptFields(value) {
     for (const field of ENCRYPTED_FIELDS) {
       const current = getPath(value, field);

@@ -18,7 +18,7 @@ const DEFAULT_LABELS = Object.freeze({
 });
 
 class InteractionInfoSource extends ContextSource {
-  //// 构造注入可覆盖的标识、优先级、交互描述表 [@busybee 2026-06-14] ////
+  //// 构造注入可覆盖的标识、优先级、交互描述表 [@x380kkm 2026-06-14] ////
   constructor(deps = {}, config = {}) {
     super();
     this._id = config.id || 'interactionInfo';
@@ -40,7 +40,7 @@ class InteractionInfoSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取当下交互名代入描述表;无交互返回 null [@busybee 2026-06-14] ////
+  //// 取当下交互名代入描述表;无交互返回 null [@x380kkm 2026-06-14] ////
   render(scope) {
     const interaction = scope && scope.interaction;
     if (!interaction || !interaction.name) {

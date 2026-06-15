@@ -3,7 +3,7 @@
 // 进程间通信通道契约的单一来源:通道名可枚举、可校验、按能力域分级。
 // 不变量:两侧不再各写裸字符串,所有通道名只在本文件声明。
 
-//// 声明能力域枚举:重能力(screen、outbound、file)受网关门控,其余为无害控制 [@busybee 2026-06-13] ////
+//// 声明能力域枚举:重能力(screen、outbound、file)受网关门控,其余为无害控制 [@x380kkm 2026-06-13] ////
 const CapabilityDomain = {
   ui: 'ui',
   screen: 'screen',
@@ -17,7 +17,7 @@ const CapabilityDomain = {
 };
 //// /声明能力域枚举 ////
 
-//// 把每个通道名映射到所属能力域,作为通道契约的单一目录 [@busybee 2026-06-13] ////
+//// 把每个通道名映射到所属能力域,作为通道契约的单一目录 [@x380kkm 2026-06-13] ////
 const CHANNEL_DOMAINS = {
   // 宠物窗口与窗口控制:无害 UI 控制
   'create-pet-window': CapabilityDomain.ui,
@@ -106,17 +106,17 @@ const CHANNEL_DOMAINS = {
 };
 //// /把每个通道名映射到所属能力域 ////
 
-//// 返回全部已声明的通道名,供两侧枚举校验 [@busybee 2026-06-13] ////
+//// 返回全部已声明的通道名,供两侧枚举校验 [@x380kkm 2026-06-13] ////
 function channels() {
   return Object.keys(CHANNEL_DOMAINS);
 }
 
-//// 判断一个通道名是否在契约目录中 [@busybee 2026-06-13] ////
+//// 判断一个通道名是否在契约目录中 [@x380kkm 2026-06-13] ////
 function isKnown(channelName) {
   return Object.prototype.hasOwnProperty.call(CHANNEL_DOMAINS, channelName);
 }
 
-//// 查一个通道名所属的能力域,未知通道返回 null [@busybee 2026-06-13] ////
+//// 查一个通道名所属的能力域,未知通道返回 null [@x380kkm 2026-06-13] ////
 function capabilityDomainOf(channelName) {
   if (!isKnown(channelName)) return null;
   return CHANNEL_DOMAINS[channelName];

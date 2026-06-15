@@ -16,7 +16,7 @@ const HARD_TIMEOUT_MS = 60000;
 // 等单条命令回应或某事件出现的上限。
 const STEP_TIMEOUT_MS = 20000;
 
-//// 解析打包后可执行文件路径:命令行优先,否则取约定的 win-unpacked 产物 [@busybee 2026-06-14] ////
+//// 解析打包后可执行文件路径:命令行优先,否则取约定的 win-unpacked 产物 [@x380kkm 2026-06-14] ////
 function resolveExe() {
   const fromArg = process.argv[2];
   if (fromArg) {
@@ -26,7 +26,7 @@ function resolveExe() {
 }
 //// /解析打包后可执行文件路径 ////
 
-//// 把子进程标准输出按行解析成 JSON,分流成事件与命令回应 [@busybee 2026-06-14] ////
+//// 把子进程标准输出按行解析成 JSON,分流成事件与命令回应 [@x380kkm 2026-06-14] ////
 // 命令回应有 id,事件有 event;非 JSON 行(诊断日志)忽略。
 function makeLineReader(onResponse, onEvent) {
   let buffer = '';
@@ -53,7 +53,7 @@ function makeLineReader(onResponse, onEvent) {
 }
 //// /把子进程标准输出按行解析成 JSON ////
 
-//// 等一个条件成立或超时,周期性轮询 [@busybee 2026-06-14] ////
+//// 等一个条件成立或超时,周期性轮询 [@x380kkm 2026-06-14] ////
 function waitFor(predicate, timeoutMs, label) {
   return new Promise((resolve, reject) => {
     const start = Date.now();
@@ -70,7 +70,7 @@ function waitFor(predicate, timeoutMs, label) {
 }
 //// /等一个条件成立或超时 ////
 
-//// 主流程:起桩、拉起、连套接字、驱动、断言、收场 [@busybee 2026-06-14] ////
+//// 主流程:起桩、拉起、连套接字、驱动、断言、收场 [@x380kkm 2026-06-14] ////
 async function main() {
   const exe = resolveExe();
   if (!fs.existsSync(exe)) {
@@ -105,7 +105,7 @@ async function main() {
     (event) => { if (event.event === 'automation-listening') listenPort = event.port; }
   ));
 
-  //// 发一条命令,等到对应 id 的回应 [@busybee 2026-06-14] ////
+  //// 发一条命令,等到对应 id 的回应 [@x380kkm 2026-06-14] ////
   const send = async (op, args) => {
     const id = nextId++;
     socket.write(JSON.stringify({ id, op, args: args || {} }) + '\n');

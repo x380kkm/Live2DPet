@@ -14,7 +14,7 @@
 const { StepId } = require('../../shared/step-catalog');
 const { identityMask } = require('./action-mask');
 
-//// 缺省意图解析:从回应文本里找第一个出现的候选 id [@busybee 2026-06-14] ////
+//// 缺省意图解析:从回应文本里找第一个出现的候选 id [@x380kkm 2026-06-14] ////
 function defaultIntentParser(text, candidates) {
   if (!text) {
     return null;
@@ -28,7 +28,7 @@ function defaultIntentParser(text, candidates) {
 }
 //// /缺省意图解析 ////
 
-//// 把候选意图压成「id: 触发描述」清单,供选择提示词列出 [@busybee 2026-06-14] ////
+//// 把候选意图压成「id: 触发描述」清单,供选择提示词列出 [@x380kkm 2026-06-14] ////
 function listCandidates(candidates) {
   return candidates
     .map((intent) => {
@@ -41,7 +41,7 @@ function listCandidates(candidates) {
 //// /把候选意图压成清单 ////
 
 class SplitIntentDecider {
-  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@busybee 2026-06-14] ////
+  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@x380kkm 2026-06-14] ////
   // deps.llm.complete({ step, messages }) 返回 { text };buildContext(intent, scope) 返回该意图的上下文文本。
   // deps.produce(intent, scope) 若给定则委托其产台词(接富管线),否则用自带的轻量台词调用。
   constructor(deps) {
@@ -55,7 +55,7 @@ class SplitIntentDecider {
   }
   //// /构造注入 ////
 
-  //// 先按占比描述选意图,再产回应:无候选返回空,单候选省去选择调用 [@busybee 2026-06-14] ////
+  //// 先按占比描述选意图,再产回应:无候选返回空,单候选省去选择调用 [@x380kkm 2026-06-14] ////
   async decide(candidates, scope) {
     const actions = this.mask(candidates, scope);
     if (!actions || actions.length === 0) {
@@ -73,7 +73,7 @@ class SplitIntentDecider {
   }
   //// /先按占比描述选意图,再产回应 ////
 
-  //// 用意图路由步的轻量模型选一个意图 [@busybee 2026-06-14] ////
+  //// 用意图路由步的轻量模型选一个意图 [@x380kkm 2026-06-14] ////
   async _select(candidates, scope, brief) {
     const situation = (scope && scope.situationDigest) || '';
     const request = {
@@ -89,7 +89,7 @@ class SplitIntentDecider {
   }
   //// /用意图路由步的轻量模型选一个意图 ////
 
-  //// 产一句回应:有注入的生产函数则委托它(接富管线),否则自带轻量台词调用 [@busybee 2026-06-14] ////
+  //// 产一句回应:有注入的生产函数则委托它(接富管线),否则自带轻量台词调用 [@x380kkm 2026-06-14] ////
   async _produce(intent, scope) {
     if (this.produce) {
       return this.produce(intent, scope);
@@ -109,7 +109,7 @@ class SplitIntentDecider {
 }
 
 class MainLlmDecider {
-  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@busybee 2026-06-14] ////
+  //// 构造注入模型、权重模型、低差异采样器、上下文构造、台词生产与意图解析 [@x380kkm 2026-06-14] ////
   // deps.produce(intent, scope) 若给定则合并调用只用来选意图,再委托其产台词(接富管线);否则用合并调用产出的台词。
   constructor(deps) {
     this.llm = deps.llm;
@@ -122,7 +122,7 @@ class MainLlmDecider {
   }
   //// /构造注入 ////
 
-  //// 一次调用既选意图又产回应:首行声明选中的动作 id,其后是这句话 [@busybee 2026-06-14] ////
+  //// 一次调用既选意图又产回应:首行声明选中的动作 id,其后是这句话 [@x380kkm 2026-06-14] ////
   async decide(candidates, scope) {
     const actions = this.mask(candidates, scope);
     if (!actions || actions.length === 0) {
@@ -152,7 +152,7 @@ class MainLlmDecider {
   }
   //// /一次调用既选意图又产回应 ////
 
-  //// 单候选时省去选择,只产回应:有注入的生产函数则委托它,否则自带轻量台词调用 [@busybee 2026-06-14] ////
+  //// 单候选时省去选择,只产回应:有注入的生产函数则委托它,否则自带轻量台词调用 [@x380kkm 2026-06-14] ////
   async _produceOnly(intent, scope) {
     if (this.produce) {
       return { intent, response: await this.produce(intent, scope) };
@@ -170,7 +170,7 @@ class MainLlmDecider {
   }
   //// /单候选时省去选择 ////
 
-  //// 从合并回应里拆出选中的意图与这句话:首行 ACTION 给意图,其余为话 [@busybee 2026-06-14] ////
+  //// 从合并回应里拆出选中的意图与这句话:首行 ACTION 给意图,其余为话 [@x380kkm 2026-06-14] ////
   _split(text, candidates) {
     const raw = text || '';
     const newlineAt = raw.indexOf('\n');

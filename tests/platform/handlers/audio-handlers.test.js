@@ -9,7 +9,7 @@ const handlers = require('../../../src/platform/ipc/handlers/audio-handlers');
 
 const fakePath = { join: (...parts) => parts.join('/') };
 
-//// 假 fs:按名维护一组文件内容,记录建目录、删文件、写文件 [@busybee 2026-06-13] ////
+//// 假 fs:按名维护一组文件内容,记录建目录、删文件、写文件 [@x380kkm 2026-06-13] ////
 function fakeFs(initial = {}) {
   const files = { ...initial };
   const calls = { mkdir: [], unlink: [], written: [] };
@@ -27,7 +27,7 @@ function fakeFs(initial = {}) {
   };
 }
 
-//// 造一个记录合成调用、可控可用性的后端模拟 [@busybee 2026-06-13] ////
+//// 造一个记录合成调用、可控可用性的后端模拟 [@x380kkm 2026-06-13] ////
 function makeBackend(overrides = {}) {
   return {
     styleId: 0,
@@ -37,7 +37,7 @@ function makeBackend(overrides = {}) {
   };
 }
 
-//// 造一个内存配置存储模拟 [@busybee 2026-06-13] ////
+//// 造一个内存配置存储模拟 [@x380kkm 2026-06-13] ////
 function makeConfigStore(initial = {}) {
   const state = { global: initial };
   return {
@@ -47,7 +47,7 @@ function makeConfigStore(initial = {}) {
   };
 }
 
-//// 装配 deps,注册前先复位 router [@busybee 2026-06-13] ////
+//// 装配 deps,注册前先复位 router [@x380kkm 2026-06-13] ////
 function setup(overrides = {}) {
   router.reset();
   const backend = overrides.backend || makeBackend();
@@ -65,7 +65,7 @@ function setup(overrides = {}) {
   return { deps, backend, fs, configStore };
 }
 
-//// 生成逐短语合成并写成编号 WAV,持久化短语列表 [@busybee 2026-06-13] ////
+//// 生成逐短语合成并写成编号 WAV,持久化短语列表 [@x380kkm 2026-06-13] ////
 test('generate-default-audio synthesizes each phrase and persists the list', async () => {
   const { fs, configStore } = setup();
   const result = await router.dispatch('generate-default-audio', [['あ', 'い'], 3]);
@@ -77,7 +77,7 @@ test('generate-default-audio synthesizes each phrase and persists the list', asy
   assert.deepStrictEqual(configStore.state.global.tts.defaultPhrases, ['あ', 'い']);
 });
 
-//// 生成用传入风格合成后恢复原风格 [@busybee 2026-06-13] ////
+//// 生成用传入风格合成后恢复原风格 [@x380kkm 2026-06-13] ////
 test('generate-default-audio applies the style then restores it', async () => {
   const backend = makeBackend();
   backend.styleId = 1;
@@ -86,7 +86,7 @@ test('generate-default-audio applies the style then restores it', async () => {
   assert.strictEqual(backend.styleId, 1);
 });
 
-//// 生成前清空目录里已有的旧 WAV 片段 [@busybee 2026-06-13] ////
+//// 生成前清空目录里已有的旧 WAV 片段 [@x380kkm 2026-06-13] ////
 test('generate-default-audio clears stale clips first', async () => {
   const fs = fakeFs({ '/audio/default_0.wav': 'old', '/audio/keep.txt': 'x' });
   setup({ fs });
@@ -95,7 +95,7 @@ test('generate-default-audio clears stale clips first', async () => {
   assert.ok(!fs.calls.unlink.includes('/audio/keep.txt'));
 });
 
-//// 单条短语合成失败时记为不成功而不中断其余 [@busybee 2026-06-13] ////
+//// 单条短语合成失败时记为不成功而不中断其余 [@x380kkm 2026-06-13] ////
 test('generate-default-audio marks a failed phrase without aborting', async () => {
   const backend = makeBackend({ synthesize: (t) => (t === 'bad' ? null : Buffer.from('ok')) });
   setup({ backend });
@@ -104,7 +104,7 @@ test('generate-default-audio marks a failed phrase without aborting', async () =
   assert.strictEqual(result.results[1].success, false);
 });
 
-//// 后端不可用时生成安全失败 [@busybee 2026-06-13] ////
+//// 后端不可用时生成安全失败 [@x380kkm 2026-06-13] ////
 test('generate-default-audio fails safely when backend unavailable', async () => {
   setup({ backend: makeBackend({ available: false }) });
   const result = await router.dispatch('generate-default-audio', [['あ'], 0]);
@@ -112,7 +112,7 @@ test('generate-default-audio fails safely when backend unavailable', async () =>
   assert.match(result.error, /not available/);
 });
 
-//// 加载读回目录里全部 WAV 并转 base64 [@busybee 2026-06-13] ////
+//// 加载读回目录里全部 WAV 并转 base64 [@x380kkm 2026-06-13] ////
 test('load-default-audio reads clips back as base64', async () => {
   const fs = fakeFs({
     '/audio/default_0.wav': Buffer.from('one'),
@@ -129,7 +129,7 @@ test('load-default-audio reads clips back as base64', async () => {
   assert.strictEqual(Buffer.from(result.files[0].base64, 'base64').toString(), 'one');
 });
 
-//// 目录不存在时加载返回空列表 [@busybee 2026-06-13] ////
+//// 目录不存在时加载返回空列表 [@x380kkm 2026-06-13] ////
 test('load-default-audio returns an empty list when dir is absent', async () => {
   const fs = fakeFs();
   fs.existsSync = () => false;

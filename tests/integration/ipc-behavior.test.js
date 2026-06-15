@@ -14,7 +14,7 @@ const { registerUtilHandlers } = require('../../src/platform/ipc/handlers/util-h
 const { registerEmotionHandlers } = require('../../src/platform/ipc/handlers/emotion-handlers');
 const { registerUiHandlers } = require('../../src/platform/ipc/handlers/ui-handlers');
 
-//// 内存仓储:实现 ConfigStore 期待的 get/put 键值接口 [@busybee 2026-06-13] ////
+//// 内存仓储:实现 ConfigStore 期待的 get/put 键值接口 [@x380kkm 2026-06-13] ////
 function memoryRepository(seed = {}) {
   const store = new Map(Object.entries(seed));
   return {
@@ -27,7 +27,7 @@ function memoryRepository(seed = {}) {
   };
 }
 
-//// 把真实 ConfigStore 适配成 util-handlers 期待的扁平 load/save 窄接口 [@busybee 2026-06-13] ////
+//// 把真实 ConfigStore 适配成 util-handlers 期待的扁平 load/save 窄接口 [@x380kkm 2026-06-13] ////
 // 与组合根 handler-assembly.makeFlatConfig 同形:全局层只有一份,scopeId 被忽略。
 function flatConfig(configStore) {
   return {
@@ -41,7 +41,7 @@ function flatConfig(configStore) {
   };
 }
 
-//// 记录每次 send 的假窗口句柄:webContents.send 与 send 两种调用形态都记下 [@busybee 2026-06-13] ////
+//// 记录每次 send 的假窗口句柄:webContents.send 与 send 两种调用形态都记下 [@x380kkm 2026-06-13] ////
 function fakeWindow() {
   const sent = [];
   const record = (channel, args) => sent.push({ channel, args });
@@ -58,7 +58,7 @@ function fakeWindow() {
   };
 }
 
-//// 配置读写:load-config 经真实 ConfigStore 回读种子配置 [@busybee 2026-06-13] ////
+//// 配置读写:load-config 经真实 ConfigStore 回读种子配置 [@x380kkm 2026-06-13] ////
 test('load-config 经真实 ConfigStore 回读已存的全局配置', async () => {
   router.reset();
   const bus = new EventBus();
@@ -76,7 +76,7 @@ test('load-config 经真实 ConfigStore 回读已存的全局配置', async () =
   assert.deepStrictEqual(result, { model: { type: 'live2d' }, apiKey: 'k' });
 });
 
-//// save-config:落盘后经事件总线发布配置已保存事件供热重载 [@busybee 2026-06-13] ////
+//// save-config:落盘后经事件总线发布配置已保存事件供热重载 [@x380kkm 2026-06-13] ////
 test('save-config 落盘后经事件总线发布 ConfigSaved', async () => {
   router.reset();
   const bus = new EventBus();
@@ -102,7 +102,7 @@ test('save-config 落盘后经事件总线发布 ConfigSaved', async () => {
   assert.deepStrictEqual(back, { model: { type: 'none' } });
 });
 
-//// trigger-expression:经事件总线把信号转发到宠物窗口的 play-expression 通道 [@busybee 2026-06-13] ////
+//// trigger-expression:经事件总线把信号转发到宠物窗口的 play-expression 通道 [@x380kkm 2026-06-13] ////
 test('trigger-expression 经事件总线转发到宠物窗口 play-expression', async () => {
   router.reset();
   const bus = new EventBus();
@@ -120,7 +120,7 @@ test('trigger-expression 经事件总线转发到宠物窗口 play-expression', 
   assert.deepStrictEqual(petWindow.sent, [{ channel: 'play-expression', args: ['happy'] }]);
 });
 
-//// show-pet-chat:经气泡控制器把发言文本显示到独立气泡窗口 [@busybee 2026-06-14] ////
+//// show-pet-chat:经气泡控制器把发言文本显示到独立气泡窗口 [@x380kkm 2026-06-14] ////
 test('show-pet-chat 经气泡控制器显示发言', async () => {
   router.reset();
   const bubble = { calls: [], show(m, t) { this.calls.push([m, t]); }, resize() {}, hide() {} };
@@ -139,7 +139,7 @@ test('show-pet-chat 经气泡控制器显示发言', async () => {
   assert.deepStrictEqual(bubble.calls, [['你好呀', 5000]]);
 });
 
-//// show-pet-chat 未注入气泡控制器时走无害空实现,不抛错仍回成功 [@busybee 2026-06-14] ////
+//// show-pet-chat 未注入气泡控制器时走无害空实现,不抛错仍回成功 [@x380kkm 2026-06-14] ////
 test('show-pet-chat 缺气泡控制器时仍回成功', async () => {
   router.reset();
   registerUiHandlers({

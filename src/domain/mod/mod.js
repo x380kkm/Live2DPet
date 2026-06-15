@@ -13,7 +13,7 @@ const { InteractionEvent, isInteractionEvent } = require('./interaction-event');
 const TRUST = Object.freeze({ OFFICIAL: 'Official', USER_CUSTOM: 'UserCustom' });
 
 class Mod {
-  //// 用一份纯数据规格构造一个可复用 mod 模板 [@busybee 2026-06-13] ////
+  //// 用一份纯数据规格构造一个可复用 mod 模板 [@x380kkm 2026-06-13] ////
   constructor(spec) {
     const data = spec || {};
     // mod 标识
@@ -34,14 +34,14 @@ class Mod {
     this.config = data.config || null;
   }
 
-  //// 判断此 mod 是否为出厂信任级别 [@busybee 2026-06-13] ////
+  //// 判断此 mod 是否为出厂信任级别 [@x380kkm 2026-06-13] ////
   isOfficial() {
     return this.trust === TRUST.OFFICIAL;
   }
 }
 
 class ModRuntime {
-  //// 用一个 mod 与发布交互事件的发布器构造运行时 [@busybee 2026-06-13] ////
+  //// 用一个 mod 与发布交互事件的发布器构造运行时 [@x380kkm 2026-06-13] ////
   // publishEvent 是注入的发布函数(实为事件总线的 publish),运行时不直接持有总线实例。
   constructor(mod, publishEvent) {
     this.mod = mod;
@@ -52,7 +52,7 @@ class ModRuntime {
     this._mounted = false;
   }
 
-  //// 把 mod 挂到舞台上,只放行其声明的宿主方法 [@busybee 2026-06-13] ////
+  //// 把 mod 挂到舞台上,只放行其声明的宿主方法 [@x380kkm 2026-06-13] ////
   // stage 是前端层提供的挂载点;api 是完整宿主 api,运行时按 mod.hostApi 收窄后交给前端。
   mount(stage, api) {
     this._stage = stage;
@@ -61,7 +61,7 @@ class ModRuntime {
     return { stage: this._stage, api: this._api, frontendSpec: this.mod.frontendSpec };
   }
 
-  //// 把前端产出的交互事件经注入发布器送上总线 [@busybee 2026-06-13] ////
+  //// 把前端产出的交互事件经注入发布器送上总线 [@x380kkm 2026-06-13] ////
   // name 是交互事件名,payload 是交互语义数据;只搬运交互语义,不在此执行任何宿主副作用。
   emit(name, payload) {
     if (!this._mounted) {
@@ -75,14 +75,14 @@ class ModRuntime {
     return event;
   }
 
-  //// 卸载 mod,清空舞台与受限 api 引用 [@busybee 2026-06-13] ////
+  //// 卸载 mod,清空舞台与受限 api 引用 [@x380kkm 2026-06-13] ////
   dispose() {
     this._stage = null;
     this._api = null;
     this._mounted = false;
   }
 
-  //// 按 mod 声明的方法名从完整宿主 api 里筛出受限视图 [@busybee 2026-06-13] ////
+  //// 按 mod 声明的方法名从完整宿主 api 里筛出受限视图 [@x380kkm 2026-06-13] ////
   // mod 没声明的方法一律不放行,前端只能调到它声明过的能力。
   _restrictApi(api) {
     const full = api || {};

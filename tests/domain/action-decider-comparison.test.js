@@ -10,13 +10,13 @@ const { WeightModel, isModAction } = require('../../src/domain/pet/weight-model'
 const { LowDiscrepancySequence } = require('../../src/domain/pet/low-discrepancy');
 const { StepId } = require('../../src/shared/step-catalog');
 
-//// 估算一组 messages 的提示词 token:按四字符一 token 取上整 [@busybee 2026-06-14] ////
+//// 估算一组 messages 的提示词 token:按四字符一 token 取上整 [@x380kkm 2026-06-14] ////
 function estimateMessagesTokens(messages) {
   return messages.reduce((sum, m) => sum + Math.ceil(((m.content || '').length) / 4), 0);
 }
 //// /估算一组 messages 的提示词 token ////
 
-//// 从 user 消息里取「建议动作」的 id,模拟模型顺着建议走 [@busybee 2026-06-14] ////
+//// 从 user 消息里取「建议动作」的 id,模拟模型顺着建议走 [@x380kkm 2026-06-14] ////
 function suggestedFrom(messages) {
   const user = messages.find((m) => m.role === 'user');
   const content = user ? user.content : '';
@@ -25,7 +25,7 @@ function suggestedFrom(messages) {
 }
 //// /从 user 消息里取「建议动作」的 id ////
 
-//// 桩 LLM:按步与系统提示返回脚本化回应,记录每次调用的 token 与模拟时延 [@busybee 2026-06-14] ////
+//// 桩 LLM:按步与系统提示返回脚本化回应,记录每次调用的 token 与模拟时延 [@x380kkm 2026-06-14] ////
 // 时延模型:基线 250 毫秒加每输出 token 4 毫秒,让一次大调用与两次小调用可比。
 function makeStubLlm() {
   const calls = [];
@@ -65,7 +65,7 @@ function buildContext(intent, scope) {
   return `态势=${(scope && scope.situationDigest) || ''}`;
 }
 
-//// 两策略在同一场景下都产出合法动作与非空台词 [@busybee 2026-06-14] ////
+//// 两策略在同一场景下都产出合法动作与非空台词 [@x380kkm 2026-06-14] ////
 test('两策略都从候选里产出合法动作与非空台词', async () => {
   const candidates = makeCandidates();
   const scope = { situationDigest: '用户在写代码', emotion: 0 };
@@ -87,7 +87,7 @@ test('两策略都从候选里产出合法动作与非空台词', async () => {
 });
 //// /两策略在同一场景下都产出合法动作与非空台词 ////
 
-//// 拆分策略两次调用、合并策略一次调用 [@busybee 2026-06-14] ////
+//// 拆分策略两次调用、合并策略一次调用 [@x380kkm 2026-06-14] ////
 test('多候选时拆分策略两次调用、合并策略一次调用', async () => {
   const candidates = makeCandidates();
   const scope = { situationDigest: '用户在看视频', emotion: 0 };
@@ -107,7 +107,7 @@ test('多候选时拆分策略两次调用、合并策略一次调用', async ()
 });
 //// /拆分策略两次调用、合并策略一次调用 ////
 
-//// 情绪当前值抬升模组动作的占比 [@busybee 2026-06-14] ////
+//// 情绪当前值抬升模组动作的占比 [@x380kkm 2026-06-14] ////
 test('情绪越高,模组动作的占比越大', () => {
   const candidates = makeCandidates();
   const weightModel = new WeightModel();
@@ -125,7 +125,7 @@ test('情绪越高,模组动作的占比越大', () => {
 });
 //// /情绪当前值抬升模组动作的占比 ////
 
-//// 对比汇总:打印两策略的调用次数、提示词 token 与模拟时延 [@busybee 2026-06-14] ////
+//// 对比汇总:打印两策略的调用次数、提示词 token 与模拟时延 [@x380kkm 2026-06-14] ////
 test('对比汇总两策略的调用结构与开销', async () => {
   const candidates = makeCandidates();
   const scope = { situationDigest: '用户在写代码', emotion: 0.3 };
@@ -148,7 +148,7 @@ test('对比汇总两策略的调用结构与开销', async () => {
 });
 //// /对比汇总 ////
 
-//// 注入台词生产函数后,拆分策略只调一次轻量选意图,台词委托富管线 [@busybee 2026-06-14] ////
+//// 注入台词生产函数后,拆分策略只调一次轻量选意图,台词委托富管线 [@x380kkm 2026-06-14] ////
 // 接入产品时台词走富管线 produce,占比描述只进选意图这一步,主模型不在决策器里被裸调。
 test('注入 produce 后拆分策略选意图调模型、台词委托 produce', async () => {
   const candidates = makeCandidates();
@@ -169,7 +169,7 @@ test('注入 produce 后拆分策略选意图调模型、台词委托 produce', 
 });
 //// /注入台词生产函数后拆分策略只调一次轻量选意图 ////
 
-//// 注入 produce 后,合并策略一次调用选意图,台词委托富管线 [@busybee 2026-06-14] ////
+//// 注入 produce 后,合并策略一次调用选意图,台词委托富管线 [@x380kkm 2026-06-14] ////
 test('注入 produce 后合并策略一次选意图、台词委托 produce', async () => {
   const candidates = makeCandidates();
   const scope = { situationDigest: '用户在看视频', emotion: 0.3 };
@@ -188,7 +188,7 @@ test('注入 produce 后合并策略一次选意图、台词委托 produce', asy
 });
 //// /注入 produce 后合并策略一次选意图、台词委托 produce ////
 
-//// 屏蔽钩子抑制模组动作后只剩对话候选,决策器据此只产不选 [@busybee 2026-06-14] ////
+//// 屏蔽钩子抑制模组动作后只剩对话候选,决策器据此只产不选 [@x380kkm 2026-06-14] ////
 test('屏蔽钩子抑制模组动作后,拆分策略只产台词不再选意图', async () => {
   const candidates = makeCandidates();
   const scope = { situationDigest: '用户在专注写文档', emotion: 0.5 };

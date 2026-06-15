@@ -11,12 +11,12 @@ const REPO = 'Live2D/CubismWebSamples';
 const LICENSE_URL = 'https://www.live2d.com/eula/live2d-free-material-license-agreement_en.html';
 const LICENSE_NOTICE = '默认角色来自 Live2D 官方样例(CubismWebSamples),受 Live2D Free Material License Agreement 约束。\n下载即表示你以个人用户身份接受该条款:' + LICENSE_URL + '\n本软件不打包、不再分发这些样例,仅在你接受后从官方仓库为你下载。';
 
-//// 出示授权条款,供安装流程在下载前给用户看 [@busybee 2026-06-13] ////
+//// 出示授权条款,供安装流程在下载前给用户看 [@x380kkm 2026-06-13] ////
 function presentLicense() {
   return { url: LICENSE_URL, notice: LICENSE_NOTICE };
 }
 
-//// 跟随重定向取一个 URL 的字节;GitHub 要求带 User-Agent [@busybee 2026-06-13] ////
+//// 跟随重定向取一个 URL 的字节;GitHub 要求带 User-Agent [@x380kkm 2026-06-13] ////
 function fetchBuffer(url, redirectsLeft = 5) {
   return new Promise((resolve, reject) => {
     https.get(url, { headers: { 'User-Agent': 'Live2DPet-Installer' } }, (res) => {
@@ -38,7 +38,7 @@ async function fetchJson(url) {
   return JSON.parse((await fetchBuffer(url)).toString('utf-8'));
 }
 
-//// 经 GitHub 递归 tree 列出某样例目录下的全部运行时文件 [@busybee 2026-06-13] ////
+//// 经 GitHub 递归 tree 列出某样例目录下的全部运行时文件 [@x380kkm 2026-06-13] ////
 async function listModelFiles(model) {
   const repo = await fetchJson('https://api.github.com/repos/' + REPO);
   const branch = repo.default_branch;
@@ -49,7 +49,7 @@ async function listModelFiles(model) {
   return { branch, files, marker };
 }
 
-//// 下载样例运行时文件到目标目录,保留样例内相对结构 [@busybee 2026-06-13] ////
+//// 下载样例运行时文件到目标目录,保留样例内相对结构 [@x380kkm 2026-06-13] ////
 async function downloadSampleRuntime(model, destDir) {
   const { branch, files, marker } = await listModelFiles(model);
   for (const p of files) {
@@ -62,7 +62,7 @@ async function downloadSampleRuntime(model, destDir) {
 }
 //// /下载样例运行时文件到目标目录 ////
 
-//// 安装默认样例:未接受条款则只出示不下载 [@busybee 2026-06-13] ////
+//// 安装默认样例:未接受条款则只出示不下载 [@x380kkm 2026-06-13] ////
 async function installLive2dSample(options) {
   const opts = options || {};
   const model = opts.model || 'Hiyori';
@@ -79,7 +79,7 @@ async function installLive2dSample(options) {
 
 module.exports = { installLive2dSample, presentLicense };
 
-//// 直接运行:node scripts/install-live2d-sample.js --model Hiyori --dest <目录> --accept [@busybee 2026-06-13] ////
+//// 直接运行:node scripts/install-live2d-sample.js --model Hiyori --dest <目录> --accept [@x380kkm 2026-06-13] ////
 if (require.main === module) {
   const args = process.argv.slice(2);
   const get = (key, fallback) => { const i = args.indexOf(key); return i >= 0 && args[i + 1] ? args[i + 1] : fallback; };

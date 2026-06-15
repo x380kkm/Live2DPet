@@ -6,17 +6,17 @@
 // 量出的特征:音节数、实际时长(按语速缩放)、语速、音高均值与起伏(极差与标准差)、句尾相对均值的走向、句间停顿数与总长均长。
 // 这些数值让我不靠人工试听就能比较两版合成的差异,据此调塑形参数,逐步沉淀每种情绪的韵律 fewshot。
 
-//// 求一组数的均值,空集计零 [@busybee 2026-06-14] ////
+//// 求一组数的均值,空集计零 [@x380kkm 2026-06-14] ////
 function mean(xs) {
   return xs.length ? xs.reduce((a, b) => a + b, 0) / xs.length : 0;
 }
 
-//// 求一组数相对给定均值的标准差,空集计零 [@busybee 2026-06-14] ////
+//// 求一组数相对给定均值的标准差,空集计零 [@x380kkm 2026-06-14] ////
 function stdDev(xs, m) {
   return xs.length ? Math.sqrt(mean(xs.map((x) => (x - m) * (x - m)))) : 0;
 }
 
-//// 从 audio_query 量出韵律特征 [@busybee 2026-06-14] ////
+//// 从 audio_query 量出韵律特征 [@x380kkm 2026-06-14] ////
 function analyze(query) {
   const phrases = (query && query.accent_phrases) || [];
   const pitches = [];

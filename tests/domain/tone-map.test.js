@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { toneFor } = require('../../src/domain/tts/tone-map');
 
-//// 已知情绪给出语气字段,愉快抬高语调、低落压低 [@busybee 2026-06-14] ////
+//// 已知情绪给出语气字段,愉快抬高语调、低落压低 [@x380kkm 2026-06-14] ////
 test('已知情绪给出语气字段,愉快抬高起伏与音高、低落压平压低', () => {
   const happy = toneFor('happy');
   assert.ok(happy && typeof happy.contour === 'number');

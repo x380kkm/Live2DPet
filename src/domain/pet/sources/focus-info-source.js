@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class FocusInfoSource extends ContextSource {
-  //// 构造注入焦点计数源、标题压缩函数与可覆盖的标识、优先级、标签、名次上限、秒单位 [@busybee 2026-06-13] ////
+  //// 构造注入焦点计数源、标题压缩函数与可覆盖的标识、优先级、标签、名次上限、秒单位 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.focusProvider = deps.focusProvider;
@@ -36,7 +36,7 @@ class FocusInfoSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取焦点计数按秒数降序排前若干名,折成「标题: 秒数」逗号串;无计数返回 null [@busybee 2026-06-13] ////
+  //// 取焦点计数按秒数降序排前若干名,折成「标题: 秒数」逗号串;无计数返回 null [@x380kkm 2026-06-13] ////
   render() {
     const tracker = this._tracker();
     const entries = Object.entries(tracker).filter(([, seconds]) => seconds > 0);
@@ -52,7 +52,7 @@ class FocusInfoSource extends ContextSource {
   }
   //// /取焦点计数按秒数降序排前若干名 ////
 
-  //// 取焦点计数映射,缺数据时取空对象 [@busybee 2026-06-13] ////
+  //// 取焦点计数映射,缺数据时取空对象 [@x380kkm 2026-06-13] ////
   _tracker() {
     if (typeof this.focusProvider !== 'function') {
       return {};

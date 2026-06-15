@@ -5,7 +5,7 @@ const { VoicevoxBackend } = require('../../src/platform/speech/voicevox-backend'
 const { SpeechBackend } = require('../../src/platform/speech/speech-backend');
 const { CircuitBreaker } = require('../../src/platform/speech/circuit-breaker');
 
-//// 构造一组记录调用的 koffi、path、fs 模拟,FFI 全部返回成功 [@busybee 2026-06-13] ////
+//// 构造一组记录调用的 koffi、path、fs 模拟,FFI 全部返回成功 [@x380kkm 2026-06-13] ////
 function makeMocks(overrides = {}) {
   const calls = { freed: [], funcs: [] };
   // audio_query 返回的 JSON,合成器会读出后覆盖速度音高音量再回填
@@ -52,7 +52,7 @@ function makeMocks(overrides = {}) {
   return { koffi, path, fs, calls, fn };
 }
 
-//// 把 DLL 函数签名映射回对应的模拟实现,绑定名按签名里的函数名匹配 [@busybee 2026-06-13] ////
+//// 把 DLL 函数签名映射回对应的模拟实现,绑定名按签名里的函数名匹配 [@x380kkm 2026-06-13] ////
 function makeBoundFn(sig, fn) {
   const map = {
     voicevox_onnxruntime_load_once: fn.loadOnnxruntime,
@@ -77,13 +77,13 @@ function makeBoundFn(sig, fn) {
   return map[name];
 }
 
-//// VoicevoxBackend 是 SpeechBackend 的具体实现 [@busybee 2026-06-13] ////
+//// VoicevoxBackend 是 SpeechBackend 的具体实现 [@x380kkm 2026-06-13] ////
 test('是 SpeechBackend 的子类', () => {
   const backend = new VoicevoxBackend(makeMocks());
   assert.ok(backend instanceof SpeechBackend);
 });
 
-//// 全部 FFI 返回成功时初始化置位且报告可用 [@busybee 2026-06-13] ////
+//// 全部 FFI 返回成功时初始化置位且报告可用 [@x380kkm 2026-06-13] ////
 test('init 成功后可用', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -93,7 +93,7 @@ test('init 成功后可用', () => {
   assert.strictEqual(backend.isAvailable(), true);
 });
 
-//// FFI 返回非零错误码时初始化失败且报告不可用 [@busybee 2026-06-13] ////
+//// FFI 返回非零错误码时初始化失败且报告不可用 [@x380kkm 2026-06-13] ////
 test('init 在 FFI 报错时失败', () => {
   const mocks = makeMocks({ fn: { newSynthesizer: () => 7 } });
   const backend = new VoicevoxBackend(mocks);
@@ -103,13 +103,13 @@ test('init 在 FFI 报错时失败', () => {
   assert.strictEqual(backend.isAvailable(), false);
 });
 
-//// 未初始化时合成直接返回 null,不触碰 FFI [@busybee 2026-06-13] ////
+//// 未初始化时合成直接返回 null,不触碰 FFI [@x380kkm 2026-06-13] ////
 test('未初始化时 synthesize 返回 null', () => {
   const backend = new VoicevoxBackend(makeMocks());
   assert.strictEqual(backend.synthesize('text', {}), null);
 });
 
-//// 合成把 options 的参数写进 audio_query 后回填,产出 WAV 缓冲 [@busybee 2026-06-13] ////
+//// 合成把 options 的参数写进 audio_query 后回填,产出 WAV 缓冲 [@x380kkm 2026-06-13] ////
 test('synthesize 用 options 覆盖参数并产出缓冲', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -125,7 +125,7 @@ test('synthesize 用 options 覆盖参数并产出缓冲', () => {
   assert.strictEqual(sentQuery.volumeScale, 0.8);
 });
 
-//// 合成成功时释放掉 query 的 JSON 内存与 WAV 原生内存 [@busybee 2026-06-13] ////
+//// 合成成功时释放掉 query 的 JSON 内存与 WAV 原生内存 [@x380kkm 2026-06-13] ////
 test('synthesize 释放原生内存', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -135,7 +135,7 @@ test('synthesize 释放原生内存', () => {
   assert.ok(mocks.calls.freed.includes('wav'));
 });
 
-//// 合成时缺省用 setConfig 设的默认风格 [@busybee 2026-06-13] ////
+//// 合成时缺省用 setConfig 设的默认风格 [@x380kkm 2026-06-13] ////
 test('synthesize 在缺省时用默认 styleId', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -145,7 +145,7 @@ test('synthesize 在缺省时用默认 styleId', () => {
   assert.strictEqual(mocks.calls.lastQuerySid, 9);
 });
 
-//// 合成的 FFI 失败被注入的熔断器吞掉,连续失败到上限后断开并报告不可用 [@busybee 2026-06-13] ////
+//// 合成的 FFI 失败被注入的熔断器吞掉,连续失败到上限后断开并报告不可用 [@x380kkm 2026-06-13] ////
 test('synthesize 失败经熔断器降级', () => {
   const mocks = makeMocks({ fn: { synthesis: () => 9 } });
   const breaker = new CircuitBreaker({ maxFailures: 2, fallback: null });
@@ -159,7 +159,7 @@ test('synthesize 失败经熔断器降级', () => {
   assert.strictEqual(backend.isAvailable(), false);
 });
 
-//// 没注入熔断器时合成失败也能安全返回 null [@busybee 2026-06-13] ////
+//// 没注入熔断器时合成失败也能安全返回 null [@x380kkm 2026-06-13] ////
 test('无熔断器时失败返回 null', () => {
   const mocks = makeMocks({ fn: { createAudioQuery: () => 3 } });
   const backend = new VoicevoxBackend(mocks);
@@ -167,7 +167,7 @@ test('无熔断器时失败返回 null', () => {
   assert.strictEqual(backend.synthesize('text'), null);
 });
 
-//// 缺失的模型文件被跳过,全部缺失则标记未加载模型 [@busybee 2026-06-13] ////
+//// 缺失的模型文件被跳过,全部缺失则标记未加载模型 [@x380kkm 2026-06-13] ////
 test('全部模型缺失时 modelLoaded 为假', () => {
   const mocks = makeMocks({ existsSync: (p) => !String(p).endsWith('.vvm') });
   const backend = new VoicevoxBackend(mocks);
@@ -175,14 +175,14 @@ test('全部模型缺失时 modelLoaded 为假', () => {
   assert.strictEqual(backend.modelLoaded, false);
 });
 
-//// 只列出 .vvm 后缀的模型文件并排序 [@busybee 2026-06-13] ////
+//// 只列出 .vvm 后缀的模型文件并排序 [@x380kkm 2026-06-13] ////
 test('getAvailableVvms 只列 vvm 文件', () => {
   const backend = new VoicevoxBackend(makeMocks());
   const vvms = backend.getAvailableVvms('/voicevox');
   assert.deepStrictEqual(vvms, ['0.vvm', '8.vvm']);
 });
 
-//// dispose 释放合成器与 Open JTalk 句柄并回到未初始化态 [@busybee 2026-06-13] ////
+//// dispose 释放合成器与 Open JTalk 句柄并回到未初始化态 [@x380kkm 2026-06-13] ////
 test('dispose 释放句柄', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -194,7 +194,7 @@ test('dispose 释放句柄', () => {
   assert.strictEqual(backend.synthesizer, null);
 });
 
-//// 从给定 query 直接合成,产出 WAV 缓冲 [@busybee 2026-06-14] ////
+//// 从给定 query 直接合成,产出 WAV 缓冲 [@x380kkm 2026-06-14] ////
 test('synthesizeQuery 从给定 query 直接合成 WAV', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -204,14 +204,14 @@ test('synthesizeQuery 从给定 query 直接合成 WAV', () => {
   assert.deepStrictEqual(wav, Buffer.from([1, 2, 3, 4]));
 });
 
-//// 报告 VOICEVOX Core 版本号 [@busybee 2026-06-13] ////
+//// 报告 VOICEVOX Core 版本号 [@x380kkm 2026-06-13] ////
 test('getVersion 返回版本号', () => {
   const backend = new VoicevoxBackend(makeMocks());
   backend.init('/voicevox', null, {});
   assert.strictEqual(backend.getVersion(), '0.16.3');
 });
 
-//// 同文本同参数第二次合成命中缓存,不再调 FFI [@busybee 2026-06-14] ////
+//// 同文本同参数第二次合成命中缓存,不再调 FFI [@x380kkm 2026-06-14] ////
 test('synthesize 命中缓存时不重复调 FFI', () => {
   let queryCalls = 0;
   const mocks = makeMocks({ fn: { createAudioQuery: (s, t, sid, out) => { queryCalls++; out[0] = 'queryPtr'; return 0; } } });
@@ -225,7 +225,7 @@ test('synthesize 命中缓存时不重复调 FFI', () => {
   assert.strictEqual(queryCalls, 2, '参数不同不命中缓存,重新合成');
 });
 
-//// dispose 清空合成缓存,避免换模型后取到旧音色 [@busybee 2026-06-14] ////
+//// dispose 清空合成缓存,避免换模型后取到旧音色 [@x380kkm 2026-06-14] ////
 test('dispose 后缓存清空', () => {
   let queryCalls = 0;
   const mocks = makeMocks({ fn: { createAudioQuery: (s, t, sid, out) => { queryCalls++; out[0] = 'queryPtr'; return 0; } } });
@@ -238,7 +238,7 @@ test('dispose 后缓存清空', () => {
   assert.strictEqual(queryCalls, 2, 'dispose 清空缓存,重建后重新合成');
 });
 
-//// warmup 据初始化状态返回真假 [@busybee 2026-06-14] ////
+//// warmup 据初始化状态返回真假 [@x380kkm 2026-06-14] ////
 test('warmup 已初始化合成预热返回真,未初始化返回假', () => {
   const cold = new VoicevoxBackend(makeMocks());
   assert.strictEqual(cold.warmup(), false);
@@ -247,7 +247,7 @@ test('warmup 已初始化合成预热返回真,未初始化返回假', () => {
   assert.strictEqual(hot.warmup(), true);
 });
 
-//// 传 tone 时把整段首尾停顿写进 audio_query [@busybee 2026-06-14] ////
+//// 传 tone 时把整段首尾停顿写进 audio_query [@x380kkm 2026-06-14] ////
 test('synthesize 传 tone 时写入整段首尾停顿', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -258,7 +258,7 @@ test('synthesize 传 tone 时写入整段首尾停顿', () => {
   assert.strictEqual(sent.postPhonemeLength, 0.1);
 });
 
-//// 不传 tone 时不加语气字段 [@busybee 2026-06-14] ////
+//// 不传 tone 时不加语气字段 [@x380kkm 2026-06-14] ////
 test('synthesize 不传 tone 时不加语气字段', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);
@@ -268,7 +268,7 @@ test('synthesize 不传 tone 时不加语气字段', () => {
   assert.strictEqual(sent.intonationScale, undefined);
 });
 
-//// setConfig 设置语气控制开关 [@busybee 2026-06-14] ////
+//// setConfig 设置语气控制开关 [@x380kkm 2026-06-14] ////
 test('setConfig 设置 toneControl 开关', () => {
   const backend = new VoicevoxBackend(makeMocks());
   assert.strictEqual(backend.toneControl, false);
@@ -276,7 +276,7 @@ test('setConfig 设置 toneControl 开关', () => {
   assert.strictEqual(backend.toneControl, true);
 });
 
-//// 逐句量(语速、音高、起伏)不进 _applyTone,留给 prosody-shaper 按包络处理 [@busybee 2026-06-14] ////
+//// 逐句量(语速、音高、起伏)不进 _applyTone,留给 prosody-shaper 按包络处理 [@x380kkm 2026-06-14] ////
 test('synthesize 的 _applyTone 不写逐句量,只动全局量', () => {
   const mocks = makeMocks();
   const backend = new VoicevoxBackend(mocks);

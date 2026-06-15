@@ -19,7 +19,7 @@ const TEXT = 'ある日の超暮方の事である。一人の下人が、クソ
 // 回传体积上限对应的时长:24kHz 单声道 16 位,每秒约 48000 字节,封顶 20 秒约 960KB。
 const MAX_SEC = 20;
 
-//// 把 WAV 截到不超过指定秒数,末尾加 0.12 秒淡出避免硬切 [@busybee 2026-06-14] ////
+//// 把 WAV 截到不超过指定秒数,末尾加 0.12 秒淡出避免硬切 [@x380kkm 2026-06-14] ////
 function capDuration(wav, maxSec) {
   const sampleRate = wav.readUInt32LE(24);
   const channels = wav.readUInt16LE(22);

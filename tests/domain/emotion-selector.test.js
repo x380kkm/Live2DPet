@@ -26,7 +26,7 @@ function makeLlm(behavior) {
 
 const PROMPT = 'Pick one from [{0}].';
 
-//// 模型精确命中可选名时发布该名 [@busybee 2026-06-13] ////
+//// 模型精确命中可选名时发布该名 [@x380kkm 2026-06-13] ////
 test('exact match publishes the picked name', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'happy' }));
@@ -40,7 +40,7 @@ test('exact match publishes the picked name', async () => {
   assert.deepStrictEqual(bus.events, [{ type: EMOTION_SELECTED, name: 'happy' }]);
 });
 
-//// 模型文本含可选名时按包含模糊命中 [@busybee 2026-06-13] ////
+//// 模型文本含可选名时按包含模糊命中 [@x380kkm 2026-06-13] ////
 test('fuzzy match resolves a contained name', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'The emotion is happy.' }));
@@ -53,7 +53,7 @@ test('fuzzy match resolves a contained name', async () => {
   assert.strictEqual(result, 'happy');
 });
 
-//// 选不出任何可选名时发布空名,交渲染层回退 [@busybee 2026-06-13] ////
+//// 选不出任何可选名时发布空名,交渲染层回退 [@x380kkm 2026-06-13] ////
 test('no match publishes empty name', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'something unrelated' }));
@@ -67,7 +67,7 @@ test('no match publishes empty name', async () => {
   assert.deepStrictEqual(bus.events, [{ type: EMOTION_SELECTED, name: '' }]);
 });
 
-//// 可选名为空时跳过调用、不发事件 [@busybee 2026-06-13] ////
+//// 可选名为空时跳过调用、不发事件 [@x380kkm 2026-06-13] ////
 test('empty enabled names skips the call', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'happy' }));
@@ -80,7 +80,7 @@ test('empty enabled names skips the call', async () => {
   assert.strictEqual(bus.events.length, 0);
 });
 
-//// 状态里的可选名覆盖构造时的可选名 [@busybee 2026-06-13] ////
+//// 状态里的可选名覆盖构造时的可选名 [@x380kkm 2026-06-13] ////
 test('state enabled names override constructor names', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'calm' }));
@@ -93,7 +93,7 @@ test('state enabled names override constructor names', async () => {
   assert.strictEqual(result, 'calm');
 });
 
-//// 提示模板填入可选名列表,用户消息含角色刚说的话 [@busybee 2026-06-13] ////
+//// 提示模板填入可选名列表,用户消息含角色刚说的话 [@x380kkm 2026-06-13] ////
 test('prompt fills names and carries spoken text', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => ({ text: 'happy' }));
@@ -108,7 +108,7 @@ test('prompt fills names and carries spoken text', async () => {
   assert.ok(messages[1].content.includes('I won the game'));
 });
 
-//// 调用进行中时再次 select 被抑制,不发起第二次调用 [@busybee 2026-06-13] ////
+//// 调用进行中时再次 select 被抑制,不发起第二次调用 [@x380kkm 2026-06-13] ////
 test('concurrent select is suppressed while one is in flight', async () => {
   const bus = makeBus();
   let release;
@@ -130,7 +130,7 @@ test('concurrent select is suppressed while one is in flight', async () => {
   assert.strictEqual(bus.events.length, 1);
 });
 
-//// LLM 调用抛错时发布空名而非中断 [@busybee 2026-06-13] ////
+//// LLM 调用抛错时发布空名而非中断 [@x380kkm 2026-06-13] ////
 test('llm failure publishes empty name', async () => {
   const bus = makeBus();
   const llm = makeLlm(async () => { throw new Error('boom'); });

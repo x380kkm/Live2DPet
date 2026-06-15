@@ -11,7 +11,7 @@
 const { StepId } = require('../../shared/step-catalog');
 
 class ReactionPolicy {
-  //// 从注入的 LLM 客户端与总线建立有界反应策略 [@busybee 2026-06-13] ////
+  //// 从注入的 LLM 客户端与总线建立有界反应策略 [@x380kkm 2026-06-13] ////
   constructor(deps) {
     this._llmClient = deps.llmClient;
     this._eventBus = deps.eventBus;
@@ -19,7 +19,7 @@ class ReactionPolicy {
     this._currentCall = 0;
   }
 
-  //// 把一个边界态事件映射成一次有界 LLM 调用,只让最新一次的产物发布 [@busybee 2026-06-13] ////
+  //// 把一个边界态事件映射成一次有界 LLM 调用,只让最新一次的产物发布 [@x380kkm 2026-06-13] ////
   async reactTo(event, scope) {
     const callId = ++this._currentCall;
 

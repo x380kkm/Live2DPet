@@ -9,17 +9,17 @@
 const NOT_OVERRIDDEN = '子类必须覆写此方法';
 
 class Repository {
-  //// 按键取值:命中返回值,未命中返回 null [@busybee 2026-06-13] ////
+  //// 按键取值:命中返回值,未命中返回 null [@x380kkm 2026-06-13] ////
   get(key) {
     throw new Error(NOT_OVERRIDDEN);
   }
 
-  //// 按键存值:覆盖式写入 [@busybee 2026-06-13] ////
+  //// 按键存值:覆盖式写入 [@x380kkm 2026-06-13] ////
   put(key, value) {
     throw new Error(NOT_OVERRIDDEN);
   }
 
-  //// 按时间区间查记录:返回时间字段落在 [from, to] 内的项 [@busybee 2026-06-13] ////
+  //// 按时间区间查记录:返回时间字段落在 [from, to] 内的项 [@x380kkm 2026-06-13] ////
   queryByTime(range) {
     throw new Error(NOT_OVERRIDDEN);
   }

@@ -7,7 +7,7 @@ const { ContextAssembler } = require('./context-source');
 const { StepId } = require('../../shared/step-catalog');
 
 class RequestPipeline {
-  //// 构造注入可重排的阶段与平台接口 [@busybee 2026-06-13] ////
+  //// 构造注入可重排的阶段与平台接口 [@x380kkm 2026-06-13] ////
   // deps 形如:
   //   sources    上下文源注册表,registry.get(id) 取一个命名上下文源
   //   llmClient  平台 LLM 客户端,complete(request) 返回 { text, toolCalls, raw }
@@ -24,7 +24,7 @@ class RequestPipeline {
     this.budget = deps.budget;
   }
 
-  //// 按意图跑一次管线:收集上下文源、组装、调模型、过滤,产出回应三元组 [@busybee 2026-06-13] ////
+  //// 按意图跑一次管线:收集上下文源、组装、调模型、过滤,产出回应三元组 [@x380kkm 2026-06-13] ////
   // 返回 { text, emotion, modEvents, context },text 已过完所有后处理过滤器。
   async run(intent, scope) {
     const sources = this._collectSources(intent);
@@ -45,7 +45,7 @@ class RequestPipeline {
   }
   //// /按意图跑一次管线 ////
 
-  //// 按意图声明的上下文源引用从注册表取出启用的源 [@busybee 2026-06-13] ////
+  //// 按意图声明的上下文源引用从注册表取出启用的源 [@x380kkm 2026-06-13] ////
   // 意图只按引用列源,管线在此解析成实例并丢弃注册表里缺失或未启用的引用。
   _collectSources(intent) {
     const refs = (intent && intent.contextSourceRefs) || [];
@@ -59,7 +59,7 @@ class RequestPipeline {
     return collected;
   }
 
-  //// 依次施加各后处理过滤器,任一过滤器返回空则保留上一版文本 [@busybee 2026-06-13] ////
+  //// 依次施加各后处理过滤器,任一过滤器返回空则保留上一版文本 [@x380kkm 2026-06-13] ////
   _applyFilters(text, scope) {
     let filtered = text;
     for (const filter of this.filters) {

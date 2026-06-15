@@ -5,7 +5,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { KeyframeBuffer } = require('../../src/domain/perception/keyframe-buffer');
 
-//// 假 downsample:记录每次调用的目标边长,返回标注分辨率的帧数据 [@busybee 2026-06-13] ////
+//// 假 downsample:记录每次调用的目标边长,返回标注分辨率的帧数据 [@x380kkm 2026-06-13] ////
 function fakeDownsample() {
   const calls = [];
   const fn = async (image, maxDim) => {
@@ -16,7 +16,7 @@ function fakeDownsample() {
   return fn;
 }
 
-//// 可控时钟:读 ref.value 作当前时刻 [@busybee 2026-06-13] ////
+//// 可控时钟:读 ref.value 作当前时刻 [@x380kkm 2026-06-13] ////
 function fakeClock(ref) {
   return () => ref.value;
 }

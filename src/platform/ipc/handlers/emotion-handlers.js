@@ -7,7 +7,7 @@
 // 依赖经构造注入:router 为 ipc-router,bus 为 event-bus,
 // petWindow、settingsWindow 为取目标窗口的取值函数(返回当前窗口或 null)。
 
-//// 内部领域事件类型:通道处理器发布这些,窗口订阅者据类型转发到对应窗口 [@busybee 2026-06-13] ////
+//// 内部领域事件类型:通道处理器发布这些,窗口订阅者据类型转发到对应窗口 [@x380kkm 2026-06-13] ////
 const EVENTS = {
   playExpression: 'PlayExpression',
   revertExpression: 'RevertExpression',
@@ -18,7 +18,7 @@ const EVENTS = {
 };
 //// /内部领域事件类型 ////
 
-//// 领域事件类型到渲染侧推送通道名的映射,转发时据此选 send 的通道 [@busybee 2026-06-13] ////
+//// 领域事件类型到渲染侧推送通道名的映射,转发时据此选 send 的通道 [@x380kkm 2026-06-13] ////
 const RENDER_CHANNEL = {
   [EVENTS.playExpression]: 'play-expression',
   [EVENTS.revertExpression]: 'revert-expression',
@@ -29,7 +29,7 @@ const RENDER_CHANNEL = {
 };
 //// /领域事件类型到渲染侧推送通道名的映射 ////
 
-//// 据事件类型决定它该转发到宠物窗口还是设置窗口 [@busybee 2026-06-13] ////
+//// 据事件类型决定它该转发到宠物窗口还是设置窗口 [@x380kkm 2026-06-13] ////
 // 表情与动作面向宠物窗口;悬停与命中是回报给设置窗口的交互信号。
 const TARGET = {
   [EVENTS.playExpression]: 'pet',
@@ -41,7 +41,7 @@ const TARGET = {
 };
 //// /据事件类型决定它该转发到哪个窗口 ////
 
-//// 装配协作者:注册情绪通道处理器,并订阅总线把事件转发到目标窗口 [@busybee 2026-06-13] ////
+//// 装配协作者:注册情绪通道处理器,并订阅总线把事件转发到目标窗口 [@x380kkm 2026-06-13] ////
 function registerEmotionHandlers(deps) {
   const { router, bus } = deps;
   const getWindow = { pet: deps.petWindow, settings: deps.settingsWindow };
@@ -51,7 +51,7 @@ function registerEmotionHandlers(deps) {
 }
 //// /装配协作者 ////
 
-//// 把六个情绪通道收成「调用即发布对应领域事件」的处理器 [@busybee 2026-06-13] ////
+//// 把六个情绪通道收成「调用即发布对应领域事件」的处理器 [@x380kkm 2026-06-13] ////
 // 处理器不碰窗口,只把入参折成事件交总线;调用方拿到成功回执即可。
 function registerForwardingChannels(router, bus) {
   router.register('trigger-expression', (expressionName) => {
@@ -87,7 +87,7 @@ function registerForwardingChannels(router, bus) {
 }
 //// /把六个情绪通道收成发布处理器 ////
 
-//// 为每类事件订阅一条转发:取目标窗口,存活则推送到对应渲染通道 [@busybee 2026-06-13] ////
+//// 为每类事件订阅一条转发:取目标窗口,存活则推送到对应渲染通道 [@x380kkm 2026-06-13] ////
 // 订阅时传入存活判断,死窗口由总线在分发时统一过滤并剔除该订阅。
 function subscribeForwarders(bus, router, getWindow) {
   for (const type of Object.keys(RENDER_CHANNEL)) {

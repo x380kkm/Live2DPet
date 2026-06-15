@@ -14,7 +14,7 @@ const VOICE = 2;
 const TEXT = '今日も会えて嬉しい。';
 
 // 一批待探索的原生参数配置:每个改几个全局量,看效果。后续从听感可用的里找规律。
-//// 把最后一个有声 mora 的元音时长按系数缩短,让句尾更干脆 [@busybee 2026-06-14] ////
+//// 把最后一个有声 mora 的元音时长按系数缩短,让句尾更干脆 [@x380kkm 2026-06-14] ////
 function shortenFinal(query, factor) {
   const phrases = query.accent_phrases || [];
   for (let i = phrases.length - 1; i >= 0; i--) {
@@ -37,7 +37,7 @@ const CONFIGS = [
   { key: '06-末音0.6尾0', set: { postPhonemeLength: 0.0 }, tweak: (q) => shortenFinal(q, 0.6) }
 ];
 
-//// 把若干段 WAV 按顺序拼接,段间插指定秒数静音,得到一个 montage WAV [@busybee 2026-06-14] ////
+//// 把若干段 WAV 按顺序拼接,段间插指定秒数静音,得到一个 montage WAV [@x380kkm 2026-06-14] ////
 function buildMontage(segments, gapSec) {
   const first = segments[0].wav;
   const sampleRate = first.readUInt32LE(24);

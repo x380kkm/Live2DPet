@@ -11,7 +11,7 @@ const {
   estimateTextTokens
 } = require('../../src/domain/pet/context-source');
 
-//// 命名源把渲染函数暴露为 id、优先级与渲染 [@busybee 2026-06-13] ////
+//// 命名源把渲染函数暴露为 id、优先级与渲染 [@x380kkm 2026-06-13] ////
 test('named source exposes id, priority and render', () => {
   const source = new NamedContextSource({
     id: 'idle',
@@ -25,7 +25,7 @@ test('named source exposes id, priority and render', () => {
   assert.ok(source instanceof ContextSource);
 });
 
-//// 缺省 token 估算按字符数粗估 [@busybee 2026-06-13] ////
+//// 缺省 token 估算按字符数粗估 [@x380kkm 2026-06-13] ////
 test('default token estimate follows character count', () => {
   assert.strictEqual(estimateTextTokens(''), 0);
   assert.strictEqual(estimateTextTokens(null), 0);
@@ -33,7 +33,7 @@ test('default token estimate follows character count', () => {
   assert.strictEqual(estimateTextTokens('abcdefgh'), 2);
 });
 
-//// 注入的 estimateTokens 覆盖缺省估算 [@busybee 2026-06-13] ////
+//// 注入的 estimateTokens 覆盖缺省估算 [@x380kkm 2026-06-13] ////
 test('explicit estimateTokens overrides default', () => {
   const source = new NamedContextSource({
     id: 'focus',
@@ -45,7 +45,7 @@ test('explicit estimateTokens overrides default', () => {
   assert.strictEqual(source.estimateTokens(), 99);
 });
 
-//// 组装器按优先级从高到低排序拼接 [@busybee 2026-06-13] ////
+//// 组装器按优先级从高到低排序拼接 [@x380kkm 2026-06-13] ////
 test('assembler orders fragments by priority descending', () => {
   const low = new NamedContextSource({ id: 'low', priority: 1, render: () => 'L' });
   const high = new NamedContextSource({ id: 'high', priority: 9, render: () => 'H' });
@@ -58,7 +58,7 @@ test('assembler orders fragments by priority descending', () => {
   assert.strictEqual(result.text, 'H\nM\nL');
 });
 
-//// 优先级相等时保持原始相对顺序 [@busybee 2026-06-13] ////
+//// 优先级相等时保持原始相对顺序 [@x380kkm 2026-06-13] ////
 test('assembler keeps original order on equal priority', () => {
   const first = new NamedContextSource({ id: 'first', priority: 5, render: () => 'F' });
   const second = new NamedContextSource({ id: 'second', priority: 5, render: () => 'S' });
@@ -69,7 +69,7 @@ test('assembler keeps original order on equal priority', () => {
   assert.deepStrictEqual(result.fragments.map((f) => f.id), ['first', 'second']);
 });
 
-//// 渲染返回 null 或空串的源被跳过 [@busybee 2026-06-13] ////
+//// 渲染返回 null 或空串的源被跳过 [@x380kkm 2026-06-13] ////
 test('assembler skips sources rendering null or empty', () => {
   const present = new NamedContextSource({ id: 'present', priority: 5, render: () => '在' });
   const nullish = new NamedContextSource({ id: 'nullish', priority: 9, render: () => null });
@@ -82,7 +82,7 @@ test('assembler skips sources rendering null or empty', () => {
   assert.strictEqual(result.text, '在');
 });
 
-//// 累计 token 超出预算的源被截断 [@busybee 2026-06-13] ////
+//// 累计 token 超出预算的源被截断 [@x380kkm 2026-06-13] ////
 test('assembler truncates sources exceeding the budget', () => {
   const big = new NamedContextSource({ id: 'big', priority: 9, render: () => 'X', estimateTokens: () => 8 });
   const small = new NamedContextSource({ id: 'small', priority: 5, render: () => 'Y', estimateTokens: () => 5 });
@@ -96,7 +96,7 @@ test('assembler truncates sources exceeding the budget', () => {
   assert.strictEqual(result.tokens, 9);
 });
 
-//// 缺省源以渲染结果作 token 估算的依据 [@busybee 2026-06-13] ////
+//// 缺省源以渲染结果作 token 估算的依据 [@x380kkm 2026-06-13] ////
 test('source without explicit estimate uses rendered text length', () => {
   const source = new NamedContextSource({ id: 'auto', priority: 1, render: () => 'abcdefgh' });
   assert.strictEqual(source.estimateTokens(), 2);

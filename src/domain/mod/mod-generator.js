@@ -24,7 +24,7 @@ const STRUCTURE_FEWSHOT = Object.freeze({
 const FORBIDDEN_KEYS = Object.freeze(['persona', 'personality', 'character', 'tone', 'voice', 'phrase', 'phrases', 'lines', 'dialogue', 'wording', 'speech']);
 
 class ModGenerator {
-  //// 构造注入 LLM 客户端与规格解析器 [@busybee 2026-06-13] ////
+  //// 构造注入 LLM 客户端与规格解析器 [@x380kkm 2026-06-13] ////
   // deps.llm 实现 complete(request);deps.parseSpec(text) 把模型文本解析成 mod 规格对象。
   constructor(deps) {
     const config = deps || {};
@@ -32,7 +32,7 @@ class ModGenerator {
     this._parseSpec = config.parseSpec || JSON.parse;
   }
 
-  //// 据生成意图请模型造前端与行为,校验隔离后物化成 mod [@busybee 2026-06-13] ////
+  //// 据生成意图请模型造前端与行为,校验隔离后物化成 mod [@x380kkm 2026-06-13] ////
   // spec 描述要生成什么样的交互;返回一个 Mod 实例,产物含人格或成品措辞则抛错拒绝。
   async generate(spec) {
     const request = this._buildRequest(spec);
@@ -42,7 +42,7 @@ class ModGenerator {
     return new Mod(produced);
   }
 
-  //// 用只示范结构的 few-shot 组装生成请求 [@busybee 2026-06-13] ////
+  //// 用只示范结构的 few-shot 组装生成请求 [@x380kkm 2026-06-13] ////
   // 提示词只交代产物字段与结构样例,明确禁止写入人格与成品措辞。
   _buildRequest(spec) {
     const system =
@@ -60,7 +60,7 @@ class ModGenerator {
     };
   }
 
-  //// 校验产物不含人格或成品措辞,越界即抛错 [@busybee 2026-06-13] ////
+  //// 校验产物不含人格或成品措辞,越界即抛错 [@x380kkm 2026-06-13] ////
   // 递归检查每层键名:命中禁写键即判定写入了文风,拒绝整份产物。
   _assertNoFinishedWording(produced) {
     if (this._containsForbiddenKey(produced)) {
@@ -68,7 +68,7 @@ class ModGenerator {
     }
   }
 
-  //// 递归判断数据里是否出现任一禁写键名 [@busybee 2026-06-13] ////
+  //// 递归判断数据里是否出现任一禁写键名 [@x380kkm 2026-06-13] ////
   _containsForbiddenKey(value) {
     if (Array.isArray(value)) {
       return value.some((item) => this._containsForbiddenKey(item));

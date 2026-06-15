@@ -24,7 +24,7 @@ const TONE_BY_EMOTION = Object.freeze({
   shy: { volBody: 0.82, volPeak: 0.95, prePhonemeLength: 0.04, postPhonemeLength: 0.05, contour: 0.85, pitchLift: 0.0, lengthMul: 1.09, baseIntensity: 0.6, envelopeSigma: 1.8, endFall: 0.04, endRise: 0.0, endLengthen: 1.15, pauseMul: 1.05 }
 });
 
-//// 取某情绪名对应的模型内微调量,未知或空名返回 null [@busybee 2026-06-14] ////
+//// 取某情绪名对应的模型内微调量,未知或空名返回 null [@x380kkm 2026-06-14] ////
 function toneFor(emotionName) {
   if (!emotionName) {
     return null;

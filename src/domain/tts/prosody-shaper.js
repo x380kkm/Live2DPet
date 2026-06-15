@@ -8,7 +8,7 @@
 // 每句按各自强度把这些量从中性插值到目标:contour 句内起伏、pitchLift 整句抬音、lengthMul 句内语速、
 // pauseMul 句间停顿倍率、末句的 endFall/endRise/endLengthen。音量包络在波形层另算,整段首尾停顿由 _applyTone 处理。
 
-//// 算逐句的情绪强度包络:锚点句为 1,其余按到最近锚点的距离高斯衰减到 baseIntensity [@busybee 2026-06-14] ////
+//// 算逐句的情绪强度包络:锚点句为 1,其余按到最近锚点的距离高斯衰减到 baseIntensity [@x380kkm 2026-06-14] ////
 // 锚点取首句、末句与各疑问句;sigma 越大过渡越宽。
 function envelope(phrases, base, sigma) {
   const n = phrases.length;
@@ -31,7 +31,7 @@ function envelope(phrases, base, sigma) {
 }
 //// /算逐句的情绪强度包络 ////
 
-//// 把一句有声 mora 的音高偏离按系数缩放,均值不变、起伏随系数增减 [@busybee 2026-06-14] ////
+//// 把一句有声 mora 的音高偏离按系数缩放,均值不变、起伏随系数增减 [@x380kkm 2026-06-14] ////
 function shapeContour(phrase, contour) {
   const voiced = (phrase.moras || []).filter((m) => m.pitch > 0);
   if (voiced.length < 2) {
@@ -44,7 +44,7 @@ function shapeContour(phrase, contour) {
 }
 //// /把一句有声 mora 的音高偏离按系数缩放 ////
 
-//// 给一句所有有声 mora 抬同一音高增量,使锚点句整体更突出 [@busybee 2026-06-14] ////
+//// 给一句所有有声 mora 抬同一音高增量,使锚点句整体更突出 [@x380kkm 2026-06-14] ////
 function applyPitchLift(phrase, lift) {
   for (const mora of phrase.moras || []) {
     if (mora.pitch > 0) mora.pitch = Math.max(0.1, mora.pitch + lift);
@@ -52,7 +52,7 @@ function applyPitchLift(phrase, lift) {
 }
 //// /给一句所有有声 mora 抬同一音高增量 ////
 
-//// 把一句各 mora 的辅元音时长按倍率缩放,实现句内语速 [@busybee 2026-06-14] ////
+//// 把一句各 mora 的辅元音时长按倍率缩放,实现句内语速 [@x380kkm 2026-06-14] ////
 function applyLength(phrase, mul) {
   for (const mora of phrase.moras || []) {
     if (mora.consonant_length) mora.consonant_length *= mul;
@@ -61,7 +61,7 @@ function applyLength(phrase, mul) {
 }
 //// /把一句各 mora 的辅元音时长按倍率缩放 ////
 
-//// 调最后一句末音节的走向:疑问句升、陈述句降,并按系数延长,均按强度 k 缩放 [@busybee 2026-06-14] ////
+//// 调最后一句末音节的走向:疑问句升、陈述句降,并按系数延长,均按强度 k 缩放 [@x380kkm 2026-06-14] ////
 function shapeFinal(phrase, tone, k) {
   const voiced = (phrase.moras || []).filter((m) => m.pitch > 0);
   if (voiced.length === 0) {
@@ -79,7 +79,7 @@ function shapeFinal(phrase, tone, k) {
 }
 //// /调最后一句末音节的走向 ////
 
-//// 在 query 上按强度包络逐句塑形:所有逐句量从中性按强度插值到目标 [@busybee 2026-06-14] ////
+//// 在 query 上按强度包络逐句塑形:所有逐句量从中性按强度插值到目标 [@x380kkm 2026-06-14] ////
 function shape(query, tone) {
   if (!query || !query.accent_phrases || !tone) {
     return query;
@@ -102,7 +102,7 @@ function shape(query, tone) {
 }
 //// /在 query 上按强度包络逐句塑形 ////
 
-//// 算逐句的音量增益段:由强度包络在 volBody 与 volPeak 间插值,供合成后按段对波形加增益 [@busybee 2026-06-14] ////
+//// 算逐句的音量增益段:由强度包络在 volBody 与 volPeak 间插值,供合成后按段对波形加增益 [@x380kkm 2026-06-14] ////
 // audio_query 只有全局音量,故音量包络落在波形层:返回每段的时长与增益;无 volPeak 时返回 null。
 function volumeGainSpans(query, tone) {
   if (!query || !query.accent_phrases || !tone || tone.volPeak == null) {
@@ -143,7 +143,7 @@ const NARRATION = Object.freeze({
   commaRise: 0.02
 });
 
-//// 按朗读结构调 query:句内下倾加句首重置、停顿前延长、按句界与逗号疑问调边界 [@busybee 2026-06-14] ////
+//// 按朗读结构调 query:句内下倾加句首重置、停顿前延长、按句界与逗号疑问调边界 [@x380kkm 2026-06-14] ////
 // 句界由停顿长短判定:长于阈值算句号、短于算逗号;这套结构独立于情绪,总在合成路径里施加。
 function applyNarration(query) {
   const phrases = (query && query.accent_phrases) || [];
@@ -180,7 +180,7 @@ function applyNarration(query) {
 }
 //// /按朗读结构调 query ////
 
-//// 整合:先按情绪塑形,再叠朗读结构,最后算音量增益段供合成后施加 [@busybee 2026-06-14] ////
+//// 整合:先按情绪塑形,再叠朗读结构,最后算音量增益段供合成后施加 [@x380kkm 2026-06-14] ////
 function apply(query, tone) {
   shape(query, tone);
   applyNarration(query);

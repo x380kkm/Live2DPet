@@ -7,7 +7,7 @@
 // deps.fallback 可选,给无 step 的请求兜底。请求形如 { messages, step, ... };step 缺失且无兜底则报错。
 // resolveStep(stepId) 透出该步解析结果,供提示词层取 systemInjection 等。
 
-//// 把解析出的配置压成稳定身份键,模型与参数全同才复用同一客户端 [@busybee 2026-06-13] ////
+//// 把解析出的配置压成稳定身份键,模型与参数全同才复用同一客户端 [@x380kkm 2026-06-13] ////
 function identityKey(cfg) {
   return [
     cfg.preset, cfg.baseURL, cfg.apiKey, cfg.model,
@@ -17,7 +17,7 @@ function identityKey(cfg) {
 }
 
 class ModelRouter {
-  //// 构造注入两层配置解析与客户端工厂 [@busybee 2026-06-13] ////
+  //// 构造注入两层配置解析与客户端工厂 [@x380kkm 2026-06-13] ////
   constructor(stepModelConfig, deps = {}) {
     this._config = stepModelConfig;
     this._makeClient = deps.makeClient;
@@ -26,12 +26,12 @@ class ModelRouter {
     this._cache = new Map();
   }
 
-  //// 解析某步配置,透出供提示词层与诊断使用 [@busybee 2026-06-13] ////
+  //// 解析某步配置,透出供提示词层与诊断使用 [@x380kkm 2026-06-13] ////
   resolveStep(stepId) {
     return this._config.resolve(stepId);
   }
 
-  //// 按步取或造对应客户端,身份相同则复用 [@busybee 2026-06-13] ////
+  //// 按步取或造对应客户端,身份相同则复用 [@x380kkm 2026-06-13] ////
   _clientForStep(stepId) {
     const cfg = this._config.resolve(stepId);
     const key = identityKey(cfg);
@@ -43,7 +43,7 @@ class ModelRouter {
     return client;
   }
 
-  //// 取请求里的目标客户端:有 step 按步路由,无 step 用兜底,都没有则报错 [@busybee 2026-06-13] ////
+  //// 取请求里的目标客户端:有 step 按步路由,无 step 用兜底,都没有则报错 [@x380kkm 2026-06-13] ////
   _routeOf(request) {
     const stepId = request && request.step;
     if (stepId) {
@@ -55,12 +55,12 @@ class ModelRouter {
     throw new Error('请求缺少 step,且未配置兜底客户端,无法路由模型');
   }
 
-  //// 按步路由一次非流式补全 [@busybee 2026-06-13] ////
+  //// 按步路由一次非流式补全 [@x380kkm 2026-06-13] ////
   async complete(request) {
     return this._routeOf(request).complete(request);
   }
 
-  //// 按步路由一次流式请求 [@busybee 2026-06-13] ////
+  //// 按步路由一次流式请求 [@x380kkm 2026-06-13] ////
   async *stream(request) {
     yield* this._routeOf(request).stream(request);
   }

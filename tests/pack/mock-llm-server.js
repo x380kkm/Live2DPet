@@ -5,7 +5,7 @@
 
 const http = require('http');
 
-//// 据系统提示粗判调用类型,回对应桩文本 [@busybee 2026-06-14] ////
+//// 据系统提示粗判调用类型,回对应桩文本 [@x380kkm 2026-06-14] ////
 // 选帧请求回首帧索引,抽态势请求回一句态势,选意图请求回空(让决策器回退首候选),其余当作产台词回固定台词。
 function scriptedReply(messages, dialogue) {
   const system = (messages || []).find((m) => m.role === 'system');
@@ -23,7 +23,7 @@ function scriptedReply(messages, dialogue) {
 }
 //// /据系统提示粗判调用类型 ////
 
-//// 起一个本地桩 LLM 服务,回 { url, requests, close } [@busybee 2026-06-14] ////
+//// 起一个本地桩 LLM 服务,回 { url, requests, close } [@x380kkm 2026-06-14] ////
 function startMockLlm(options = {}) {
   const dialogue = options.dialogue || 'こんにちは、ちゃんと見てるよ。';
   let requests = 0;

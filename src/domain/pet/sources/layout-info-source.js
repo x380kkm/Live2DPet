@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class LayoutInfoSource extends ContextSource {
-  //// 构造注入窗口列表源、略过判定、标题压缩与可覆盖的标识、优先级、标签、名次上限、尺寸下限、行数下限 [@busybee 2026-06-13] ////
+  //// 构造注入窗口列表源、略过判定、标题压缩与可覆盖的标识、优先级、标签、名次上限、尺寸下限、行数下限 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.windowsProvider = deps.windowsProvider;
@@ -40,7 +40,7 @@ class LayoutInfoSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取窗口列表滤掉略过项与小窗,折成「标题 [宽x高]」逗号串;窗口不足下限返回 null [@busybee 2026-06-13] ////
+  //// 取窗口列表滤掉略过项与小窗,折成「标题 [宽x高]」逗号串;窗口不足下限返回 null [@x380kkm 2026-06-13] ////
   render() {
     const lines = this._windows()
       .filter((w) => this._isVisibleWindow(w))
@@ -57,7 +57,7 @@ class LayoutInfoSource extends ContextSource {
   }
   //// /取窗口列表滤掉略过项与小窗 ////
 
-  //// 判窗口可见:有归属名且非略过应用、有尺寸且宽高都超下限 [@busybee 2026-06-13] ////
+  //// 判窗口可见:有归属名且非略过应用、有尺寸且宽高都超下限 [@x380kkm 2026-06-13] ////
   _isVisibleWindow(w) {
     const name = w && w.owner && w.owner.name;
     if (!name || this.shouldSkipApp(name)) {
@@ -68,7 +68,7 @@ class LayoutInfoSource extends ContextSource {
   }
   //// /判窗口可见 ////
 
-  //// 取窗口列表,缺数据时取空数组 [@busybee 2026-06-13] ////
+  //// 取窗口列表,缺数据时取空数组 [@x380kkm 2026-06-13] ////
   _windows() {
     if (typeof this.windowsProvider !== 'function') {
       return [];

@@ -17,7 +17,7 @@ const SLOT_PATTERN = /\{\{\s*([a-zA-Z][\w]*)\s*\}\}/g;
 // 成品措辞探测:字面文本里出现句末标点或引号即视为成品句子,结构样例不得含。
 const FINISHED_WORDING = /[。！？!?“”"]/;
 
-//// 取出一段文本里引用到的所有槽名 [@busybee 2026-06-13] ////
+//// 取出一段文本里引用到的所有槽名 [@x380kkm 2026-06-13] ////
 function slotsReferencedIn(text) {
   const names = [];
   let match;
@@ -28,12 +28,12 @@ function slotsReferencedIn(text) {
   return names;
 }
 
-//// 取出一段文本里挖去槽位后的字面残留 [@busybee 2026-06-13] ////
+//// 取出一段文本里挖去槽位后的字面残留 [@x380kkm 2026-06-13] ////
 function literalResidueOf(text) {
   return text.replace(SLOT_PATTERN, ' ');
 }
 
-//// 校验一条结构样例:声明槽位、占位与声明一致、字面不含成品措辞 [@busybee 2026-06-13] ////
+//// 校验一条结构样例:声明槽位、占位与声明一致、字面不含成品措辞 [@x380kkm 2026-06-13] ////
 // 入库期抛错,使坏样例进不了库;运行期不再重复校验。
 function assertStructureSample(sample) {
   if (!sample || typeof sample.name !== 'string' || sample.name.length === 0) {
@@ -63,7 +63,7 @@ function assertStructureSample(sample) {
   }
 }
 
-//// 校验一条语气样例:绑定角色、只供槽位填充、不带轮次结构 [@busybee 2026-06-13] ////
+//// 校验一条语气样例:绑定角色、只供槽位填充、不带轮次结构 [@x380kkm 2026-06-13] ////
 function assertToneSample(sample) {
   if (!sample || typeof sample.name !== 'string' || sample.name.length === 0) {
     throw new Error('语气样例缺少 name');
@@ -85,7 +85,7 @@ function assertToneSample(sample) {
   }
 }
 
-//// 校验一条场景台词样例:绑定角色、每个场景含描述与至少一条成品台词 [@busybee 2026-06-13] ////
+//// 校验一条场景台词样例:绑定角色、每个场景含描述与至少一条成品台词 [@x380kkm 2026-06-13] ////
 // 与结构样例相反,本类样例必须携带成品台词(明确豁免),故不查成品措辞。
 function assertSceneSample(sample) {
   if (!sample || typeof sample.name !== 'string' || sample.name.length === 0) {
@@ -113,7 +113,7 @@ function assertSceneSample(sample) {
 }
 
 class FewShotBank {
-  //// 建立结构、语气、场景台词三套存储 [@busybee 2026-06-13] ////
+  //// 建立结构、语气、场景台词三套存储 [@x380kkm 2026-06-13] ////
   // 结构按名全局共享;语气与场景台词按 characterId 分桶,各角色彼此隔离。
   constructor() {
     this._structures = new Map();
@@ -121,13 +121,13 @@ class FewShotBank {
     this._sceneSetsByCharacter = new Map();
   }
 
-  //// 入库一条结构样例,入库期校验骨架不含成品措辞 [@busybee 2026-06-13] ////
+  //// 入库一条结构样例,入库期校验骨架不含成品措辞 [@x380kkm 2026-06-13] ////
   registerStructure(sample) {
     assertStructureSample(sample);
     this._structures.set(sample.name, sample);
   }
 
-  //// 入库一条语气样例,按角色分桶并校验只供槽位填充 [@busybee 2026-06-13] ////
+  //// 入库一条语气样例,按角色分桶并校验只供槽位填充 [@x380kkm 2026-06-13] ////
   registerTone(sample) {
     assertToneSample(sample);
     let bucket = this._tonesByCharacter.get(sample.characterId);
@@ -138,12 +138,12 @@ class FewShotBank {
     bucket.set(sample.name, sample);
   }
 
-  //// 按名解析全局结构样例,未命中返回 null [@busybee 2026-06-13] ////
+  //// 按名解析全局结构样例,未命中返回 null [@x380kkm 2026-06-13] ////
   resolveStructure(ref) {
     return this._structures.get(ref) || null;
   }
 
-  //// 按名解析某角色的语气样例,跨角色不可见,未命中返回 null [@busybee 2026-06-13] ////
+  //// 按名解析某角色的语气样例,跨角色不可见,未命中返回 null [@x380kkm 2026-06-13] ////
   resolveTone(ref, characterId) {
     const bucket = this._tonesByCharacter.get(characterId);
     if (!bucket) {
@@ -152,7 +152,7 @@ class FewShotBank {
     return bucket.get(ref) || null;
   }
 
-  //// 用语气填充与调用方槽位填满结构骨架,产出可读样例轮次 [@busybee 2026-06-13] ////
+  //// 用语气填充与调用方槽位填满结构骨架,产出可读样例轮次 [@x380kkm 2026-06-13] ////
   // 填充优先级:调用方 slots 盖过语气 fillers;槽位无填充则留空骨架,绝不外漏占位文本。
   compose(structure, tone, slots) {
     if (!structure) {
@@ -176,7 +176,7 @@ class FewShotBank {
     return turns;
   }
 
-  //// 入库一条场景台词样例,按角色分桶;此类必须携带成品台词 [@busybee 2026-06-13] ////
+  //// 入库一条场景台词样例,按角色分桶;此类必须携带成品台词 [@x380kkm 2026-06-13] ////
   registerSceneSet(sample) {
     assertSceneSample(sample);
     let bucket = this._sceneSetsByCharacter.get(sample.characterId);
@@ -187,7 +187,7 @@ class FewShotBank {
     bucket.set(sample.name, sample);
   }
 
-  //// 按名解析某角色的场景台词样例,跨角色不可见,未命中返回 null [@busybee 2026-06-13] ////
+  //// 按名解析某角色的场景台词样例,跨角色不可见,未命中返回 null [@x380kkm 2026-06-13] ////
   resolveSceneSet(name, characterId) {
     const bucket = this._sceneSetsByCharacter.get(characterId);
     if (!bucket) {
@@ -196,7 +196,7 @@ class FewShotBank {
     return bucket.get(name) || null;
   }
 
-  //// 把场景台词样例渲染成示例轮次:每条成品台词配一个「场景:X」用户轮与角色台词回应轮 [@busybee 2026-06-13] ////
+  //// 把场景台词样例渲染成示例轮次:每条成品台词配一个「场景:X」用户轮与角色台词回应轮 [@x380kkm 2026-06-13] ////
   // options.maxScenes 限场景数、maxLinesPerScene 限每场景台词数,缺省不限;成品台词原样带出,不改写。
   composeSceneTurns(sceneSet, options = {}) {
     if (!sceneSet || !Array.isArray(sceneSet.scenes)) {

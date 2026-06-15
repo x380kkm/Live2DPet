@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { ScopeResolver, ResolvedScope, KEY_FLOOR, DEFAULT_FLOOR } = require('../../src/platform/config/layered-config');
 
-//// 装配一份三层快照交给解析器 [@busybee 2026-06-13] ////
+//// 装配一份三层快照交给解析器 [@x380kkm 2026-06-13] ////
 function resolverFrom({ global = {}, character = {}, intent = {} }) {
   const scope = new ResolvedScope();
   scope.global = global;
@@ -84,7 +84,7 @@ test('键声明表把模型接入键锁在全局层', () => {
   }
 });
 
-//// 取一份空快照的解析器只为查 floor [@busybee 2026-06-13] ////
+//// 取一份空快照的解析器只为查 floor [@x380kkm 2026-06-13] ////
 function r_lockedLayer(key) {
   return resolverFrom({}).lockedLayer(key);
 }

@@ -7,35 +7,35 @@ const registry = require('./channel-registry');
 
 const D = registry.CapabilityDomain;
 
-//// 声明哪些能力域为重能力,需逐能力门控;其余域直接放行 [@busybee 2026-06-13] ////
+//// 声明哪些能力域为重能力,需逐能力门控;其余域直接放行 [@x380kkm 2026-06-13] ////
 const GATED_DOMAINS = new Set([D.screen, D.outbound, D.file]);
 
-//// 注入的协作者:executor 执行能力、confirm 逐次确认、masterEnabled 全局总闸 [@busybee 2026-06-13] ////
+//// 注入的协作者:executor 执行能力、confirm 逐次确认、masterEnabled 全局总闸 [@x380kkm 2026-06-13] ////
 let deps = {
   executor: null,
   confirm: () => true,
   masterEnabled: () => true
 };
 
-//// 记录已授权的「能力+作用域」对,授权后同对免再确认直至被撤销 [@busybee 2026-06-13] ////
+//// 记录已授权的「能力+作用域」对,授权后同对免再确认直至被撤销 [@x380kkm 2026-06-13] ////
 const grants = new Set();
 
-//// 把能力与作用域拼成授权记录的键 [@busybee 2026-06-13] ////
+//// 把能力与作用域拼成授权记录的键 [@x380kkm 2026-06-13] ////
 function grantKey(capabilityId, scope) {
   return `${capabilityId}::${scope}`;
 }
 
-//// 判断一个能力是否为受门控的重能力 [@busybee 2026-06-13] ////
+//// 判断一个能力是否为受门控的重能力 [@x380kkm 2026-06-13] ////
 function isGated(capabilityId) {
   return GATED_DOMAINS.has(registry.capabilityDomainOf(capabilityId));
 }
 
-//// 在入口装配协作者;未给的项保留默认 [@busybee 2026-06-13] ////
+//// 在入口装配协作者;未给的项保留默认 [@x380kkm 2026-06-13] ////
 function configure(injected) {
   deps = { ...deps, ...injected };
 }
 
-//// 查一个能力在某作用域下当前是否已获授权 [@busybee 2026-06-13] ////
+//// 查一个能力在某作用域下当前是否已获授权 [@x380kkm 2026-06-13] ////
 function isAuthorized(capabilityId, scope) {
   if (!registry.isKnown(capabilityId)) return false;
   if (!isGated(capabilityId)) return true;
@@ -43,7 +43,7 @@ function isAuthorized(capabilityId, scope) {
   return grants.has(grantKey(capabilityId, scope));
 }
 
-//// 经网关调用一个能力:重能力先过总闸、再逐次确认授权,最后才委托执行 [@busybee 2026-06-13] ////
+//// 经网关调用一个能力:重能力先过总闸、再逐次确认授权,最后才委托执行 [@x380kkm 2026-06-13] ////
 async function invoke(capabilityId, scope, payload) {
   if (!registry.isKnown(capabilityId)) {
     return { success: false, error: `未声明的能力:${capabilityId}` };
@@ -66,7 +66,7 @@ async function invoke(capabilityId, scope, payload) {
   return deps.executor(capabilityId, payload);
 }
 
-//// 撤销一个能力在某作用域下的授权,下次调用需重新确认 [@busybee 2026-06-13] ////
+//// 撤销一个能力在某作用域下的授权,下次调用需重新确认 [@x380kkm 2026-06-13] ////
 function revoke(capabilityId, scope) {
   grants.delete(grantKey(capabilityId, scope));
 }

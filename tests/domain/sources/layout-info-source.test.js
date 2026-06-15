@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const { ContextSource } = require('../../../src/domain/pet/context-source');
 const { LayoutInfoSource } = require('../../../src/domain/pet/sources/layout-info-source');
 
-//// 造一个可见窗口条目:有归属名、有超下限尺寸 [@busybee 2026-06-13] ////
+//// 造一个可见窗口条目:有归属名、有超下限尺寸 [@x380kkm 2026-06-13] ////
 function win(title, width, height, ownerName) {
   return { title, owner: { name: ownerName || title }, bounds: { width, height } };
 }

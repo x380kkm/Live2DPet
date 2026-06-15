@@ -14,7 +14,7 @@ const { toneFor } = require('../src/domain/tts/tone-map');
 const TEXT = '今日はいい天気だね。一緒にお散歩でもしようか。それとも、おうちでゆっくり過ごす?';
 const VOICE = 2;
 
-//// 把标量微调量叠到 query 上,模拟合成时的标量部分 [@busybee 2026-06-14] ////
+//// 把标量微调量叠到 query 上,模拟合成时的标量部分 [@x380kkm 2026-06-14] ////
 function applyScalar(query, tone) {
   if (!tone) return query;
   if (tone.intonationScale != null) query.intonationScale = tone.intonationScale;

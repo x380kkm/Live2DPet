@@ -20,7 +20,7 @@ const { StepId } = require('../../shared/step-catalog');
 // 默认译文缓存条数上限
 const DEFAULT_CACHE_MAX_SIZE = 50;
 
-//// 经注入的 llm 客户端把文本译为日语、带 LRU 缓存与可禁用开关的翻译服务 [@busybee 2026-06-13] ////
+//// 经注入的 llm 客户端把文本译为日语、带 LRU 缓存与可禁用开关的翻译服务 [@x380kkm 2026-06-13] ////
 class TranslationService {
   constructor({ llmClient = null, cacheMaxSize = DEFAULT_CACHE_MAX_SIZE } = {}) {
     this.llmClient = llmClient;
@@ -29,17 +29,17 @@ class TranslationService {
     this.cacheMaxSize = cacheMaxSize;
   }
 
-  //// 替换底层 llm 客户端,翻译端点变更时由外部重新注入 [@busybee 2026-06-13] ////
+  //// 替换底层 llm 客户端,翻译端点变更时由外部重新注入 [@x380kkm 2026-06-13] ////
   setClient(llmClient) {
     this.llmClient = llmClient;
   }
 
-  //// 有可用客户端即视为已就绪,可发起翻译 [@busybee 2026-06-13] ////
+  //// 有可用客户端即视为已就绪,可发起翻译 [@x380kkm 2026-06-13] ////
   isConfigured() {
     return !!this.llmClient;
   }
 
-  //// 把文本译为日语:禁用、未就绪、失败时原样返回,命中缓存直接返回 [@busybee 2026-06-13] ////
+  //// 把文本译为日语:禁用、未就绪、失败时原样返回,命中缓存直接返回 [@x380kkm 2026-06-13] ////
   async translate(text) {
     if (!text || !this.enabled) return text;
     if (!this.isConfigured()) return text;
@@ -58,7 +58,7 @@ class TranslationService {
     }
   }
 
-  //// 经 llm 客户端发起一次翻译补全,清理译文中的标记字符与多余空白 [@busybee 2026-06-13] ////
+  //// 经 llm 客户端发起一次翻译补全,清理译文中的标记字符与多余空白 [@x380kkm 2026-06-13] ////
   async _requestTranslation(text) {
     const response = await this.llmClient.complete({
       // 翻译步:交模型路由按 translate 步配置(默认温度 0.3),温度与 token 由配置
@@ -79,7 +79,7 @@ class TranslationService {
       .trim();
   }
 
-  //// 写入译文缓存,超出上限时淘汰最早写入的一条 [@busybee 2026-06-13] ////
+  //// 写入译文缓存,超出上限时淘汰最早写入的一条 [@x380kkm 2026-06-13] ////
   _cacheSet(key, value) {
     if (this.cache.size >= this.cacheMaxSize) {
       const oldestKey = this.cache.keys().next().value;
@@ -88,7 +88,7 @@ class TranslationService {
     this.cache.set(key, value);
   }
 
-  //// 清空译文缓存 [@busybee 2026-06-13] ////
+  //// 清空译文缓存 [@x380kkm 2026-06-13] ////
   clearCache() {
     this.cache.clear();
   }

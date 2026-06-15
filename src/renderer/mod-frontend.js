@@ -13,13 +13,13 @@ import { mountMod } from './mod/mod-mounter.js';
   const root = document.getElementById('mod-root');
   let unmount = () => {};
 
-  //// 把一次交互回流给主进程:经 petBridge 的 ui 域上报,通道未接通时静默跳过 [@busybee 2026-06-14] ////
+  //// 把一次交互回流给主进程:经 petBridge 的 ui 域上报,通道未接通时静默跳过 [@x380kkm 2026-06-14] ////
   function emit(name, payload) {
     try { if (ui.reportModInteraction) ui.reportModInteraction(name, payload); } catch (e) { /* 通道未接通,忽略 */ }
   }
   //// /把一次交互回流给主进程 ////
 
-  //// 收到挂载消息时承载 mod 前端:先卸载旧的,再按规格挂新的 [@busybee 2026-06-14] ////
+  //// 收到挂载消息时承载 mod 前端:先卸载旧的,再按规格挂新的 [@x380kkm 2026-06-14] ////
   function mount(payload) {
     if (!root) return;
     unmount();

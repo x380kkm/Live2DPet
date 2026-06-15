@@ -7,7 +7,7 @@
 const DEFAULT_DIALOGUE_WEIGHT = 800;
 const DEFAULT_MOD_WEIGHT = 200;
 
-//// 装配动作权重子面板:读配置填两输入,保存把两值并入全局配置落盘 [@busybee 2026-06-14] ////
+//// 装配动作权重子面板:读配置填两输入,保存把两值并入全局配置落盘 [@x380kkm 2026-06-14] ////
 export function mountWeightPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.config;
@@ -35,7 +35,7 @@ export function mountWeightPanel(ctx) {
 }
 //// /装配动作权重子面板 ////
 
-//// 把输入值收敛成非负数,空或非数或负回缺省 [@busybee 2026-06-14] ////
+//// 把输入值收敛成非负数,空或非数或负回缺省 [@x380kkm 2026-06-14] ////
 function normalizeWeight(raw, fallback) {
   const value = Number(raw);
   if (!Number.isFinite(value) || value < 0) {

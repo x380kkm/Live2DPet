@@ -19,14 +19,14 @@ const WAV_BITS_PER_SAMPLE_OFFSET = 34;
 // 在句末标点后切句:连续的句末标点与其后的装饰符算作一段
 const SENTENCE_BOUNDARY = /[。！？]+[…♡♪～☆]*/g;
 
-//// 把文本分句、逐句经后端合成、拼接对齐到发言的编排器 [@busybee 2026-06-13] ////
+//// 把文本分句、逐句经后端合成、拼接对齐到发言的编排器 [@x380kkm 2026-06-13] ////
 class TtsOrchestrator {
   constructor({ speechBackend, maxChunkLen = DEFAULT_MAX_CHUNK_LEN } = {}) {
     this.speechBackend = speechBackend;
     this.maxChunkLen = maxChunkLen;
   }
 
-  //// 把发言文本逐句合成、拼接、算时长,回填到发言的音频对齐字段 [@busybee 2026-06-13] ////
+  //// 把发言文本逐句合成、拼接、算时长,回填到发言的音频对齐字段 [@x380kkm 2026-06-13] ////
   synthesize(utterance, options = {}) {
     if (!this.speechBackend) return utterance;
     const chunks = this.segment(utterance.text);
@@ -51,7 +51,7 @@ class TtsOrchestrator {
     return utterance;
   }
 
-  //// 在句末标点后分句,过短的相邻段合并到长度上限以内 [@busybee 2026-06-13] ////
+  //// 在句末标点后分句,过短的相邻段合并到长度上限以内 [@x380kkm 2026-06-13] ////
   segment(text) {
     const maxLen = this.maxChunkLen;
     if (!text || text.length <= maxLen) return [text];
@@ -82,7 +82,7 @@ class TtsOrchestrator {
   //// /在句末标点后分句 ////
 }
 
-//// 把同格式的多个 WAV 缓冲合成一个:去头、并 PCM、重写头 [@busybee 2026-06-13] ////
+//// 把同格式的多个 WAV 缓冲合成一个:去头、并 PCM、重写头 [@x380kkm 2026-06-13] ////
 function concatWavBuffers(buffers, separator) {
   if (buffers.length === 0) return null;
   if (buffers.length === 1) return buffers[0];
@@ -128,7 +128,7 @@ function concatWavBuffers(buffers, separator) {
 }
 //// /把同格式的多个 WAV 缓冲合成一个 ////
 
-//// 按 WAV 头的字节率把 PCM 字节数换算成毫秒时长 [@busybee 2026-06-13] ////
+//// 按 WAV 头的字节率把 PCM 字节数换算成毫秒时长 [@x380kkm 2026-06-13] ////
 function wavDurationMs(buffer) {
   if (!buffer || buffer.length <= WAV_HEADER_BYTES) return 0;
   const byteRate = buffer.readUInt32LE(WAV_BYTE_RATE_OFFSET);

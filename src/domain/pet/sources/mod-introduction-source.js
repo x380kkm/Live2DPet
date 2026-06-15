@@ -6,7 +6,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class ModIntroductionSource extends ContextSource {
-  //// 构造可覆盖标识与优先级,缺省高优先级 [@busybee 2026-06-14] ////
+  //// 构造可覆盖标识与优先级,缺省高优先级 [@x380kkm 2026-06-14] ////
   // 引入台词那次调用以介绍新 mod 为主,故给较高优先级让它稳定进提示词。
   constructor(config = {}) {
     super();
@@ -26,7 +26,7 @@ class ModIntroductionSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取作用域里刚挂载 mod 的中性描述,无则返回 null [@busybee 2026-06-14] ////
+  //// 取作用域里刚挂载 mod 的中性描述,无则返回 null [@x380kkm 2026-06-14] ////
   render(scope) {
     return (scope && scope.modIntroduction) || null;
   }

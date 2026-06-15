@@ -7,7 +7,7 @@ const gateway = require('../../../src/platform/ipc/capability-gateway');
 const { EventBus } = require('../../../src/platform/bus/event-bus');
 const { registerUtilHandlers, makeUtilExecutor, CONFIG_SAVED } = require('../../../src/platform/ipc/handlers/util-handlers');
 
-// 造一组可观察的协作者:记录落盘、外发、搜索、日志、增强数据读写 [@busybee 2026-06-13]
+// 造一组可观察的协作者:记录落盘、外发、搜索、日志、增强数据读写 [@x380kkm 2026-06-13]
 function makeDeps({ isValidUrl = () => true } = {}) {
   const calls = { saved: [], opened: [], searched: [], logged: [], enhanceSaved: [] };
   const configStore = {
@@ -25,7 +25,7 @@ function makeDeps({ isValidUrl = () => true } = {}) {
   return { calls, configStore, appInfo, logSink, shell, searchSource, enhanceStore, isValidUrl };
 }
 
-// 把真实 router、真实总线、真实网关装好,网关用自动确认并以工具执行器作执行体 [@busybee 2026-06-13]
+// 把真实 router、真实总线、真实网关装好,网关用自动确认并以工具执行器作执行体 [@x380kkm 2026-06-13]
 function setup(opts = {}) {
   router.reset();
   const bus = new EventBus();

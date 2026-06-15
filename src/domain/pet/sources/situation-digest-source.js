@@ -8,7 +8,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class SituationDigestSource extends ContextSource {
-  //// 构造注入态势抽取器与可覆盖的标识、优先级、标签 [@busybee 2026-06-13] ////
+  //// 构造注入态势抽取器与可覆盖的标识、优先级、标签 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.extractor = deps.extractor;
@@ -33,7 +33,7 @@ class SituationDigestSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取当拍态势,折成带标签的一行;无态势返回 null [@busybee 2026-06-13] ////
+  //// 取当拍态势,折成带标签的一行;无态势返回 null [@x380kkm 2026-06-13] ////
   render(scope) {
     const situation = this._latestSituation(scope);
     if (!situation) {
@@ -47,7 +47,7 @@ class SituationDigestSource extends ContextSource {
   }
   //// /取当拍态势 ////
 
-  //// 当拍态势优先取作用域里的 situationDigest,缺则回退抽取器最新关键帧 [@busybee 2026-06-13] ////
+  //// 当拍态势优先取作用域里的 situationDigest,缺则回退抽取器最新关键帧 [@x380kkm 2026-06-13] ////
   _latestSituation(scope) {
     if (scope && scope.situationDigest) {
       return scope.situationDigest;

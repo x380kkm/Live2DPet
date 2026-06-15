@@ -6,12 +6,12 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { PerceptionSource } = require('../../src/domain/perception/perception-source');
 
-//// 假抽取器:keyframes 返回预置选集 [@busybee 2026-06-13] ////
+//// 假抽取器:keyframes 返回预置选集 [@x380kkm 2026-06-13] ////
 function fakeExtractor(frames) {
   return { keyframes() { return frames; } };
 }
 
-//// 假记忆库:记录 recall 的时间窗,返回预置记忆 [@busybee 2026-06-13] ////
+//// 假记忆库:记录 recall 的时间窗,返回预置记忆 [@x380kkm 2026-06-13] ////
 function fakeMemory(entries) {
   const calls = [];
   return {

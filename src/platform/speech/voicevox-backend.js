@@ -13,7 +13,7 @@ const DEFAULT_VVM_FILES = ['0.vvm', '8.vvm'];
 // 启用 GPU 时传给初始化选项的加速模式枚举值
 const ACCELERATION_MODE_GPU = 2;
 
-//// VOICEVOX 后端,经 FFI 把日语文本合成为 WAV 缓冲 [@busybee 2026-06-13] ////
+//// VOICEVOX 后端,经 FFI 把日语文本合成为 WAV 缓冲 [@x380kkm 2026-06-13] ////
 class VoicevoxBackend extends SpeechBackend {
   constructor({ koffi, path, fs, circuitBreaker, prosodyShaper } = {}) {
     super();
@@ -45,7 +45,7 @@ class VoicevoxBackend extends SpeechBackend {
     this._cacheLimit = 128;
   }
 
-  //// 加载 DLL、起 ONNX 运行时与合成器、加载语音模型,准备好后端 [@busybee 2026-06-13] ////
+  //// 加载 DLL、起 ONNX 运行时与合成器、加载语音模型,准备好后端 [@x380kkm 2026-06-13] ////
   init(voicevoxDir, vvmFiles, options) {
     if (this.initialized) return true;
     const { path, fs } = this;
@@ -99,7 +99,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /加载 DLL、起 ONNX 运行时与合成器、加载语音模型 ////
 
-  //// 逐个打开并加载语音模型文件,返回是否至少加载了一个 [@busybee 2026-06-13] ////
+  //// 逐个打开并加载语音模型文件,返回是否至少加载了一个 [@x380kkm 2026-06-13] ////
   _loadVoiceModels(modelsDir, vvmFiles) {
     const { path, fs } = this;
     const toLoad = vvmFiles && vvmFiles.length > 0 ? vvmFiles : DEFAULT_VVM_FILES;
@@ -119,7 +119,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /逐个打开并加载语音模型文件 ////
 
-  //// 声明 VOICEVOX FFI 用到的不透明指针与结构体类型 [@busybee 2026-06-13] ////
+  //// 声明 VOICEVOX FFI 用到的不透明指针与结构体类型 [@x380kkm 2026-06-13] ////
   _defineTypes() {
     const koffi = this.koffi;
     koffi.opaque('VoicevoxOnnxruntime');
@@ -134,7 +134,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /声明 VOICEVOX FFI 用到的不透明指针与结构体类型 ////
 
-  //// 把 DLL 导出函数绑定成可调用句柄表 [@busybee 2026-06-13] ////
+  //// 把 DLL 导出函数绑定成可调用句柄表 [@x380kkm 2026-06-13] ////
   _bindFunctions() {
     const l = this.lib;
     this._fn = {
@@ -162,13 +162,13 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /把 DLL 导出函数绑定成可调用句柄表 ////
 
-  //// 把 FFI 返回码翻成可读错误文本 [@busybee 2026-06-13] ////
+  //// 把 FFI 返回码翻成可读错误文本 [@x380kkm 2026-06-13] ////
   _getError(code) {
     if (!this._fn) return `code ${code}`;
     return this._fn.errorMessage(code) || `code ${code}`;
   }
 
-  //// 把日语文本合成为 WAV 缓冲,经熔断器执行,失败或断开态返回 null [@busybee 2026-06-13] ////
+  //// 把日语文本合成为 WAV 缓冲,经熔断器执行,失败或断开态返回 null [@x380kkm 2026-06-13] ////
   synthesize(text, options) {
     if (!this.initialized) return null;
     const opts = options || {};
@@ -198,7 +198,7 @@ class VoicevoxBackend extends SpeechBackend {
     return wav;
   }
 
-  //// 为文本创建并解析 audio_query,释放原生 JSON 内存后返回纯数据对象 [@busybee 2026-06-14] ////
+  //// 为文本创建并解析 audio_query,释放原生 JSON 内存后返回纯数据对象 [@x380kkm 2026-06-14] ////
   // 产物含 accent_phrases(每句逐个 mora 的 pitch 与 length)与句间 pause_mora,供句内与句间微调读改。
   audioQuery(text, sid) {
     const queryOut = [null];
@@ -213,7 +213,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /为文本创建并解析 audio_query ////
 
-  //// 从 AquesTalk 风格片假名创建并解析 audio_query,重音核由 ' 指定,供中文按声调置重音 [@busybee 2026-06-15] ////
+  //// 从 AquesTalk 风格片假名创建并解析 audio_query,重音核由 ' 指定,供中文按声调置重音 [@x380kkm 2026-06-15] ////
   // kana 为带重音记号的全角片假名(' 重音核、/ 无停顿句界、、停顿句界、ー 长音、_ 无声化);释放原生内存后返回纯数据。
   audioQueryFromKana(kana, sid) {
     const queryOut = [null];
@@ -228,7 +228,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /从 AquesTalk 风格片假名创建并解析 audio_query ////
 
-  //// 从一份(可能已被改过的)audio_query 直接合成 WAV,供参数探索与查表渲染用 [@busybee 2026-06-14] ////
+  //// 从一份(可能已被改过的)audio_query 直接合成 WAV,供参数探索与查表渲染用 [@x380kkm 2026-06-14] ////
   // 不走缓存与增益,失败返回 null;调用方自负 query 的合法性。
   synthesizeQuery(query, sid) {
     if (!this.initialized) return null;
@@ -245,7 +245,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /从一份 audio_query 直接合成 WAV ////
 
-  //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@busybee 2026-06-13] ////
+  //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@x380kkm 2026-06-13] ////
   _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {
     const koffi = this.koffi;
     const query = this.audioQuery(text, sid);
@@ -271,14 +271,14 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /走 audio_query 路径合成一次 ////
 
-  //// 把 tone 的全局量叠加到 audio_query:只设整段首尾停顿 [@busybee 2026-06-14] ////
+  //// 把 tone 的全局量叠加到 audio_query:只设整段首尾停顿 [@x380kkm 2026-06-14] ////
   // audio_query 只有全局量的项在此;音量包络在波形层、其余逐句量由 prosody-shaper 按包络处理。
   _applyTone(query, tone) {
     if (tone.prePhonemeLength != null) query.prePhonemeLength = tone.prePhonemeLength;
     if (tone.postPhonemeLength != null) query.postPhonemeLength = tone.postPhonemeLength;
   }
 
-  //// 按逐句增益段对 16 位 PCM 加增益,段界用一阶平滑避免爆音 [@busybee 2026-06-14] ////
+  //// 按逐句增益段对 16 位 PCM 加增益,段界用一阶平滑避免爆音 [@x380kkm 2026-06-14] ////
   _applyGain(wav, spans) {
     if (!wav || wav.length <= 44 || !spans || spans.length === 0) {
       return wav;
@@ -316,7 +316,7 @@ class VoicevoxBackend extends SpeechBackend {
   }
   //// /把语气字段叠加到 audio_query ////
 
-  //// 取缓存的合成结果,命中则移到最近使用端 [@busybee 2026-06-14] ////
+  //// 取缓存的合成结果,命中则移到最近使用端 [@x380kkm 2026-06-14] ////
   _cacheGet(key) {
     const hit = this._cache.get(key);
     if (!hit) return null;
@@ -325,7 +325,7 @@ class VoicevoxBackend extends SpeechBackend {
     return hit;
   }
 
-  //// 存一条合成结果,超过上限淘汰最久未用的 [@busybee 2026-06-14] ////
+  //// 存一条合成结果,超过上限淘汰最久未用的 [@x380kkm 2026-06-14] ////
   _cachePut(key, wav) {
     this._cache.set(key, wav);
     if (this._cache.size > this._cacheLimit) {
@@ -334,13 +334,13 @@ class VoicevoxBackend extends SpeechBackend {
     }
   }
 
-  //// 用一句极短文本合成一次预热模型,消除首句的冷启动延迟 [@busybee 2026-06-14] ////
+  //// 用一句极短文本合成一次预热模型,消除首句的冷启动延迟 [@x380kkm 2026-06-14] ////
   warmup() {
     if (!this.initialized) return false;
     return Boolean(this.synthesize('あ'));
   }
 
-  //// 设置默认风格与速度音高音量参数 [@busybee 2026-06-13] ////
+  //// 设置默认风格与速度音高音量参数 [@x380kkm 2026-06-13] ////
   setConfig({ styleId, speedScale, pitchScale, volumeScale, toneControl } = {}) {
     if (styleId !== undefined) this.styleId = styleId;
     if (speedScale !== undefined) this.speedScale = speedScale;
@@ -349,13 +349,13 @@ class VoicevoxBackend extends SpeechBackend {
     if (toneControl !== undefined) this.toneControl = toneControl;
   }
 
-  //// 报告后端是否可用,初始化且熔断器未断开时为真 [@busybee 2026-06-13] ////
+  //// 报告后端是否可用,初始化且熔断器未断开时为真 [@x380kkm 2026-06-13] ////
   isAvailable() {
     if (!this.initialized) return false;
     return this.circuitBreaker ? !this.circuitBreaker.isOpen() : true;
   }
 
-  //// 列出模型目录下的语音模型文件名 [@busybee 2026-06-13] ////
+  //// 列出模型目录下的语音模型文件名 [@x380kkm 2026-06-13] ////
   getAvailableVvms(voicevoxDir) {
     const { path, fs } = this;
     try {
@@ -366,7 +366,7 @@ class VoicevoxBackend extends SpeechBackend {
     }
   }
 
-  //// 取已加载语音的元数据列表 [@busybee 2026-06-13] ////
+  //// 取已加载语音的元数据列表 [@x380kkm 2026-06-13] ////
   getMetas() {
     if (!this.initialized || !this.synthesizer) return [];
     try {
@@ -381,13 +381,13 @@ class VoicevoxBackend extends SpeechBackend {
     }
   }
 
-  //// 取 VOICEVOX Core 版本号 [@busybee 2026-06-13] ////
+  //// 取 VOICEVOX Core 版本号 [@x380kkm 2026-06-13] ////
   getVersion() {
     if (!this._fn) return null;
     return this._fn.getVersion();
   }
 
-  //// 释放 FFI 句柄与原生内存,回到未初始化态 [@busybee 2026-06-13] ////
+  //// 释放 FFI 句柄与原生内存,回到未初始化态 [@x380kkm 2026-06-13] ////
   dispose() {
     if (this.synthesizer && this._fn) {
       this._fn.deleteSynthesizer(this.synthesizer);

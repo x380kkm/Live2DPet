@@ -13,7 +13,7 @@ const { StepId } = require('../../shared/step-catalog');
 const EMOTION_SELECTED = 'EmotionSelected';
 
 class EmotionSelector {
-  //// 构造注入事件总线、LLM 客户端与选情绪所需配置 [@busybee 2026-06-13] ////
+  //// 构造注入事件总线、LLM 客户端与选情绪所需配置 [@x380kkm 2026-06-13] ////
   // config.enabledNames 为可选语义动作名;config.promptTemplate 为含 {0} 槽的系统提示。
   constructor(bus, llm, config) {
     this.bus = bus;
@@ -25,7 +25,7 @@ class EmotionSelector {
     this.isSelecting = false;
   }
 
-  //// 经有界 LLM 从可选名里挑一个语义动作名,发布选定事件 [@busybee 2026-06-13] ////
+  //// 经有界 LLM 从可选名里挑一个语义动作名,发布选定事件 [@x380kkm 2026-06-13] ////
   // state.spokenText 为角色刚说的话;state.enabledNames 若给定则覆盖构造时的可选名。
   async select(state) {
     const names = (state && state.enabledNames) || this.enabledNames;
@@ -49,7 +49,7 @@ class EmotionSelector {
   }
   //// /经有界 LLM 从可选名里挑一个语义动作名 ////
 
-  //// 组装提示并发起一次非流式补全,返回模型选出的原始文本 [@busybee 2026-06-13] ////
+  //// 组装提示并发起一次非流式补全,返回模型选出的原始文本 [@x380kkm 2026-06-13] ////
   async _ask(names, spokenText) {
     const messages = [
       { role: 'system', content: this.promptTemplate.replace('{0}', names.join(', ')) },
@@ -60,7 +60,7 @@ class EmotionSelector {
     return (result && result.text ? result.text : '').trim();
   }
 
-  //// 把模型原始文本对齐到可选名:先精确命中,再按包含模糊命中 [@busybee 2026-06-13] ////
+  //// 把模型原始文本对齐到可选名:先精确命中,再按包含模糊命中 [@x380kkm 2026-06-13] ////
   _match(names, picked) {
     if (names.includes(picked)) {
       return picked;
@@ -69,7 +69,7 @@ class EmotionSelector {
     return fuzzy || '';
   }
 
-  //// 向总线发布选定的语义动作名,空名表示交由渲染层回退 [@busybee 2026-06-13] ////
+  //// 向总线发布选定的语义动作名,空名表示交由渲染层回退 [@x380kkm 2026-06-13] ////
   _publishSelected(name) {
     this.bus.publish({ type: EMOTION_SELECTED, name });
   }

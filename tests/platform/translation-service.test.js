@@ -4,7 +4,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { TranslationService } = require('../../src/platform/llm/translation-service');
 
-//// 造一个记录请求并返回固定译文的 llm 客户端模拟 [@busybee 2026-06-13] ////
+//// 造一个记录请求并返回固定译文的 llm 客户端模拟 [@x380kkm 2026-06-13] ////
 function makeClient(textOrFn) {
   const calls = [];
   return {

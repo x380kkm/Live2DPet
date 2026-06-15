@@ -11,7 +11,7 @@ const { toneFor } = require('../../../domain/tts/tone-map');
 // 全局层配置的作用域 id 占位:全局层只有一份,configStore 忽略此值。
 const GLOBAL_SCOPE = 'global';
 
-//// 把发言文本经译者转日语、经编排器合成,产出 base64 的 WAV [@busybee 2026-06-13] ////
+//// 把发言文本经译者转日语、经编排器合成,产出 base64 的 WAV [@x380kkm 2026-06-13] ////
 async function synthesize(deps, text) {
   const { speechBackend, orchestrator, translate, currentEmotion } = deps;
   if (!speechBackend || !speechBackend.isAvailable()) {
@@ -29,7 +29,7 @@ async function synthesize(deps, text) {
   return { success: true, wav: utterance.audioAlignment.audio.toString('base64'), jaText };
 }
 
-//// 汇报后端初始化、可用、风格与译者就绪情况 [@busybee 2026-06-13] ////
+//// 汇报后端初始化、可用、风格与译者就绪情况 [@x380kkm 2026-06-13] ////
 function status(deps) {
   const { speechBackend, translate } = deps;
   const backend = speechBackend || {};
@@ -42,7 +42,7 @@ function status(deps) {
   };
 }
 
-//// 释放并按持久化配置重新初始化后端,缺资源目录则报错 [@busybee 2026-06-13] ////
+//// 释放并按持久化配置重新初始化后端,缺资源目录则报错 [@x380kkm 2026-06-13] ////
 async function restart(deps) {
   const { speechBackend, configStore, resolveVoicevoxDir, fs } = deps;
   if (!speechBackend) return { success: false, error: 'TTS not available' };
@@ -59,7 +59,7 @@ async function restart(deps) {
   return { success: ok, error: ok ? undefined : 'init failed' };
 }
 
-//// 把风格与速度音高音量写入后端并持久化到全局配置 [@busybee 2026-06-13] ////
+//// 把风格与速度音高音量写入后端并持久化到全局配置 [@x380kkm 2026-06-13] ////
 async function setConfig(deps, config) {
   const { speechBackend, configStore } = deps;
   if (!speechBackend || !config) return { success: true };
@@ -77,27 +77,27 @@ async function setConfig(deps, config) {
   return { success: true };
 }
 
-//// 列出已加载语音的元数据 [@busybee 2026-06-13] ////
+//// 列出已加载语音的元数据 [@x380kkm 2026-06-13] ////
 function getMetas(deps) {
   const { speechBackend } = deps;
   if (!speechBackend) return [];
   return speechBackend.getMetas();
 }
 
-//// 列出资源目录下可用的语音模型文件 [@busybee 2026-06-13] ////
+//// 列出资源目录下可用的语音模型文件 [@x380kkm 2026-06-13] ////
 function getAvailableVvms(deps) {
   const { speechBackend, resolveVoicevoxDir } = deps;
   if (!speechBackend) return [];
   return speechBackend.getAvailableVvms(resolveVoicevoxDir());
 }
 
-//// 重启应用以让重新初始化的后端在干净进程里生效 [@busybee 2026-06-13] ////
+//// 重启应用以让重新初始化的后端在干净进程里生效 [@x380kkm 2026-06-13] ////
 function relaunch(deps) {
   deps.relaunch();
   return { success: true };
 }
 
-//// 把全部 TTS 与安装通道经 ipc-router 注册到契约目录里的对应通道 [@busybee 2026-06-13] ////
+//// 把全部 TTS 与安装通道经 ipc-router 注册到契约目录里的对应通道 [@x380kkm 2026-06-13] ////
 function registerTtsHandlers(deps) {
   const { router, installer, resolveVoicevoxDir, notifyProgress } = deps;
 

@@ -14,27 +14,27 @@
 
 const { isValidUUID } = require('../../../main/validators');
 
-//// 内置默认角色卡的固定 id,首启迁移据它建默认花名册 [@busybee 2026-06-13] ////
+//// 内置默认角色卡的固定 id,首启迁移据它建默认花名册 [@x380kkm 2026-06-13] ////
 const DEFAULT_CHARACTER_ID = '2bcf3d8a-85e8-47dd-aa07-792fe91cca26';
 
-//// 从一份角色卡 JSON 里取展示名与内置标记,解析失败回退到 id [@busybee 2026-06-13] ////
+//// 从一份角色卡 JSON 里取展示名与内置标记,解析失败回退到 id [@x380kkm 2026-06-13] ////
 function readCardInfo(card, id) {
   if (!card) return { name: id, builtin: false };
   const d = card.data || card;
   return { name: d.cardName || d.name || id, builtin: !!card.builtin };
 }
 
-//// 判断一份 JSON 是否像一张角色卡:带 data、name 或 cardName 任一即认 [@busybee 2026-06-13] ////
+//// 判断一份 JSON 是否像一张角色卡:带 data、name 或 cardName 任一即认 [@x380kkm 2026-06-13] ////
 function looksLikeCard(card) {
   if (!card || typeof card !== 'object') return false;
   return !!(card.data || card.name || card.cardName);
 }
 
-//// 装配角色卡处理器:取注入的窄接口,返回按通道名索引的处理器表 [@busybee 2026-06-13] ////
+//// 装配角色卡处理器:取注入的窄接口,返回按通道名索引的处理器表 [@x380kkm 2026-06-13] ////
 function createCharacterHandlers(deps) {
   const { cardStore, config, bundled, newId, chooseFiles } = deps;
 
-  //// 首启迁移:花名册为空时建一条默认内置卡条目 [@busybee 2026-06-13] ////
+  //// 首启迁移:花名册为空时建一条默认内置卡条目 [@x380kkm 2026-06-13] ////
   async function ensureDefaultCharacters() {
     const roster = await config.read();
     if (roster && roster.characters && roster.characters.length > 0) return;
@@ -44,7 +44,7 @@ function createCharacterHandlers(deps) {
     });
   }
 
-  //// 把磁盘上有卡文件却未登记进花名册的卡自动补登 [@busybee 2026-06-13] ////
+  //// 把磁盘上有卡文件却未登记进花名册的卡自动补登 [@x380kkm 2026-06-13] ////
   async function syncUnlinkedCards() {
     const roster = await config.read();
     const known = new Set(((roster && roster.characters) || []).map((c) => c.id));
@@ -61,7 +61,7 @@ function createCharacterHandlers(deps) {
     }
   }
 
-  //// 内置卡迁移:版本变更时刷新内置卡,用户改过的卡先克隆保留 [@busybee 2026-06-13] ////
+  //// 内置卡迁移:版本变更时刷新内置卡,用户改过的卡先克隆保留 [@x380kkm 2026-06-13] ////
   async function migrateBundledCards() {
     if (!(await bundled.isPackaged())) return;
     const currentVersion = await bundled.currentVersion();
@@ -89,7 +89,7 @@ function createCharacterHandlers(deps) {
     await bundled.writeVersion(currentVersion);
   }
 
-  //// 列花名册:先做首启与补登迁移,再附上每张卡的展示名与内置标记 [@busybee 2026-06-13] ////
+  //// 列花名册:先做首启与补登迁移,再附上每张卡的展示名与内置标记 [@x380kkm 2026-06-13] ////
   async function listCharacters() {
     await ensureDefaultCharacters();
     await syncUnlinkedCards();
@@ -103,7 +103,7 @@ function createCharacterHandlers(deps) {
     return { characters, activeCharacterId: (roster && roster.activeCharacterId) || '' };
   }
 
-  //// 读一张卡的提示词:缺 id 时取当前激活卡 [@busybee 2026-06-13] ////
+  //// 读一张卡的提示词:缺 id 时取当前激活卡 [@x380kkm 2026-06-13] ////
   async function loadPrompt(id) {
     if (!id) {
       const roster = await config.read();
@@ -115,7 +115,7 @@ function createCharacterHandlers(deps) {
     return { success: true, data: card.data || card, i18n: card.i18n || null, builtin: !!card.builtin, id };
   }
 
-  //// 存一张卡的提示词:保留原文件里的 builtin 与 i18n 字段 [@busybee 2026-06-13] ////
+  //// 存一张卡的提示词:保留原文件里的 builtin 与 i18n 字段 [@x380kkm 2026-06-13] ////
   async function savePrompt(id, promptData) {
     if (!isValidUUID(id)) return { success: false, error: 'invalid character ID' };
     const json = { data: promptData };
@@ -128,7 +128,7 @@ function createCharacterHandlers(deps) {
     return { success: true };
   }
 
-  //// 把内置卡全部还原回出厂内容 [@busybee 2026-06-13] ////
+  //// 把内置卡全部还原回出厂内容 [@x380kkm 2026-06-13] ////
   async function resetBuiltinCards() {
     const names = await bundled.listNames();
     let count = 0;
@@ -140,7 +140,7 @@ function createCharacterHandlers(deps) {
     return { success: true, count };
   }
 
-  //// 建一张空白卡并登记进花名册 [@busybee 2026-06-13] ////
+  //// 建一张空白卡并登记进花名册 [@x380kkm 2026-06-13] ////
   async function createCharacter(name) {
     const id = newId();
     const cardName = name || 'New Character';
@@ -158,7 +158,7 @@ function createCharacterHandlers(deps) {
     return { success: true, id, name: cardName };
   }
 
-  //// 从文件导入一或多张卡:逐张校验、剥掉 builtin 标记、登记进花名册 [@busybee 2026-06-13] ////
+  //// 从文件导入一或多张卡:逐张校验、剥掉 builtin 标记、登记进花名册 [@x380kkm 2026-06-13] ////
   async function importCharacter() {
     const picked = await chooseFiles();
     if (!picked || picked.length === 0) return { success: false, error: 'canceled' };
@@ -180,7 +180,7 @@ function createCharacterHandlers(deps) {
     return { success: true, imported };
   }
 
-  //// 删一张卡:不许删到只剩一张,激活卡被删时改激活到剩下的第一张 [@busybee 2026-06-13] ////
+  //// 删一张卡:不许删到只剩一张,激活卡被删时改激活到剩下的第一张 [@x380kkm 2026-06-13] ////
   async function deleteCharacter(id) {
     if (!isValidUUID(id)) return { success: false, error: 'invalid character ID' };
     const roster = await config.read();
@@ -194,7 +194,7 @@ function createCharacterHandlers(deps) {
     return { success: true, newActiveId: patch.activeCharacterId || roster.activeCharacterId };
   }
 
-  //// 改一张卡在花名册里的展示名 [@busybee 2026-06-13] ////
+  //// 改一张卡在花名册里的展示名 [@x380kkm 2026-06-13] ////
   async function renameCharacter(id, newName) {
     if (!isValidUUID(id)) return { success: false, error: 'invalid character ID' };
     const roster = await config.read();
@@ -205,14 +205,14 @@ function createCharacterHandlers(deps) {
     return { success: true };
   }
 
-  //// 把某张卡设为当前激活卡 [@busybee 2026-06-13] ////
+  //// 把某张卡设为当前激活卡 [@x380kkm 2026-06-13] ////
   async function setActiveCharacter(id) {
     if (!isValidUUID(id)) return { success: false, error: 'invalid character ID' };
     await config.write({ activeCharacterId: id });
     return { success: true };
   }
 
-  //// 重置提示词:暂无逐卡默认值可还原 [@busybee 2026-06-13] ////
+  //// 重置提示词:暂无逐卡默认值可还原 [@x380kkm 2026-06-13] ////
   async function resetPrompt() {
     return { success: false, error: 'no default available' };
   }

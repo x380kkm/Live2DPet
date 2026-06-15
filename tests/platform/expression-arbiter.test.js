@@ -15,7 +15,7 @@ function makeArbiter() {
   return { arbiter, hidden };
 }
 
-//// takeOver 换主导时收起先前主导者 [@busybee 2026-06-14] ////
+//// takeOver 换主导时收起先前主导者 [@x380kkm 2026-06-14] ////
 test('takeOver 从 mod 切到 bubble 时收起 mod,反之亦然', () => {
   const { arbiter, hidden } = makeArbiter();
   assert.strictEqual(arbiter.takeOver('mod'), null);     // 原无主导,无人被替下

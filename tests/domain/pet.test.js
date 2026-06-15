@@ -6,13 +6,13 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { PetOrchestrator } = require('../../src/domain/pet/pet');
 
-//// 造一个记录发布事件的事件总线桩 [@busybee 2026-06-13] ////
+//// 造一个记录发布事件的事件总线桩 [@x380kkm 2026-06-13] ////
 function fakeEventBus() {
   const published = [];
   return { published, publish: (event) => published.push(event) };
 }
 
-//// 造一个记录请求并回定值的 LLM 客户端桩 [@busybee 2026-06-13] ////
+//// 造一个记录请求并回定值的 LLM 客户端桩 [@x380kkm 2026-06-13] ////
 function fakeLlmClient(text) {
   const calls = [];
   return {
@@ -24,7 +24,7 @@ function fakeLlmClient(text) {
   };
 }
 
-//// 造一个回定回应的管线桩 [@busybee 2026-06-13] ////
+//// 造一个回定回应的管线桩 [@x380kkm 2026-06-13] ////
 function fakePipeline(response) {
   const calls = [];
   return {
@@ -36,13 +36,13 @@ function fakePipeline(response) {
   };
 }
 
-//// 无候选意图时选意图返回 null [@busybee 2026-06-13] ////
+//// 无候选意图时选意图返回 null [@x380kkm 2026-06-13] ////
 test('selectIntent returns null when no candidates', async () => {
   const pet = new PetOrchestrator({ llmClient: fakeLlmClient('') });
   assert.strictEqual(await pet.selectIntent([], {}), null);
 });
 
-//// 只一条候选时直选它且不耗模型调用 [@busybee 2026-06-13] ////
+//// 只一条候选时直选它且不耗模型调用 [@x380kkm 2026-06-13] ////
 test('selectIntent picks the sole candidate without calling the model', async () => {
   const llmClient = fakeLlmClient('');
   const pet = new PetOrchestrator({ llmClient });
@@ -54,7 +54,7 @@ test('selectIntent picks the sole candidate without calling the model', async ()
   assert.strictEqual(llmClient.calls.length, 0);
 });
 
-//// 多候选时经模型回应选出匹配 id 的意图 [@busybee 2026-06-13] ////
+//// 多候选时经模型回应选出匹配 id 的意图 [@x380kkm 2026-06-13] ////
 test('selectIntent chooses the candidate whose id the model returns', async () => {
   const llmClient = fakeLlmClient('我选 observe');
   const pet = new PetOrchestrator({ llmClient });
@@ -67,7 +67,7 @@ test('selectIntent chooses the candidate whose id the model returns', async () =
   assert.strictEqual(llmClient.calls.length, 1);
 });
 
-//// 模型回应不含任何 id 时回退到首个候选 [@busybee 2026-06-13] ////
+//// 模型回应不含任何 id 时回退到首个候选 [@x380kkm 2026-06-13] ////
 test('selectIntent falls back to first candidate on unparseable reply', async () => {
   const pet = new PetOrchestrator({ llmClient: fakeLlmClient('看不懂的回应') });
   const idle = { id: 'idle-chat' };
@@ -78,7 +78,7 @@ test('selectIntent falls back to first candidate on unparseable reply', async ()
   assert.strictEqual(chosen, idle);
 });
 
-//// 注入的意图解析器覆盖缺省解析 [@busybee 2026-06-13] ////
+//// 注入的意图解析器覆盖缺省解析 [@x380kkm 2026-06-13] ////
 test('selectIntent uses injected intent parser', async () => {
   const pet = new PetOrchestrator({
     llmClient: fakeLlmClient('whatever'),
@@ -92,7 +92,7 @@ test('selectIntent uses injected intent parser', async () => {
   assert.strictEqual(chosen, observe);
 });
 
-//// run 跑管线后把产物经事件总线发出 [@busybee 2026-06-13] ////
+//// run 跑管线后把产物经事件总线发出 [@x380kkm 2026-06-13] ////
 test('run drives the pipeline then publishes the product on the bus', async () => {
   const eventBus = fakeEventBus();
   const pipeline = fakePipeline({ text: '你好呀', emotion: 'happy', modEvents: [] });
@@ -113,7 +113,7 @@ test('run drives the pipeline then publishes the product on the bus', async () =
   assert.strictEqual(response.text, '你好呀');
 });
 
-//// 管线产出空文本时不发布产物 [@busybee 2026-06-13] ////
+//// 管线产出空文本时不发布产物 [@x380kkm 2026-06-13] ////
 test('run does not publish when the pipeline yields empty text', async () => {
   const eventBus = fakeEventBus();
   const pipeline = fakePipeline({ text: '', emotion: null, modEvents: [] });
@@ -125,7 +125,7 @@ test('run does not publish when the pipeline yields empty text', async () => {
   assert.deepStrictEqual(eventBus.published, []);
 });
 
-//// 未注入 mod 生成器时生成临时 mod 抛清晰错误 [@busybee 2026-06-13] ////
+//// 未注入 mod 生成器时生成临时 mod 抛清晰错误 [@x380kkm 2026-06-13] ////
 test('generateTempMod throws a clear error without a generator', async () => {
   const pet = new PetOrchestrator({});
   await assert.rejects(
@@ -134,7 +134,7 @@ test('generateTempMod throws a clear error without a generator', async () => {
   );
 });
 
-//// 生成临时 mod 把意图产物规格转交给注入的生成器 [@busybee 2026-06-13] ////
+//// 生成临时 mod 把意图产物规格转交给注入的生成器 [@x380kkm 2026-06-13] ////
 test('generateTempMod delegates the product spec to the generator', async () => {
   const received = [];
   const modGenerator = { generate: async (spec) => { received.push(spec); return { id: 'temp-mod' }; } };
@@ -147,7 +147,7 @@ test('generateTempMod delegates the product spec to the generator', async () => 
   assert.strictEqual(mod.id, 'temp-mod');
 });
 
-//// run 遇到「当场生成临时 mod」产物时,生成后请求挂载、再经富管线产引入台词 [@busybee 2026-06-14] ////
+//// run 遇到「当场生成临时 mod」产物时,生成后请求挂载、再经富管线产引入台词 [@x380kkm 2026-06-14] ////
 test('run 对 generate-temp-mod 产物生成临时 mod、请求挂载并产引入台词', async () => {
   const eventBus = fakeEventBus();
   const generated = { id: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] };
@@ -171,7 +171,7 @@ test('run 对 generate-temp-mod 产物生成临时 mod、请求挂载并产引�
   ]);
 });
 
-//// 引入台词为空时只请求挂载,不发空发言产物 [@busybee 2026-06-14] ////
+//// 引入台词为空时只请求挂载,不发空发言产物 [@x380kkm 2026-06-14] ////
 test('run 对 generate-temp-mod 在引入台词为空时只发 ModMountRequested', async () => {
   const eventBus = fakeEventBus();
   const generated = { id: 'temp-mod', frontendSpec: { html: '<b>hi</b>' }, emits: ['win'] };

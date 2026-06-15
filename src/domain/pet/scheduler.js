@@ -16,7 +16,7 @@
 const MIN_INTERVAL_MS = 10000;
 
 class PetScheduler {
-  //// 构造注入感知、采集、意图、编排、情绪、时钟与计时接口及可配间隔 [@busybee 2026-06-13] ////
+  //// 构造注入感知、采集、意图、编排、情绪、时钟与计时接口及可配间隔 [@x380kkm 2026-06-13] ////
   // config.intervalMs 为驱动周期;config.chatGapMs 为两次产出回应之间的最小间隔;两者都下限到 10 秒。
   constructor(deps = {}, config = {}) {
     this.perception = deps.perception;
@@ -39,7 +39,7 @@ class PetScheduler {
   }
   //// /构造注入感知、采集、意图、编排、情绪、时钟与计时接口及可配间隔 ////
 
-  //// 启动周期驱动:按 intervalMs 反复跑一轮,重复启动无副作用 [@busybee 2026-06-13] ////
+  //// 启动周期驱动:按 intervalMs 反复跑一轮,重复启动无副作用 [@x380kkm 2026-06-13] ////
   start() {
     if (this._handle) {
       return;
@@ -48,7 +48,7 @@ class PetScheduler {
   }
   //// /启动周期驱动 ////
 
-  //// 停止周期驱动:清掉定时器并复位句柄,重复停止无副作用 [@busybee 2026-06-13] ////
+  //// 停止周期驱动:清掉定时器并复位句柄,重复停止无副作用 [@x380kkm 2026-06-13] ////
   stop() {
     if (!this._handle) {
       return;
@@ -58,13 +58,13 @@ class PetScheduler {
   }
   //// /停止周期驱动 ////
 
-  //// 手动驱动一拍并等其跑完,供自动化操纵通道按需触发 [@busybee 2026-06-14] ////
+  //// 手动驱动一拍并等其跑完,供自动化操纵通道按需触发 [@x380kkm 2026-06-14] ////
   runOnce() {
     return this._driveOnce();
   }
   //// /手动驱动一拍 ////
 
-  //// 跑一轮:采感知、组装作用域、取候选、定动作产回应,并按需喂情绪 [@busybee 2026-06-14] ////
+  //// 跑一轮:采感知、组装作用域、取候选、定动作产回应,并按需喂情绪 [@x380kkm 2026-06-14] ////
   // 上一拍未跑完则跳过本拍,避免重入;全程不向计时器抛错,单拍失败不拖垮后续周期。
   async _driveOnce() {
     if (this._running) {
@@ -91,7 +91,7 @@ class PetScheduler {
   }
   //// /跑一轮 ////
 
-  //// 采一帧交采集源跑退避采集,返回本拍态势文本或 null [@busybee 2026-06-13] ////
+  //// 采一帧交采集源跑退避采集,返回本拍态势文本或 null [@x380kkm 2026-06-13] ////
   // 无感知源或无采集源时返回 null,作用域据此落为空闲态势。
   async _perceive() {
     if (!this.perception || typeof this.perception.capture !== 'function') {
@@ -104,7 +104,7 @@ class PetScheduler {
     return this.collector.tick(frame, frame.background || null);
   }
 
-  //// 据本拍态势组装作用域:有态势即有视觉输入,态势文本作摘要,带归一情绪值 [@busybee 2026-06-14] ////
+  //// 据本拍态势组装作用域:有态势即有视觉输入,态势文本作摘要,带归一情绪值 [@x380kkm 2026-06-14] ////
   // signals 供意图注册表按触发条件筛候选;situationDigest 供决策陈述当前态势;
   // emotion 为归一到 [0,1] 的当前情绪值,供权重模型抬升模组动作倾向。
   _buildScope(situation) {
@@ -115,7 +115,7 @@ class PetScheduler {
     };
   }
 
-  //// 取归一到 [0,1] 的当前情绪值,无情绪状态或其不支持归一时回 0 [@busybee 2026-06-14] ////
+  //// 取归一到 [0,1] 的当前情绪值,无情绪状态或其不支持归一时回 0 [@x380kkm 2026-06-14] ////
   _emotionLevel() {
     if (!this.emotionState || typeof this.emotionState.normalized !== 'function') {
       return 0;
@@ -123,14 +123,14 @@ class PetScheduler {
     return this.emotionState.normalized();
   }
 
-  //// 每拍给情绪状态喂一拍输入,推进积累 [@busybee 2026-06-13] ////
+  //// 每拍给情绪状态喂一拍输入,推进积累 [@x380kkm 2026-06-13] ////
   _feedTick() {
     if (this.emotionState && typeof this.emotionState.feed === 'function') {
       this.emotionState.feed({ kind: 'tick' });
     }
   }
 
-  //// 跑出回应后记录产出时刻并按文本长度给情绪一次性加成 [@busybee 2026-06-13] ////
+  //// 跑出回应后记录产出时刻并按文本长度给情绪一次性加成 [@x380kkm 2026-06-13] ////
   // 守 chatGap:距上次产出不足间隔时不喂回复加成,避免短时间连发拉高积累。
   _afterRun(response) {
     if (!response || !response.text) {
@@ -147,7 +147,7 @@ class PetScheduler {
   }
 }
 
-//// 把可配间隔下限到最小 10 秒,非数或过小一律取下限 [@busybee 2026-06-13] ////
+//// 把可配间隔下限到最小 10 秒,非数或过小一律取下限 [@x380kkm 2026-06-13] ////
 function clampInterval(ms) {
   if (typeof ms !== 'number' || !Number.isFinite(ms)) {
     return MIN_INTERVAL_MS;
@@ -156,7 +156,7 @@ function clampInterval(ms) {
 }
 //// /把可配间隔下限到最小 10 秒 ////
 
-//// 单拍失败时记录错误,有 console 才打,无则静默吞掉 [@busybee 2026-06-13] ////
+//// 单拍失败时记录错误,有 console 才打,无则静默吞掉 [@x380kkm 2026-06-13] ////
 function logTickError(error) {
   if (typeof console !== 'undefined' && typeof console.error === 'function') {
     console.error('[PetScheduler] 单拍驱动失败:', error && error.message ? error.message : error);

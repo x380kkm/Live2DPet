@@ -9,7 +9,7 @@ const assert = require('node:assert');
 // settings-app 是 ESM(渲染侧),用动态 import 载入。
 const loadApp = () => import('../../src/renderer/settings/settings-app.js');
 
-//// 造一个最小文档 mock:支撑 getElementById、querySelectorAll 与元素属性读写 [@busybee 2026-06-13] ////
+//// 造一个最小文档 mock:支撑 getElementById、querySelectorAll 与元素属性读写 [@x380kkm 2026-06-13] ////
 function mockDoc() {
   const elements = {};
   function makeEl(id) {

@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { Intent, TriggerWhen, ProductKind, intentFromDeclaration } = require('../../src/domain/intent/intent');
 
-//// 新建意图是各字段为空的纯数据 [@busybee 2026-06-13] ////
+//// 新建意图是各字段为空的纯数据 [@x380kkm 2026-06-13] ////
 test('a fresh Intent is empty pure data', () => {
   const intent = new Intent();
   assert.strictEqual(intent.id, null);
@@ -17,7 +17,7 @@ test('a fresh Intent is empty pure data', () => {
   assert.strictEqual(intent.origin, null);
 });
 
-//// 从声明逐字段拷贝并带来源 [@busybee 2026-06-13] ////
+//// 从声明逐字段拷贝并带来源 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration copies declared fields and tags origin', () => {
   const intent = intentFromDeclaration({
     id: 'observe-response',
@@ -36,7 +36,7 @@ test('intentFromDeclaration copies declared fields and tags origin', () => {
   assert.strictEqual(intent.origin, 'builtin');
 });
 
-//// 拷贝引用数组,改原声明不影响已建意图 [@busybee 2026-06-13] ////
+//// 拷贝引用数组,改原声明不影响已建意图 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration copies ref arrays so mutating the source is isolated', () => {
   const refs = ['idleInfo'];
   const decl = { id: 'idle-chat', trigger: { when: TriggerWhen.Idle }, contextSourceRefs: refs };
@@ -47,7 +47,7 @@ test('intentFromDeclaration copies ref arrays so mutating the source is isolated
   assert.deepStrictEqual(intent.contextSourceRefs, ['idleInfo']);
 });
 
-//// 缺 id 报清晰错误 [@busybee 2026-06-13] ////
+//// 缺 id 报清晰错误 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration rejects a declaration without a string id', () => {
   assert.throws(
     () => intentFromDeclaration({ trigger: { when: TriggerWhen.Idle } }, 'builtin'),
@@ -55,7 +55,7 @@ test('intentFromDeclaration rejects a declaration without a string id', () => {
   );
 });
 
-//// 触发条件取值非法报错 [@busybee 2026-06-13] ////
+//// 触发条件取值非法报错 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration rejects an unknown trigger.when', () => {
   assert.throws(
     () => intentFromDeclaration({ id: 'x', trigger: { when: 'whenever' } }, 'builtin'),
@@ -63,7 +63,7 @@ test('intentFromDeclaration rejects an unknown trigger.when', () => {
   );
 });
 
-//// mod 事件触发缺 event 名报错 [@busybee 2026-06-13] ////
+//// mod 事件触发缺 event 名报错 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration rejects a mod-event trigger missing the event name', () => {
   assert.throws(
     () => intentFromDeclaration({ id: 'win', trigger: { when: TriggerWhen.ModEvent } }, 'mod:game'),
@@ -71,7 +71,7 @@ test('intentFromDeclaration rejects a mod-event trigger missing the event name',
   );
 });
 
-//// mod 事件触发保留 event 名 [@busybee 2026-06-13] ////
+//// mod 事件触发保留 event 名 [@x380kkm 2026-06-13] ////
 test('intentFromDeclaration keeps the event name for a mod-event trigger', () => {
   const intent = intentFromDeclaration({
     id: 'on-win',

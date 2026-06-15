@@ -16,7 +16,7 @@ class StepRegistry {
     this._byId = new Map();
   }
 
-  //// 注册一条步骤声明,校验 id 与大类合法,同 id 覆盖 [@busybee 2026-06-13] ////
+  //// 注册一条步骤声明,校验 id 与大类合法,同 id 覆盖 [@x380kkm 2026-06-13] ////
   register(step) {
     if (!step || typeof step.id !== 'string' || !step.id) {
       throw new Error('注册的步骤缺少字符串 id');
@@ -29,14 +29,14 @@ class StepRegistry {
   }
   //// /注册一条步骤声明 ////
 
-  //// 从出厂步骤清单逐条发现注入 [@busybee 2026-06-13] ////
+  //// 从出厂步骤清单逐条发现注入 [@x380kkm 2026-06-13] ////
   discoverBuiltins(steps) {
     for (const step of steps || []) {
       this.register(step);
     }
   }
 
-  //// 从一组 mod 读其 aiSteps 数据声明并注入,可追溯到 mod id [@busybee 2026-06-13] ////
+  //// 从一组 mod 读其 aiSteps 数据声明并注入,可追溯到 mod id [@x380kkm 2026-06-13] ////
   discoverFromMods(mods) {
     for (const mod of mods || []) {
       const declarations = mod && Array.isArray(mod.aiSteps) ? mod.aiSteps : [];
@@ -46,12 +46,12 @@ class StepRegistry {
     }
   }
 
-  //// 取一条已注册步骤,未命中返回 null [@busybee 2026-06-13] ////
+  //// 取一条已注册步骤,未命中返回 null [@x380kkm 2026-06-13] ////
   get(id) {
     return this._byId.get(id) || null;
   }
 
-  //// 列出全部已注册步骤,供界面枚举与配置校验 [@busybee 2026-06-13] ////
+  //// 列出全部已注册步骤,供界面枚举与配置校验 [@x380kkm 2026-06-13] ////
   list() {
     return [...this._byId.values()];
   }

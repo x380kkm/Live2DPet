@@ -8,7 +8,7 @@ const {
   createCharacterHandlers, readCardInfo, looksLikeCard, DEFAULT_CHARACTER_ID
 } = require('../../../src/platform/ipc/handlers/character-handlers');
 
-//// 内存卡存储:id 映射到卡对象,记录读写删 [@busybee 2026-06-13] ////
+//// 内存卡存储:id 映射到卡对象,记录读写删 [@x380kkm 2026-06-13] ////
 function fakeCardStore(initial = {}) {
   const cards = { ...initial };
   return {
@@ -21,7 +21,7 @@ function fakeCardStore(initial = {}) {
   };
 }
 
-//// 内存花名册:read 返回当前快照,write 浅合并补丁 [@busybee 2026-06-13] ////
+//// 内存花名册:read 返回当前快照,write 浅合并补丁 [@x380kkm 2026-06-13] ////
 function fakeConfig(initial = {}) {
   let roster = { ...initial };
   return {
@@ -31,7 +31,7 @@ function fakeConfig(initial = {}) {
   };
 }
 
-//// 内存内置卡源:可配是否打包态、版本与卡内容 [@busybee 2026-06-13] ////
+//// 内存内置卡源:可配是否打包态、版本与卡内容 [@x380kkm 2026-06-13] ////
 function fakeBundled(opts = {}) {
   const state = {
     packaged: opts.packaged || false,
@@ -50,7 +50,7 @@ function fakeBundled(opts = {}) {
   };
 }
 
-//// 造一套处理器,允许逐项覆盖注入件 [@busybee 2026-06-13] ////
+//// 造一套处理器,允许逐项覆盖注入件 [@x380kkm 2026-06-13] ////
 function makeHandlers(overrides = {}) {
   let counter = 0;
   const deps = {

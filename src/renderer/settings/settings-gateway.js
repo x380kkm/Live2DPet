@@ -3,7 +3,7 @@
 // 设置面板对外能力的窄接口:把 preload 暴露的扁平 electronAPI 收窄成按领域分组的句柄。
 // 不变量:子面板只见本文件交回的分组句柄,不直接抓 window.electronAPI 全量表。
 
-//// 把 preload 暴露的 api 收窄成设置面板各领域所需的最小动作集 [@busybee 2026-06-13] ////
+//// 把 preload 暴露的 api 收窄成设置面板各领域所需的最小动作集 [@x380kkm 2026-06-13] ////
 export function makeSettingsGateway(electronApi) {
   const api = electronApi || {};
   return {

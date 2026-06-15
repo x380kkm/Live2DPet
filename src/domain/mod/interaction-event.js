@@ -11,7 +11,7 @@
 const INTERACTION_EVENT_TYPE = 'InteractionEvent';
 
 class InteractionEvent {
-  //// 用事件名与交互语义数据构造一个交互事件 [@busybee 2026-06-13] ////
+  //// 用事件名与交互语义数据构造一个交互事件 [@x380kkm 2026-06-13] ////
   constructor(name, payload) {
     // 总线分发用的类型,恒为交互事件类型,意图层据此订阅。
     this.type = INTERACTION_EVENT_TYPE;
@@ -22,7 +22,7 @@ class InteractionEvent {
   }
 }
 
-//// 判断一个值是否为结构合法的交互事件 [@busybee 2026-06-13] ////
+//// 判断一个值是否为结构合法的交互事件 [@x380kkm 2026-06-13] ////
 // 合法要求:type 为交互事件类型且 name 是非空字符串;意图层据此过滤总线上的非交互事件。
 function isInteractionEvent(value) {
   return (

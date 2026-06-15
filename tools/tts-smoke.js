@@ -14,7 +14,7 @@ const WANT_GPU = MODE === 'gpu';
 const VOICEVOX_DIR = path.join(__dirname, '..', 'voicevox_core');
 const TEXT = 'こんにちは、今日はいい天気ですね。';
 
-//// 校验 WAV 头并据字节率算时长,空或头无效则抛错 [@busybee 2026-06-14] ////
+//// 校验 WAV 头并据字节率算时长,空或头无效则抛错 [@x380kkm 2026-06-14] ////
 function validateWav(buf) {
   if (!buf || buf.length <= 44) {
     throw new Error('WAV 为空或过短');
@@ -27,7 +27,7 @@ function validateWav(buf) {
 }
 //// /校验 WAV 头并据字节率算时长 ////
 
-//// 初始化指定加速模式的后端,预热、合成、再合成验缓存,校验落盘并打印结果 [@busybee 2026-06-14] ////
+//// 初始化指定加速模式的后端,预热、合成、再合成验缓存,校验落盘并打印结果 [@x380kkm 2026-06-14] ////
 function main() {
   const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
   const ok = backend.init(VOICEVOX_DIR, ['0.vvm'], { gpuMode: WANT_GPU });

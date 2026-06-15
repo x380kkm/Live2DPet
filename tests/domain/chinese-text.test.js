@@ -7,14 +7,14 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { textToPinyinTokens, textToAccentKana } = require('../../src/domain/tts/chinese-text');
 
-//// 汉字转带声调拼音,轻声归 5 [@busybee 2026-06-15] ////
+//// 汉字转带声调拼音,轻声归 5 [@x380kkm 2026-06-15] ////
 test('textToPinyinTokens 基本转换与轻声', () => {
   assert.deepStrictEqual(textToPinyinTokens('你好'), ['ni3', 'hao3']);
   // 轻声 pinyin-pro 记 0,这里统一成 5(们、的)
   assert.deepStrictEqual(textToPinyinTokens('我们的'), ['wo3', 'men5', 'de5']);
 });
 
-//// 多音字按词消歧 [@busybee 2026-06-15] ////
+//// 多音字按词消歧 [@x380kkm 2026-06-15] ////
 test('textToPinyinTokens 多音字按上下文', () => {
   assert.deepStrictEqual(textToPinyinTokens('银行'), ['yin2', 'hang2']);
   assert.deepStrictEqual(textToPinyinTokens('行走'), ['xing2', 'zou3']);
@@ -22,7 +22,7 @@ test('textToPinyinTokens 多音字按上下文', () => {
   assert.deepStrictEqual(textToPinyinTokens('重复'), ['chong2', 'fu4']);
 });
 
-//// 标点保留、非汉字(拉丁字母、数字、空格、符号)跳过 [@busybee 2026-06-15] ////
+//// 标点保留、非汉字(拉丁字母、数字、空格、符号)跳过 [@x380kkm 2026-06-15] ////
 test('textToPinyinTokens 标点保留、非汉字跳过', () => {
   assert.deepStrictEqual(
     textToPinyinTokens('你好，世界。'),
@@ -36,10 +36,11 @@ test('textToPinyinTokens 标点保留、非汉字跳过', () => {
   assert.deepStrictEqual(textToPinyinTokens('123 %#'), []);
 });
 
-//// 文本直通片假名与声调计划 [@busybee 2026-06-15] ////
+//// 文本直通片假名与声调计划 [@x380kkm 2026-06-15] ////
 test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   const { kana, plan } = textToAccentKana('你好');
-  assert.strictEqual(kana, "ニハオ'");
+  // 默认补拍:单元音「你」ni→ニイ,「好」hao 复韵母不补
+  assert.strictEqual(kana, "ニイハオ'");
   // 三声变调:你好两个三声,前一个「你」变二声,念 ní hǎo
   assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3]);
   // 显式关掉变调则保留原调

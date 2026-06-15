@@ -5,7 +5,7 @@
 
 import { tokenCountForMultiplier } from './settings-model.js';
 
-//// 装配设置标签页的各项控件,绑定到配置数据模型与配置网关 [@busybee 2026-06-13] ////
+//// 装配设置标签页的各项控件,绑定到配置数据模型与配置网关 [@x380kkm 2026-06-13] ////
 export function mountApiPanel(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const config = model.config;
@@ -18,7 +18,7 @@ export function mountApiPanel(ctx) {
   doc.getElementById('enhance-enabled').checked = (config.enhance && config.enhance.enabled) || false;
   renderTokenMultiplier(ctx, config.maxTokensMultiplier || 1.0);
 
-  //// 保存主 API 接入设置 [@busybee 2026-06-13] ////
+  //// 保存主 API 接入设置 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-save-api').addEventListener('click', async () => {
     config.baseURL = doc.getElementById('api-url').value.trim();
     config.apiKey = doc.getElementById('api-key').value.trim();
@@ -27,14 +27,14 @@ export function mountApiPanel(ctx) {
     showStatus('api-status', t('status.saved'), 'success');
   });
 
-  //// 保存检测频率与最小对话间隔 [@busybee 2026-06-13] ////
+  //// 保存检测频率与最小对话间隔 [@x380kkm 2026-06-13] ////
   doc.getElementById('btn-save-interval').addEventListener('click', async () => {
     config.interval = parseInt(doc.getElementById('interval').value);
     config.chatGap = parseInt(doc.getElementById('chat-gap').value);
     await gateway.config.save({ interval: config.interval, chatGap: config.chatGap });
   });
 
-  //// 切换增强总闸 [@busybee 2026-06-13] ////
+  //// 切换增强总闸 [@x380kkm 2026-06-13] ////
   doc.getElementById('enhance-enabled').addEventListener('change', async () => {
     const enabled = doc.getElementById('enhance-enabled').checked;
     if (!config.enhance) config.enhance = {};
@@ -42,7 +42,7 @@ export function mountApiPanel(ctx) {
     await gateway.config.save({ enhance: { enabled } });
   });
 
-  //// 切换 token 倍率,即时落盘 [@busybee 2026-06-13] ////
+  //// 切换 token 倍率,即时落盘 [@x380kkm 2026-06-13] ////
   doc.querySelectorAll('.token-mult-btn').forEach((btn) => {
     btn.addEventListener('click', async () => {
       const multiplier = parseFloat(btn.dataset.mult);
@@ -53,7 +53,7 @@ export function mountApiPanel(ctx) {
   });
 }
 
-//// 按当前倍率刷新按钮高亮与说明文字 [@busybee 2026-06-13] ////
+//// 按当前倍率刷新按钮高亮与说明文字 [@x380kkm 2026-06-13] ////
 function renderTokenMultiplier(ctx, multiplier) {
   const { doc, t } = ctx;
   doc.querySelectorAll('.token-mult-btn').forEach((btn) => {

@@ -8,7 +8,7 @@
 
 const { pickByWeight } = require('./low-discrepancy');
 
-//// 判断一个意图是不是模组动作:来源不是出厂或角色,即来自某个模组 [@busybee 2026-06-14] ////
+//// 判断一个意图是不是模组动作:来源不是出厂或角色,即来自某个模组 [@x380kkm 2026-06-14] ////
 function isModAction(intent) {
   const origin = intent && intent.origin;
   if (!origin || origin === 'builtin') {
@@ -18,7 +18,7 @@ function isModAction(intent) {
 }
 //// /判断一个意图是不是模组动作 ////
 
-//// 把数值夹到 [0,1],非数按 0 计 [@busybee 2026-06-14] ////
+//// 把数值夹到 [0,1],非数按 0 计 [@x380kkm 2026-06-14] ////
 function clamp01(value) {
   if (typeof value !== 'number' || !Number.isFinite(value)) {
     return 0;
@@ -28,7 +28,7 @@ function clamp01(value) {
 //// /把数值夹到 [0,1] ////
 
 class WeightModel {
-  //// 构造注入静态基值、逐意图覆盖与情绪抬升系数 [@busybee 2026-06-14] ////
+  //// 构造注入静态基值、逐意图覆盖与情绪抬升系数 [@x380kkm 2026-06-14] ////
   // config.dialogueBase / config.modBase:对话总权重与模组总权重,在同类候选间平分。
   // config.perIntent:按意图 id 覆盖该意图的权重,优先于平分值。
   // config.emotionModLift:满情绪(emotion=1)时模组权重相对抬升的比例,默认半成。
@@ -40,7 +40,7 @@ class WeightModel {
   }
   //// /构造注入静态基值、逐意图覆盖与情绪抬升系数 ////
 
-  //// 算一个候选的静态基值:有逐意图覆盖取覆盖,否则按同类候选数平分总权重 [@busybee 2026-06-14] ////
+  //// 算一个候选的静态基值:有逐意图覆盖取覆盖,否则按同类候选数平分总权重 [@x380kkm 2026-06-14] ////
   baseWeight(intent, dialogueCount, modCount) {
     if (this.perIntent[intent.id] != null) {
       return this.perIntent[intent.id];
@@ -52,7 +52,7 @@ class WeightModel {
   }
   //// /算一个候选的静态基值 ////
 
-  //// 算各候选的有效权重:静态基值再按情绪抬升模组项 [@busybee 2026-06-14] ////
+  //// 算各候选的有效权重:静态基值再按情绪抬升模组项 [@x380kkm 2026-06-14] ////
   // emotion 为归一到 [0,1] 的情绪当前值;返回 [{ id, weight, isMod }],顺序同 candidates。
   effectiveWeights(candidates, emotion = 0) {
     const e = clamp01(emotion);
@@ -70,7 +70,7 @@ class WeightModel {
   }
   //// /算各候选的有效权重 ////
 
-  //// 把候选与情绪折成一份选择简报:占比描述加一个低差异建议动作 [@busybee 2026-06-14] ////
+  //// 把候选与情绪折成一份选择简报:占比描述加一个低差异建议动作 [@x380kkm 2026-06-14] ////
   // sampler 为低差异序列实例,调一次 next 推进;无候选返回空描述与空建议。
   brief(candidates, emotion = 0, sampler = null) {
     const eff = this.effectiveWeights(candidates, emotion);

@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { FewShotBank } = require('../../src/domain/fewshot/fewshot-bank');
 
-//// 造一条合法结构样例:只含骨架与槽位 [@busybee 2026-06-13] ////
+//// 造一条合法结构样例:只含骨架与槽位 [@x380kkm 2026-06-13] ////
 function structureSample(overrides = {}) {
   return Object.assign({
     name: 'greet',
@@ -18,7 +18,7 @@ function structureSample(overrides = {}) {
   }, overrides);
 }
 
-//// 造一条合法语气样例:只供槽位填充 [@busybee 2026-06-13] ////
+//// 造一条合法语气样例:只供槽位填充 [@x380kkm 2026-06-13] ////
 function toneSample(overrides = {}) {
   return Object.assign({
     name: 'greet',

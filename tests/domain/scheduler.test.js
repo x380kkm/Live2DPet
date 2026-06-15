@@ -7,7 +7,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { PetScheduler, MIN_INTERVAL_MS } = require('../../src/domain/pet/scheduler');
 
-//// 注入计时替身:记下回调与间隔,fire() 手动驱动一拍,可断言已清理 [@busybee 2026-06-13] ////
+//// 注入计时替身:记下回调与间隔,fire() 手动驱动一拍,可断言已清理 [@x380kkm 2026-06-13] ////
 function fakeTimer() {
   const state = { callback: null, intervalMs: null, cleared: false, handle: 'h1' };
   return {
@@ -23,20 +23,20 @@ function fakeTimer() {
         state.cleared = true;
       }
     },
-    //// 手动驱动一拍并等其异步跑完 [@busybee 2026-06-13] ////
+    //// 手动驱动一拍并等其异步跑完 [@x380kkm 2026-06-13] ////
     async fire() {
       await state.callback();
     }
   };
 }
 
-//// 注入感知替身:capture 回预置帧序列,逐拍取下一帧 [@busybee 2026-06-13] ////
+//// 注入感知替身:capture 回预置帧序列,逐拍取下一帧 [@x380kkm 2026-06-13] ////
 function fakePerception(frames) {
   let i = 0;
   return { async capture() { return i < frames.length ? frames[i++] : null; } };
 }
 
-//// 注入采集替身:记录收到的帧与背景,回预置态势序列 [@busybee 2026-06-13] ////
+//// 注入采集替身:记录收到的帧与背景,回预置态势序列 [@x380kkm 2026-06-13] ////
 function fakeCollector(situations) {
   let i = 0;
   const calls = [];
@@ -49,7 +49,7 @@ function fakeCollector(situations) {
   };
 }
 
-//// 注入意图注册表替身:记录 candidates 收到的作用域,回预置候选 [@busybee 2026-06-13] ////
+//// 注入意图注册表替身:记录 candidates 收到的作用域,回预置候选 [@x380kkm 2026-06-13] ////
 function fakeRegistry(candidates) {
   const calls = [];
   return {
@@ -58,7 +58,7 @@ function fakeRegistry(candidates) {
   };
 }
 
-//// 注入决策器替身:据候选定首个意图,记录入参,回预置回应 [@busybee 2026-06-14] ////
+//// 注入决策器替身:据候选定首个意图,记录入参,回预置回应 [@x380kkm 2026-06-14] ////
 function fakeDecider(response) {
   const calls = [];
   return {
@@ -71,7 +71,7 @@ function fakeDecider(response) {
   };
 }
 
-//// 注入情绪状态替身:记录每次喂入,normalized 回预置归一值 [@busybee 2026-06-14] ////
+//// 注入情绪状态替身:记录每次喂入,normalized 回预置归一值 [@x380kkm 2026-06-14] ////
 function fakeEmotionState(level) {
   const fed = [];
   return { fed, feed(input) { fed.push(input); }, normalized() { return level || 0; } };
@@ -81,7 +81,7 @@ const FRAME = { image: 'img', title: 'editor', background: 'bg' };
 const INTENT = { id: 'observe' };
 const REPLY = { text: '你在写代码呀', emotion: 'happy', modEvents: [] };
 
-//// 间隔下限到 10 秒:过小或非数一律取 MIN_INTERVAL_MS [@busybee 2026-06-13] ////
+//// 间隔下限到 10 秒:过小或非数一律取 MIN_INTERVAL_MS [@x380kkm 2026-06-13] ////
 test('clamps interval and chatGap to the 10s minimum', () => {
   const timer = fakeTimer();
   const tooSmall = new PetScheduler({ timer }, { intervalMs: 3000, chatGapMs: 500 });
@@ -96,7 +96,7 @@ test('clamps interval and chatGap to the 10s minimum', () => {
   assert.strictEqual(ample.chatGapMs, 20000);
 });
 
-//// start 按 intervalMs 装定时器,stop 干净清除,重复调用各无副作用 [@busybee 2026-06-13] ////
+//// start 按 intervalMs 装定时器,stop 干净清除,重复调用各无副作用 [@x380kkm 2026-06-13] ////
 test('start arms the timer at intervalMs and stop clears it cleanly', () => {
   const timer = fakeTimer();
   const scheduler = new PetScheduler({ timer }, { intervalMs: 15000 });
@@ -119,7 +119,7 @@ test('start arms the timer at intervalMs and stop clears it cleanly', () => {
   assert.strictEqual(timer.state.cleared, false);
 });
 
-//// 一拍跑通:采感知、组态势作用域、取候选、交决策器定动作产回应 [@busybee 2026-06-14] ////
+//// 一拍跑通:采感知、组态势作用域、取候选、交决策器定动作产回应 [@x380kkm 2026-06-14] ////
 test('one tick drives perceive then candidates then decide', async () => {
   const timer = fakeTimer();
   const collector = fakeCollector(['在写代码']);
@@ -149,7 +149,7 @@ test('one tick drives perceive then candidates then decide', async () => {
   assert.strictEqual(decider.calls[0].scope, scope);
 });
 
-//// 无态势时作用域落空闲:无视觉输入、摘要为空 [@busybee 2026-06-13] ////
+//// 无态势时作用域落空闲:无视觉输入、摘要为空 [@x380kkm 2026-06-13] ////
 test('without a situation the scope falls back to idle', async () => {
   const timer = fakeTimer();
   const registry = fakeRegistry([INTENT]);
@@ -171,7 +171,7 @@ test('without a situation the scope falls back to idle', async () => {
   assert.strictEqual(scope.emotion, 0);
 });
 
-//// 无候选意图时不产回应:决策器回空意图,只喂 tick 不喂 reply [@busybee 2026-06-14] ////
+//// 无候选意图时不产回应:决策器回空意图,只喂 tick 不喂 reply [@x380kkm 2026-06-14] ////
 test('no candidate means no response is produced', async () => {
   const timer = fakeTimer();
   const emotionState = fakeEmotionState();
@@ -190,7 +190,7 @@ test('no candidate means no response is produced', async () => {
   assert.deepStrictEqual(emotionState.fed, [{ kind: 'tick' }]);
 });
 
-//// 每拍喂情绪 tick;跑出回应再按文本长度喂一次 reply 加成 [@busybee 2026-06-13] ////
+//// 每拍喂情绪 tick;跑出回应再按文本长度喂一次 reply 加成 [@x380kkm 2026-06-13] ////
 test('feeds emotion a tick each cycle and a reply bonus on a produced response', async () => {
   const timer = fakeTimer();
   const emotionState = fakeEmotionState();
@@ -212,7 +212,7 @@ test('feeds emotion a tick each cycle and a reply bonus on a produced response',
   ]);
 });
 
-//// 无回应或空文本时只喂 tick 不喂 reply [@busybee 2026-06-13] ////
+//// 无回应或空文本时只喂 tick 不喂 reply [@x380kkm 2026-06-13] ////
 test('feeds only a tick when no reply text is produced', async () => {
   const timer = fakeTimer();
   const emotionState = fakeEmotionState();
@@ -231,7 +231,7 @@ test('feeds only a tick when no reply text is produced', async () => {
   assert.deepStrictEqual(emotionState.fed, [{ kind: 'tick' }]);
 });
 
-//// 守 chatGap:距上次产出不足间隔时不再喂 reply 加成 [@busybee 2026-06-13] ////
+//// 守 chatGap:距上次产出不足间隔时不再喂 reply 加成 [@x380kkm 2026-06-13] ////
 test('reply bonus is withheld within the chatGap window', async () => {
   const timer = fakeTimer();
   const emotionState = fakeEmotionState();
@@ -263,7 +263,7 @@ test('reply bonus is withheld within the chatGap window', async () => {
   assert.strictEqual(replyFeedsAfter.length, 2);
 });
 
-//// 单拍失败不抛回计时器,下一拍照常进行 [@busybee 2026-06-14] ////
+//// 单拍失败不抛回计时器,下一拍照常进行 [@x380kkm 2026-06-14] ////
 test('a failing tick does not break the loop', async () => {
   const timer = fakeTimer();
   const registry = fakeRegistry([INTENT]);
@@ -294,7 +294,7 @@ test('a failing tick does not break the loop', async () => {
   assert.strictEqual(flakyDecider.calls.length, 1);
 });
 
-//// 无感知源时作用域落空闲,仍照常取候选交决策 [@busybee 2026-06-14] ////
+//// 无感知源时作用域落空闲,仍照常取候选交决策 [@x380kkm 2026-06-14] ////
 test('without a perception source the tick still drives a decision on idle scope', async () => {
   const timer = fakeTimer();
   const registry = fakeRegistry([INTENT]);

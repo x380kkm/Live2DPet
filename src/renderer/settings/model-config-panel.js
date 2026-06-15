@@ -5,7 +5,7 @@
 
 import { AI_CATEGORIES, AI_STEP_CATALOG, MODEL_PRESETS } from './settings-model.js';
 
-//// 装配模型路由面板:渲染大类与步骤填空、绑定模式切换与保存,并留一个按当前语言重渲的钩子 [@busybee 2026-06-13] ////
+//// 装配模型路由面板:渲染大类与步骤填空、绑定模式切换与保存,并留一个按当前语言重渲的钩子 [@x380kkm 2026-06-13] ////
 export function mountModelConfigPanel(ctx) {
   const { doc, model } = ctx;
   const root = doc.getElementById('model-config-root');
@@ -21,7 +21,7 @@ export function mountModelConfigPanel(ctx) {
   ctx.reRenderModelConfig = () => renderForm(ctx);
 }
 
-//// 按大类与步骤目录把当前配置渲染成填空控件,文案按当前语言查表 [@busybee 2026-06-14] ////
+//// 按大类与步骤目录把当前配置渲染成填空控件,文案按当前语言查表 [@x380kkm 2026-06-14] ////
 function renderForm(ctx) {
   const { doc, model } = ctx;
   const t = ctx.t || ((k) => k);
@@ -50,7 +50,7 @@ function renderForm(ctx) {
   root.appendChild(stepCard);
 }
 
-//// 渲染一个步骤块:首行步骤名与跟随大类开关,次行并排的单独模型与单独温度 [@busybee 2026-06-14] ////
+//// 渲染一个步骤块:首行步骤名与跟随大类开关,次行并排的单独模型与单独温度 [@x380kkm 2026-06-14] ////
 // 跟随大类勾选时禁用并淡化两个覆盖输入,直观表明覆盖只在关掉跟随后生效;外观类集中在 settings.css。
 function stepRow(doc, step, override, t) {
   const tr = t || ((k) => k);
@@ -111,7 +111,7 @@ function stepRow(doc, step, override, t) {
   return block;
 }
 
-//// 把填空控件里的值收回数据模型 [@busybee 2026-06-13] ////
+//// 把填空控件里的值收回数据模型 [@x380kkm 2026-06-13] ////
 function collectForm(ctx) {
   const { doc, model } = ctx;
   for (const category of AI_CATEGORIES) {
@@ -139,7 +139,7 @@ function collectForm(ctx) {
   if (injection) model.setSystemInjection(injection.value);
 }
 
-//// 绑定友好模式与 JSON 高级模式的切换 [@busybee 2026-06-13] ////
+//// 绑定友好模式与 JSON 高级模式的切换 [@x380kkm 2026-06-13] ////
 function bindModeSwitch(ctx) {
   const { doc, model } = ctx;
   const jsonCard = doc.getElementById('model-config-json-card');
@@ -166,7 +166,7 @@ function bindModeSwitch(ctx) {
   });
 }
 
-//// 绑定保存:按当前模式收集配置,落盘 modelConfig 领域补丁 [@busybee 2026-06-13] ////
+//// 绑定保存:按当前模式收集配置,落盘 modelConfig 领域补丁 [@x380kkm 2026-06-13] ////
 function bindSave(ctx) {
   const { doc, model, gateway, t, showStatus } = ctx;
   const btn = doc.getElementById('btn-save-modelconfig');
@@ -187,7 +187,7 @@ function bindSave(ctx) {
   });
 }
 
-//// 试解析 JSON 并并入数据模型,成功返回真、失败返回假不改动 [@busybee 2026-06-13] ////
+//// 试解析 JSON 并并入数据模型,成功返回真、失败返回假不改动 [@x380kkm 2026-06-13] ////
 function tryParseJsonInto(model, text) {
   try {
     const parsed = JSON.parse(text);
@@ -202,20 +202,20 @@ function tryParseJsonInto(model, text) {
   }
 }
 
-//// 取一个输入控件的去空白值,缺控件返回空串 [@busybee 2026-06-13] ////
+//// 取一个输入控件的去空白值,缺控件返回空串 [@x380kkm 2026-06-13] ////
 function valueOf(doc, id) {
   const el = doc.getElementById(id);
   return el ? el.value.trim() : '';
 }
 
-//// 造一个三级标题 [@busybee 2026-06-13] ////
+//// 造一个三级标题 [@x380kkm 2026-06-13] ////
 function heading(doc, text) {
   const h = doc.createElement('h3');
   h.textContent = text;
   return h;
 }
 
-//// 造一个带标签的文本输入,预填既有值 [@busybee 2026-06-13] ////
+//// 造一个带标签的文本输入,预填既有值 [@x380kkm 2026-06-13] ////
 function textField(doc, id, labelText, value) {
   const wrap = doc.createElement('div');
   const label = doc.createElement('label');
@@ -229,7 +229,7 @@ function textField(doc, id, labelText, value) {
   return wrap;
 }
 
-//// 造一个预设下拉,选中既有预设 [@busybee 2026-06-13] ////
+//// 造一个预设下拉,选中既有预设 [@x380kkm 2026-06-13] ////
 function presetSelect(doc, id, labelText, value) {
   const wrap = doc.createElement('div');
   const label = doc.createElement('label');

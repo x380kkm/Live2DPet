@@ -8,7 +8,7 @@ const assert = require('node:assert');
 const { ContextSource } = require('../../../src/domain/pet/context-source');
 const { SituationDigestSource } = require('../../../src/domain/pet/sources/situation-digest-source');
 
-//// 假抽取器:keyframes 返回预置选集 [@busybee 2026-06-13] ////
+//// 假抽取器:keyframes 返回预置选集 [@x380kkm 2026-06-13] ////
 function fakeExtractor(frames) {
   return { keyframes() { return frames; } };
 }

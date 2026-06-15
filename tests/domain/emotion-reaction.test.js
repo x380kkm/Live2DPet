@@ -7,7 +7,7 @@ const assert = require('node:assert');
 const { EventBus } = require('../../src/platform/bus/event-bus');
 const { EmotionReaction, UTTERANCE_PRODUCED } = require('../../src/domain/pet/emotion-reaction');
 
-//// 记录每次 select 收到状态的情绪选择器替身 [@busybee 2026-06-13] ////
+//// 记录每次 select 收到状态的情绪选择器替身 [@x380kkm 2026-06-13] ////
 function fakeSelector() {
   const selected = [];
   return {
@@ -19,7 +19,7 @@ function fakeSelector() {
   };
 }
 
-//// pet 编排器载荷:{ text } 触发一次选取 [@busybee 2026-06-13] ////
+//// pet 编排器载荷:{ text } 触发一次选取 [@x380kkm 2026-06-13] ////
 test('orchestrator payload feeds spoken text to the selector', () => {
   const bus = new EventBus();
   const selector = fakeSelector();
@@ -30,7 +30,7 @@ test('orchestrator payload feeds spoken text to the selector', () => {
   assert.deepStrictEqual(selector.selected, [{ spokenText: '你好呀' }]);
 });
 
-//// utterance-session 载荷:{ utterance:{ text } } 取出文本 [@busybee 2026-06-13] ////
+//// utterance-session 载荷:{ utterance:{ text } } 取出文本 [@x380kkm 2026-06-13] ////
 test('utterance payload feeds the utterance text to the selector', () => {
   const bus = new EventBus();
   const selector = fakeSelector();
@@ -41,7 +41,7 @@ test('utterance payload feeds the utterance text to the selector', () => {
   assert.deepStrictEqual(selector.selected, [{ spokenText: '我在这里' }]);
 });
 
-//// 空文本的发言事件不触发选取 [@busybee 2026-06-13] ////
+//// 空文本的发言事件不触发选取 [@x380kkm 2026-06-13] ////
 test('empty spoken text does not trigger selection', () => {
   const bus = new EventBus();
   const selector = fakeSelector();
@@ -53,7 +53,7 @@ test('empty spoken text does not trigger selection', () => {
   assert.strictEqual(selector.selected.length, 0);
 });
 
-//// stop 后撤销订阅,后续事件不再触发选取 [@busybee 2026-06-13] ////
+//// stop 后撤销订阅,后续事件不再触发选取 [@x380kkm 2026-06-13] ////
 test('stop unsubscribes so later events do not trigger selection', () => {
   const bus = new EventBus();
   const selector = fakeSelector();
@@ -66,7 +66,7 @@ test('stop unsubscribes so later events do not trigger selection', () => {
   assert.strictEqual(selector.selected.length, 0);
 });
 
-//// 重复 start 不让一条事件触发多次选取 [@busybee 2026-06-13] ////
+//// 重复 start 不让一条事件触发多次选取 [@x380kkm 2026-06-13] ////
 test('repeated start does not double-trigger on one event', () => {
   const bus = new EventBus();
   const selector = fakeSelector();
@@ -79,7 +79,7 @@ test('repeated start does not double-trigger on one event', () => {
   assert.strictEqual(selector.selected.length, 1);
 });
 
-//// start 返回的取消订阅函数可独立撤销 [@busybee 2026-06-13] ////
+//// start 返回的取消订阅函数可独立撤销 [@x380kkm 2026-06-13] ////
 test('start returns an unsubscribe function', () => {
   const bus = new EventBus();
   const selector = fakeSelector();

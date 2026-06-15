@@ -6,7 +6,7 @@ const { test } = require('node:test');
 const assert = require('node:assert');
 const { InteractionInfoSource } = require('../../src/domain/pet/sources/interaction-info-source.js');
 
-//// 按交互名取描述,未知名兜底,无交互返回 null [@busybee 2026-06-14] ////
+//// 按交互名取描述,未知名兜底,无交互返回 null [@x380kkm 2026-06-14] ////
 test('InteractionInfoSource 据 scope.interaction.name 取描述', () => {
   const source = new InteractionInfoSource();
   assert.strictEqual(source.render({ interaction: { name: 'click' } }), '用户刚刚点了你一下。');

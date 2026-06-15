@@ -9,7 +9,7 @@
 const { ContextSource, estimateTextTokens } = require('../context-source');
 
 class IdleInfoSource extends ContextSource {
-  //// 构造注入空闲秒数源与可覆盖的标识、优先级、阈值、标签模板 [@busybee 2026-06-13] ////
+  //// 构造注入空闲秒数源与可覆盖的标识、优先级、阈值、标签模板 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     super();
     this.idleProvider = deps.idleProvider;
@@ -34,7 +34,7 @@ class IdleInfoSource extends ContextSource {
     return estimateTextTokens(this.render(scope));
   }
 
-  //// 取空闲秒数,达阈值则代入标签模板;不足阈值返回 null [@busybee 2026-06-13] ////
+  //// 取空闲秒数,达阈值则代入标签模板;不足阈值返回 null [@x380kkm 2026-06-13] ////
   render(scope) {
     const idleSec = this._idleSeconds(scope);
     if (idleSec == null || idleSec < this.thresholdSec) {
@@ -44,7 +44,7 @@ class IdleInfoSource extends ContextSource {
   }
   //// /取空闲秒数,达阈值则代入标签模板 ////
 
-  //// 取空闲秒数:优先注入的取数函数,退而取作用域字段;非数返回 null [@busybee 2026-06-13] ////
+  //// 取空闲秒数:优先注入的取数函数,退而取作用域字段;非数返回 null [@x380kkm 2026-06-13] ////
   _idleSeconds(scope) {
     let value = null;
     if (typeof this.idleProvider === 'function') {

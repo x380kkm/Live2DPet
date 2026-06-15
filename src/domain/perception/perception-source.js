@@ -7,7 +7,7 @@
 // now 为注入时钟。render 把态势与记忆折成一份 ContextFragment 纯数据,
 // 无内容时返回 null 由组装器跳过;estimateTokens 据字符数粗估,组装器按预算裁剪用。
 
-//// 粗估字符串的 token 数:按约四字符一 token 取上整 [@busybee 2026-06-13] ////
+//// 粗估字符串的 token 数:按约四字符一 token 取上整 [@x380kkm 2026-06-13] ////
 function estimateTextTokens(text) {
   if (!text) return 0;
   return Math.ceil(text.length / 4);
@@ -20,7 +20,7 @@ class PerceptionSource {
   // 排序优先级
   priority = 0;
 
-  //// 构造注入态势抽取器、记忆库、时钟与配置 [@busybee 2026-06-13] ////
+  //// 构造注入态势抽取器、记忆库、时钟与配置 [@x380kkm 2026-06-13] ////
   constructor(deps = {}, config = {}) {
     this.extractor = deps.extractor;
     this.memoryStore = deps.memoryStore;
@@ -34,14 +34,14 @@ class PerceptionSource {
   }
   //// /构造注入态势抽取器、记忆库、时钟与配置 ////
 
-  //// 据当前渲染出的片段文本粗估 token 数 [@busybee 2026-06-13] ////
+  //// 据当前渲染出的片段文本粗估 token 数 [@x380kkm 2026-06-13] ////
   estimateTokens(scope) {
     const fragment = this.render(scope);
     return fragment ? estimateTextTokens(fragment.text) : 0;
   }
   //// /据当前渲染出的片段文本粗估 token 数 ////
 
-  //// 把最近态势与近窗记忆折成命名上下文片段;两者皆空返回 null [@busybee 2026-06-13] ////
+  //// 把最近态势与近窗记忆折成命名上下文片段;两者皆空返回 null [@x380kkm 2026-06-13] ////
   render(scope) {
     const lines = [];
 
@@ -58,7 +58,7 @@ class PerceptionSource {
   }
   //// /把最近态势与近窗记忆折成命名上下文片段 ////
 
-  //// 取抽取器选出的最新关键帧的态势摘要,无则取空 [@busybee 2026-06-13] ////
+  //// 取抽取器选出的最新关键帧的态势摘要,无则取空 [@x380kkm 2026-06-13] ////
   _latestSituation() {
     if (!this.extractor || typeof this.extractor.keyframes !== 'function') return null;
     const frames = this.extractor.keyframes();
@@ -66,7 +66,7 @@ class PerceptionSource {
     return latest ? latest.situation : null;
   }
 
-  //// 经记忆库按回看窗读最近若干条记忆 [@busybee 2026-06-13] ////
+  //// 经记忆库按回看窗读最近若干条记忆 [@x380kkm 2026-06-13] ////
   _recentMemory() {
     if (!this.memoryStore || typeof this.memoryStore.recall !== 'function') return [];
     const to = this.now();

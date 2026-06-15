@@ -65,7 +65,7 @@ const STEP_LABEL = Object.freeze({
   [StepId.Translate]: '翻译'
 });
 
-//// 列出出厂步骤声明,供步骤注册表在加载期发现注入 [@busybee 2026-06-13] ////
+//// 列出出厂步骤声明,供步骤注册表在加载期发现注入 [@x380kkm 2026-06-13] ////
 // 每条形如 { id, category, label, defaults },是 UI 枚举与配置解析的共同来源。
 function builtinSteps() {
   return Object.values(StepId).map((id) => ({
