@@ -30,8 +30,11 @@ const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.warmup();
 
-// argv[2] 传语速(默认 1.12),用来扫语速对识别率的影响。
-const speed = parseFloat(process.argv[2]) || 1.12;
+// argv[2] 语速(默认 1.0);argv[3] 音高落差 spread、argv[4] 边界平滑 blend,用来扫音高参数对识别率的影响。
+const speed = parseFloat(process.argv[2]) || 1.0;
+const toneCfg = {};
+if (process.argv[3]) toneCfg.spread = parseFloat(process.argv[3]);
+if (process.argv[4]) toneCfg.blend = parseFloat(process.argv[4]);
 const manifest = [];
 for (const sentence of SENTENCES) {
   const { kana, plan } = sentenceToAccentKana(sentence.tokens);
@@ -40,7 +43,7 @@ for (const sentence of SENTENCES) {
   query.volumeScale = 1.25;
   query.prePhonemeLength = 0.08;
   query.postPhonemeLength = 0.1;
-  applyMandarinTones(query, plan);
+  applyMandarinTones(query, plan, toneCfg);
   shapeChineseRhythm(query);
   const wav = backend.synthesizeQuery(query, VOICE);
   const file = path.join(outDir, `${sentence.id}.wav`);

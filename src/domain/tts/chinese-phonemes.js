@@ -236,8 +236,9 @@ function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1) {
   const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
   if (moras === 1) {
     const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: NEUTRAL };
-    // 句末单拍:三声略抬离最低、四声略离顶收一点,既站得住又不让句末四声低于句末三声。
-    const singleFinal = { 1: HI, 2: HI, 3: LOW + 0.10, 4: HI - 0.06, 5: NEUTRAL };
+    // 句末单拍:三声略抬离最低;四声放中高位而非顶——句末单拍四声(如「物」)放顶会被引擎从低邻拍顶成上冲尖峰、
+    // 冲到全句最高(实测 F0 反升、听感像二声),放中高位只是个收尾的小高点,不上冲。非句末单拍四声(气、去)仍放顶,保辨识。
+    const singleFinal = { 1: HI, 2: HI, 3: LOW + 0.10, 4: MID + 0.16, 5: NEUTRAL };
     const table = phraseFinal ? singleFinal : single;
     return [clamp(table[tone] !== undefined ? table[tone] : MID)];
   }
@@ -284,10 +285,10 @@ function smoothGroupBoundaries(rows, blend) {
 // 把四声调值完整铺上做分明,叠停顿组内下倾(句末豁免),再软化同组相邻音节交界的硬跳让过渡平顺;基准取 query 自身均值。
 // config:spread 缩放四声整体落差(<1 更平缓)、blend 边界软化比例、finalTail 句末非卷舌字补的收尾元音时长(秒,默认 0 关)。
 function applyMandarinTones(query, plan, config = {}) {
-  // 默认值是实测的平衡点:落差稍窄(spread 1.05)、边界中等软化(blend 0.28),既明显降突兀又保住声调辨识、识别率不退。
-  // 再窄、再平(如 spread 1.0、blend 0.34)会让声调发糊、近音字被认错,识别率显著下滑。
-  const spread = config.spread != null ? config.spread : 1.05;
-  const blend = config.blend != null ? config.blend : 0.28;
+  // 默认值是实测平衡点:落差接近原值(spread 1.1)、边界只做轻软化(blend 0.15)。
+  // 实测再窄、再平(如 spread ≤1.05、blend ≥0.28)会让卷舌、近音字发糊被认错,难句识别率崩到接近零。
+  const spread = config.spread != null ? config.spread : 1.1;
+  const blend = config.blend != null ? config.blend : 0.15;
   const finalTail = config.finalTail != null ? config.finalTail : 0;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
