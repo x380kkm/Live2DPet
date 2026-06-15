@@ -54,6 +54,8 @@ const COMBINING = new Set(['ァ', 'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ
 const ELONGATE_FINALS = new Set(['a', 'o', 'e', 'ê', 'i', 'u', 'ü', 'v']);
 // 重音核路线不收长音ー,改用重复基元音补拍(ニ→ニイ);每个单元音韵母对应的补拍假名。
 const ELONGATE_VOWEL = { a: 'ア', o: 'オ', e: 'ウ', ê: 'エ', i: 'イ', u: 'ウ', ü: 'ウ', v: 'ウ' };
+// 带 u 介音的韵母:声母 h 拼到 ウ 列得到 フ(偏 f),对 hua/huan/hui/huo 这类失真,改用 ホ 更保 h。
+const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 
@@ -199,7 +201,7 @@ function sentenceToAccentKana(tokens, options = {}) {
       continue;
     }
     current.push(syllable.kana);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, ng: NG_FINALS.has(item.parsed.final) });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
   }
   if (current.length) {
     groups.push(current);
@@ -212,77 +214,6 @@ function sentenceToAccentKana(tokens, options = {}) {
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
 
-//// 在每个语调短语内对有声 mora 的音高做轻量平滑,把音节间的硬跳变软成滑音,让语调连贯 [@busybee 2026-06-15] ////
-// applyMandarinTones 逐音节铺的是各自独立的调值,音节交界处是台阶式硬跳;轻平滑软化交界、保留调型走势。
-// 只在短语内平滑(不跨停顿),strength 为向邻拍靠拢的比例。
-function smoothPitch(query, strength = 0.35) {
-  for (const phrase of (query.accent_phrases || [])) {
-    const voiced = (phrase.moras || []).filter((mora) => mora.pitch > 0);
-    if (voiced.length < 3) {
-      continue;
-    }
-    const original = voiced.map((mora) => mora.pitch);
-    for (let i = 0; i < voiced.length; i += 1) {
-      const prev = i > 0 ? original[i - 1] : original[i];
-      const next = i < voiced.length - 1 ? original[i + 1] : original[i];
-      voiced[i].pitch = (1 - strength) * original[i] + strength * 0.5 * (prev + next);
-    }
-  }
-  return query;
-}
-//// /在每个语调短语内对音高做轻量平滑 ////
-
-// ハ 行片假名:中文声母 h 落在这几个 mora 上。
-const H_MORAS = new Set(['ハ', 'ヒ', 'フ', 'ヘ', 'ホ']);
-// 后鼻韵尾 -ng 的韵母:日语 ン 不分前后鼻,把这些音节的鼻音拉长一点作后鼻的听感线索。
-const NG_FINALS = new Set(['ang', 'eng', 'ing', 'ong', 'iang', 'iong', 'uang', 'ueng']);
-// 带 u 介音的韵母:声母 h 拼到 ウ 列得到 フ(偏 f),对 hua/huan/hui/huo 这类失真,改用 ホ 更保 h。
-const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
-
-//// 给 -ng 音节的末尾鼻音拉长一点,作前鼻 -n 与后鼻 -ng 的区分线索(日语 ン 本不分) [@busybee 2026-06-15] ////
-// 据计划逐音节吞 mora 覆盖该音节片假名,-ng 音节把最后一拍(ン)的元音时长按系数拉长,鼻音更沉、更靠后。
-function markNasalContrast(query, plan, ngFactor = 1.7) {
-  const moras = [];
-  for (const phrase of (query.accent_phrases || [])) {
-    for (const mora of (phrase.moras || [])) {
-      moras.push(mora);
-    }
-  }
-  let index = 0;
-  for (const syllable of plan) {
-    const target = (syllable.kana || '').length;
-    const group = [];
-    let covered = 0;
-    while (index < moras.length && covered < target) {
-      const mora = moras[index];
-      index += 1;
-      covered += (mora.text || '').length || 1;
-      group.push(mora);
-    }
-    if (syllable.ng && group.length) {
-      const last = group[group.length - 1];
-      if (last.vowel_length != null) {
-        last.vowel_length *= ngFactor;
-      }
-    }
-  }
-  return query;
-}
-//// /给 -ng 音节的末尾鼻音拉长一点 ////
-
-//// 拉长 ハ 行辅音,逼近普通话声母 h 的较强软腭擦音(日语只有更轻的 h,长一点更像) [@busybee 2026-06-15] ////
-function emphasizeFricativeH(query, factor = 1.8, floor = 0.10) {
-  for (const phrase of (query.accent_phrases || [])) {
-    for (const mora of (phrase.moras || [])) {
-      if (H_MORAS.has(mora.text) && mora.consonant_length != null) {
-        mora.consonant_length = Math.max(floor, mora.consonant_length * factor);
-      }
-    }
-  }
-  return query;
-}
-//// /拉长 ハ 行辅音 ////
-
 //// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
 // 一声 55 高平、二声 35 升、三声 21 低(连读半三声)、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
 function mandarinTone(tone, moras, base) {
@@ -290,11 +221,13 @@ function mandarinTone(tone, moras, base) {
   const MID = base;
   const LOW = base - 0.42;
   const BOTTOM = base - 0.58;
+  // 轻声压到中低位:轻声前常接三声(你的、好的),落在中高位会从三声的低位猛跳上来显突兀,压低些过渡更顺。
+  const NEUTRAL = base - 0.22;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   const out = [];
   const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
   if (moras === 1) {
-    const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: MID - 0.08 };
+    const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: NEUTRAL };
     return [clamp(single[tone] !== undefined ? single[tone] : MID)];
   }
   if (tone === 1) {
@@ -306,7 +239,7 @@ function mandarinTone(tone, moras, base) {
   } else if (tone === 4) {
     ramp(HI, LOW);
   } else {
-    for (let i = 0; i < moras; i += 1) out.push(MID - 0.08);
+    for (let i = 0; i < moras; i += 1) out.push(NEUTRAL);
   }
   return out.map(clamp);
 }
@@ -485,9 +418,6 @@ module.exports = {
   sentenceToAccentKana,
   mandarinTone,
   applyMandarinTones,
-  smoothPitch,
-  emphasizeFricativeH,
-  markNasalContrast,
   toneContour,
   applyTones,
   flowPhrases,

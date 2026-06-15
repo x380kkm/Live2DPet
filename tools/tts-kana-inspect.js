@@ -1,19 +1,17 @@
 // audience: internal
 // # tts-kana-inspect
-// 诊断:打印重音核路线当前流水线下每个音节的音高与时长,核对四声是否真铺对、平滑有没有把它压平。
-// 运行:node tools/tts-kana-inspect.js [smooth]   传 smooth 才走平滑
+// 诊断:打印重音核路线当前流水线下每个音节的音高与时长,核对四声是否真铺对。
+// 运行:node tools/tts-kana-inspect.js
 const path = require('path'); const fs = require('fs'); const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, smoothPitch } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones } = require('../src/domain/tts/chinese-phonemes');
 const VOICE = 2;
 const TOKENS = ['ni3','hao3','，','wo3','shi4','ni3','de5','zhuo1','mian4','chong3','wu4','，','hen3','gao1','xing4','jian4','dao4','ni3','。'];
-const useSmooth = process.argv[2] === 'smooth';
 const { kana, plan } = sentenceToAccentKana(TOKENS);
 const b = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 b.init(path.join(__dirname,'..','voicevox_core'), ['0.vvm','8.vvm'], { gpuMode:false }); b.warmup();
 const q = b.audioQueryFromKana(kana, VOICE);
 applyMandarinTones(q, plan);
-if (useSmooth) smoothPitch(q, 0.35);
 const moras=[]; for (const ph of q.accent_phrases) for (const m of ph.moras) moras.push(m);
 let idx=0;
 plan.forEach((syl)=>{

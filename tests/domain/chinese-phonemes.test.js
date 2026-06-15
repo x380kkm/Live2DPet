@@ -11,9 +11,6 @@ const {
   sentenceToKana,
   sentenceToAccentKana,
   mandarinTone,
-  smoothPitch,
-  emphasizeFricativeH,
-  markNasalContrast,
   toneContour,
   applyTones,
   flowPhrases,
@@ -105,6 +102,9 @@ test('mandarinTone 四声调值走势', () => {
   // 单拍取关键调值:三声压低、其余抬高
   assert.ok(mandarinTone(3, 1, base)[0] < base);
   assert.ok(mandarinTone(1, 1, base)[0] > base);
+  // 轻声压到中低位,落在三声(低位)之上但不冒到基准之上,免得「你的」从低位猛跳显突兀
+  const neutral = mandarinTone(5, 1, base)[0];
+  assert.ok(neutral < base && neutral > mandarinTone(3, 1, base)[0], '轻声居于三声低位与基准之间');
 });
 
 //// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
@@ -192,53 +192,6 @@ test('shapeFlow 抻长元音压短辅音收紧停顿', () => {
   assert.strictEqual(mora.vowel_length, 0.16); // max(0.16, 0.10*1.5=0.15)
   assert.strictEqual(mora.consonant_length, 0.05); // min(0.10, 0.05)
   assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.22); // min(0.40, 0.22)
-});
-
-//// 短语内轻平滑软化音节间硬跳,谷被抬、峰被压,但走势方向不反 [@busybee 2026-06-15] ////
-test('smoothPitch 软化音节间硬跳', () => {
-  const query = { accent_phrases: [{ moras: [
-    { text: 'ガ', pitch: 6.1 }, { text: 'ニ', pitch: 5.3 }, { text: 'ガ', pitch: 6.1 }
-  ] }] };
-  smoothPitch(query, 0.35);
-  const [a, b, c] = query.accent_phrases[0].moras.map((m) => m.pitch);
-  assert.ok(b > 5.3 && b < 6.1, '中间的谷被抬向邻拍');
-  assert.ok(a < 6.1 && c < 6.1, '两侧峰略被拉低');
-  // 不跨停顿、短语过短不平滑
-  const tiny = { accent_phrases: [{ moras: [{ text: 'ニ', pitch: 5.3 }, { text: 'イ', pitch: 6.0 }] }] };
-  smoothPitch(tiny, 0.35);
-  assert.deepStrictEqual(tiny.accent_phrases[0].moras.map((m) => m.pitch), [5.3, 6.0], '少于三拍不平滑');
-});
-
-//// 只给 -ng 音节的末尾鼻音拉长,-n 音节不动 [@busybee 2026-06-15] ////
-test('markNasalContrast 只拉长 -ng 的鼻音', () => {
-  const plan = [
-    { kana: 'シン', moras: 2, tone: 4, ng: true },
-    { kana: 'ヘン', moras: 2, tone: 3, ng: false }
-  ];
-  const query = { accent_phrases: [{ moras: [
-    { text: 'シ', vowel_length: 0.09, pitch: 6.0 }, { text: 'ン', vowel_length: 0.07, pitch: 5.3 },
-    { text: 'ヘ', vowel_length: 0.09, pitch: 5.3 }, { text: 'ン', vowel_length: 0.07, pitch: 5.2 }
-  ] }] };
-  markNasalContrast(query, plan, 1.7);
-  const m = query.accent_phrases[0].moras;
-  assert.ok(Math.abs(m[1].vowel_length - 0.07 * 1.7) < 1e-9, '-ng 的 ン 被拉长');
-  assert.strictEqual(m[3].vowel_length, 0.07, '-n 的 ン 不动');
-});
-
-//// 只拉长 ハ 行辅音,逼近普通话 h 的较强擦音,不碰其他声母 [@busybee 2026-06-15] ////
-test('emphasizeFricativeH 只加长 ハ 行辅音', () => {
-  const query = {
-    accent_phrases: [{
-      moras: [
-        { text: 'ハ', consonant_length: 0.06, vowel_length: 0.1, pitch: 5.3 },
-        { text: 'ガ', consonant_length: 0.06, vowel_length: 0.1, pitch: 6.0 }
-      ]
-    }]
-  };
-  emphasizeFricativeH(query, 1.8, 0.10);
-  const [ha, ga] = query.accent_phrases[0].moras;
-  assert.ok(ha.consonant_length >= 0.10 && ha.consonant_length > 0.06, 'ハ 行辅音被拉长');
-  assert.strictEqual(ga.consonant_length, 0.06, '非 ハ 行声母不动');
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////
