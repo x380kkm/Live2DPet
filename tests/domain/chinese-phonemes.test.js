@@ -47,6 +47,11 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   // 卷舌 zh 与平舌 z 区别在 i:zhi→ジー、zi→ズー
   assert.strictEqual(k('zhi1'), 'ジー');
   assert.strictEqual(k('zi4'), 'ズー');
+  // ü 韵母:声母拼到 ü 列(单元音 ü 默认路线补长音ー);去 qù→チュー、学 xué→シュエ、女 nǚ→ニュー、月 yuè→ユエ
+  assert.strictEqual(k('qu4'), 'チュー');
+  assert.strictEqual(k('xue2'), 'シュエ');
+  assert.strictEqual(k('nv3'), 'ニュー');
+  assert.strictEqual(k('yue4'), 'ユエ');
   // 轻声不补长音
   assert.strictEqual(k('de5'), 'ドゥ');
   assert.strictEqual(k('ma5'), 'マ');

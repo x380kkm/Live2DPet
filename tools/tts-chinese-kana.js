@@ -12,11 +12,21 @@ const { sentenceToAccentKana, applyMandarinTones, smoothPitch, emphasizeFricativ
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
-const TOKENS = [
-  'ni3', 'hao3', '，',
-  'wo3', 'shi4', 'ni3', 'de5', 'zhuo1', 'mian4', 'chong3', 'wu4', '，',
-  'hen3', 'gao1', 'xing4', 'jian4', 'dao4', 'ni3', '。'
-];
+// 多句备选:default 是反复迭代的标准句;hard 覆盖卷舌、ü、q/x 等难点,压测凑音素表覆盖度。
+const SENTENCES = {
+  default: [
+    'ni3', 'hao3', '，',
+    'wo3', 'shi4', 'ni3', 'de5', 'zhuo1', 'mian4', 'chong3', 'wu4', '，',
+    'hen3', 'gao1', 'xing4', 'jian4', 'dao4', 'ni3', '。'
+  ],
+  hard: [
+    'ni3', 'zhi1', 'dao4', 'ma5', '？',
+    'wo3', 'xi3', 'huan1', 'xue2', 'xi2', 'zhong1', 'wen2', '。'
+  ]
+};
+const key = SENTENCES[process.argv[2]] ? process.argv[2] : 'default';
+const TOKENS = SENTENCES[key];
+const OUT_NAME = key === 'default' ? 'chinese-kana.wav' : `chinese-${key}.wav`;
 
 const outDir = path.join(__dirname, 'samples');
 fs.mkdirSync(outDir, { recursive: true });
@@ -45,7 +55,7 @@ markNasalContrast(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);
-const file = path.join(outDir, 'chinese-kana.wav');
+const file = path.join(outDir, OUT_NAME);
 fs.writeFileSync(file, wav);
 console.log(`已存 ${file} 时长=${f.durationSec.toFixed(2)}s 字节=${wav.length} (${(wav.length / 1048576).toFixed(2)}MB) 音高均=${f.pitchMean.toFixed(2)} 音高幅=${f.pitchRange.toFixed(2)}`);
 backend.dispose();
