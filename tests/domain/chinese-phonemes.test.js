@@ -105,6 +105,13 @@ test('mandarinTone 四声调值走势', () => {
   assert.ok(t3[0] < base && t3[1] < t3[0], '三声低且下压');
   const t4 = mandarinTone(4, 2, base);
   assert.ok(t4[0] > t4[1] && t4[0] > base, '四声降且起点高');
+  // 非句末连读协同:半四声只降到中位(不到 LOW)、半三声低平不下潜
+  const t4mid = mandarinTone(4, 2, base, false);
+  assert.ok(Math.abs(t4mid[1] - base) < 1e-9, '非句末四声只半降到中位');
+  assert.ok(t4mid[1] > mandarinTone(4, 2, base, true)[1], '非句末四声尾比句末四声高');
+  const t3half = mandarinTone(3, 2, base, false);
+  assert.ok(t3half[0] === t3half[1] && t3half[0] < base, '非句末三声低平');
+  assert.ok(t3half[1] > mandarinTone(3, 2, base, true)[1], '半三声不像句末三声那样下潜到底');
   // 单拍取关键调值:三声压低、其余抬高
   assert.ok(mandarinTone(3, 1, base)[0] < base);
   assert.ok(mandarinTone(1, 1, base)[0] > base);

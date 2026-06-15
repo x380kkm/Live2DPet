@@ -219,8 +219,10 @@ function sentenceToAccentKana(tokens, options = {}) {
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
 
 //// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
-// 一声 55 高平、二声 35 升、三声 21 低(连读半三声)、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
-function mandarinTone(tone, moras, base) {
+// 一声 55 高平、二声 35 升、三声 21 低、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
+// phraseFinal 为否时做连读协同:非句末四声只半降到中位、非句末三声读半三声(低平不下潜),
+// 免得连续四声各自跳回满高成锯齿、中段三声又低又弱。
+function mandarinTone(tone, moras, base, phraseFinal = true) {
   const HI = base + 0.48;
   const MID = base;
   const LOW = base - 0.42;
@@ -239,9 +241,11 @@ function mandarinTone(tone, moras, base) {
   } else if (tone === 2) {
     ramp(MID, HI);
   } else if (tone === 3) {
-    ramp(LOW, BOTTOM);
+    // 半三声:非句末的三声只读低平的前半段,不下潜到最低,免得中段音节又低又弱。
+    if (phraseFinal) { ramp(LOW, BOTTOM); } else { for (let i = 0; i < moras; i += 1) out.push(LOW); }
   } else if (tone === 4) {
-    ramp(HI, LOW);
+    // 半四声:非句末的四声只半降到中位,接下来的四声从中位再起、不必跳回满高,连续四声不再锯齿。
+    ramp(HI, phraseFinal ? LOW : MID);
   } else {
     for (let i = 0; i < moras; i += 1) out.push(NEUTRAL);
   }
@@ -269,7 +273,8 @@ function applyMandarinTones(query, plan) {
 
   let index = 0;
   let position = 0;
-  for (const syllable of plan) {
+  for (let s = 0; s < plan.length; s += 1) {
+    const syllable = plan[s];
     if (syllable.groupStart) {
       position = 0;
     }
@@ -282,8 +287,11 @@ function applyMandarinTones(query, plan) {
       covered += (mora.text || '').length || 1;
       group.push(mora);
     }
+    // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同。
+    const next = plan[s + 1];
+    const phraseFinal = !next || Boolean(next.groupStart);
     const decline = Math.min(DECL_MAX, position * DECL_STEP);
-    const contour = mandarinTone(syllable.tone, group.length, base);
+    const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal);
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
         group[i].pitch = Math.max(4.8, contour[i] - decline);
