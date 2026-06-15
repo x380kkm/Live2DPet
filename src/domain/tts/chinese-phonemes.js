@@ -172,6 +172,31 @@ function chunkEvenly(items, max) {
 }
 //// /把一组元素等长切成若干份 ////
 
+// 零声母纯元音音节的片假名:这几个独立成 mora 的纯元音(如「物」ウ、「一」イ)没有声母作起音,易黏进前一鼻音听成一个字。
+const BARE_VOWEL_KANA = new Set(['ア', 'イ', 'ウ', 'エ', 'オ']);
+
+//// 把一个子短语再按零声母纯元音切开:纯元音音节各自成段,得一个独立起音,免得黏进前一鼻音(宠物听成葱) [@busybee 2026-06-15] ////
+function splitBareVowel(sub) {
+  const pieces = [];
+  let piece = [];
+  for (const kana of sub) {
+    if (BARE_VOWEL_KANA.has(kana)) {
+      if (piece.length) {
+        pieces.push(piece);
+        piece = [];
+      }
+      pieces.push([kana]);
+    } else {
+      piece.push(kana);
+    }
+  }
+  if (piece.length) {
+    pieces.push(piece);
+  }
+  return pieces;
+}
+//// /把一个子短语再按零声母纯元音切开 ////
+
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按等长切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
@@ -211,9 +236,14 @@ function sentenceToAccentKana(tokens, options = {}) {
     groups.push(current);
   }
 
-  // 每个停顿组按等长切成子短语(短组不切),子短语间用 / 无停顿、组间用 、停顿;
-  // 重音核置末仅为满足 AquesTalk 解析,实际四声听感由 applyMandarinTones 铺音高、节奏由 shapeChineseRhythm 整时长决定。
-  const kana = groups.map((group) => chunkEvenly(group, maxPhrase).map((sub) => sub.join('') + "'").join('/')).join('、');
+  // 每个停顿组按等长切成子短语(短组不切),再把零声母纯元音音节各自切出来(给「物」这类独立起音);
+  // 子短语间用 / 无停顿、组间用 、停顿;实际四声听感由 applyMandarinTones 铺音高、节奏由 shapeChineseRhythm 整时长决定。
+  const kana = groups
+    .map((group) => chunkEvenly(group, maxPhrase)
+      .flatMap((sub) => splitBareVowel(sub))
+      .map((piece) => piece.join('') + "'")
+      .join('/'))
+    .join('、');
   return { kana, plan };
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
@@ -366,12 +396,14 @@ function applyToneSandhi(items) {
 //// 把一个停顿组内的多个 accent_phrase 合并成一个,消除词间停顿与音高重置,让连读不打断 [@busybee 2026-06-15] ////
 // VOICEVOX 把片假名按词切成多个 accent_phrase,词界会插微停顿并重置音高,中文听起来一顿一顿;
 // 这里把相邻、其间没有停顿 mora 的 phrase 并成一个,只在标点的停顿处断开,合成出来就连贯。
+// 例外:单独一个纯元音的 phrase(零声母字「物」ウ)不并入前一个,保住它的独立起音,免得黏成一个字。
 function flowPhrases(query) {
   const phrases = (query && query.accent_phrases) || [];
   const merged = [];
   for (const phrase of phrases) {
     const last = merged[merged.length - 1];
-    if (last && !last.pause_mora) {
+    const bareVowel = (phrase.moras || []).length === 1 && BARE_VOWEL_KANA.has(((phrase.moras[0] || {}).text) || '');
+    if (last && !last.pause_mora && !bareVowel) {
       last.moras = last.moras.concat(phrase.moras || []);
       last.pause_mora = phrase.pause_mora || null;
       last.is_interrogative = last.is_interrogative || Boolean(phrase.is_interrogative);
@@ -395,7 +427,7 @@ function flowPhrases(query) {
 // 把卷舌、擦音咬糊、显著拉低识别率,而合并加收停顿对识别率零损耗。config 可调 pauseCap。须在 applyMandarinTones 后调用。
 function shapeChineseRhythm(query, config = {}) {
   const pauseCap = config.pauseCap != null ? config.pauseCap : 0.20;
-  // 合并同一停顿组内的多个 accent_phrase,清掉词界微停顿与音高重置,组内连读。
+  // 合并同一停顿组内的多个 accent_phrase,清掉词界微停顿与音高重置,组内连读(纯元音字不并,保独立起音)。
   flowPhrases(query);
   // 标点处残留的停顿封顶到适中,不抬高、只收紧过长的。
   for (const phrase of (query.accent_phrases || [])) {

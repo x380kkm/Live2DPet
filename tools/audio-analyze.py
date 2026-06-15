@@ -38,22 +38,46 @@ def main():
     spec = snd.to_spectrogram(window_length=0.01, maximum_frequency=5000)
 
     syl = meta["syllables"]
-    # 逐音节统计
-    print(f"{'字':<7}{'调':<4}{'起止s':<14}{'F0均Hz':<9}{'F0尾Hz':<9}{'强度dB':<8}")
-    f0_end = []
-    f0_start = []
-    inten_mean = []
+
+    # 映射校验:从音频实测静音段,与计算出的停顿/句首尾静音比对,确认逐字边界没错位。
+    floor_db = float(np.nanmax(iv)) - 30
+    sil = iv < floor_db
+    regions = []
+    i = 0
+    while i < len(sil):
+        if sil[i]:
+            j = i
+            while j < len(sil) and sil[j]:
+                j += 1
+            if it[j - 1] - it[i] >= 0.05:
+                regions.append((float(it[i]), float(it[j - 1])))
+            i = j
+        else:
+            i += 1
+    print("实测静音段(s):", [f"{a:.2f}-{b:.2f}" for a, b in regions])
+    print("计算停顿段(s):", [f"{a:.2f}-{b:.2f}" for a, b in meta["pauses"]],
+          f"  句首前≈{0:.2f}-{syl[0]['start']:.2f} 句尾后≈{syl[-1]['end']:.2f}-{meta['total']:.2f}")
+
+    # 逐音节统计:中段 F0(避开交界污染)、有声占比、峰值强度;有声占比低或峰值远低于中位=该字可能丢音。
+    print(f"\n{'字':<7}{'调':<4}{'起止s':<14}{'F0中Hz':<9}{'有声%':<7}{'峰dB':<7}")
+    f0_mid = []
+    inten_peak = []
     for s in syl:
-        fv = seg_stat(f0t, f0, s["start"], s["end"])
+        c0 = s["start"] + 0.2 * (s["end"] - s["start"])
+        c1 = s["end"] - 0.2 * (s["end"] - s["start"])
+        fv = seg_stat(f0t, f0, c0, c1)
+        allf = (f0t >= s["start"]) & (f0t < s["end"])
+        voiced_frac = float(np.mean(f0[allf] > 0)) if np.any(allf) else 0.0
         ivv = seg_stat(it, iv, s["start"], s["end"], voiced_only=False)
-        fm = float(np.mean(fv)) if len(fv) else 0.0
-        fe = float(np.mean(fv[-3:])) if len(fv) >= 3 else (float(fv[-1]) if len(fv) else 0.0)
-        fs = float(np.mean(fv[:3])) if len(fv) >= 3 else (float(fv[0]) if len(fv) else 0.0)
-        im = float(np.mean(ivv)) if len(ivv) else 0.0
-        f0_end.append(fe)
-        f0_start.append(fs)
-        inten_mean.append(im)
-        print(f"{s['label']:<8}{s['tone']:<4}{s['start']:.2f}-{s['end']:.2f}    {fm:<9.1f}{fe:<9.1f}{im:<8.1f}")
+        fm = float(np.median(fv)) if len(fv) else 0.0
+        ip = float(np.max(ivv)) if len(ivv) else 0.0
+        f0_mid.append(fm)
+        inten_peak.append(ip)
+        lost = "  <== 可能丢音" if voiced_frac < 0.4 or ip < float(np.nanmax(iv)) - 14 else ""
+        print(f"{s['label']:<8}{s['tone']:<4}{s['start']:.2f}-{s['end']:.2f}    {fm:<9.1f}{voiced_frac*100:<7.0f}{ip:<7.1f}{lost}")
+    f0_start = f0_mid
+    f0_end = f0_mid
+    inten_mean = inten_peak
 
     # 字间音高跳变(前字尾 F0 → 后字头 F0),用半音衡量更贴感知
     print("\n字间音高跳变(半音,正=上跳):")

@@ -227,13 +227,27 @@ test('flowPhrases 合并无停顿相邻 phrase', () => {
   assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['オ']);
 });
 
+//// 单独纯元音 phrase(零声母字「物」ウ)不并入前一个,保住独立起音 [@busybee 2026-06-15] ////
+test('flowPhrases 不合并纯元音 phrase', () => {
+  const query = {
+    accent_phrases: [
+      { moras: [{ text: 'チョ', pitch: 5.3 }, { text: 'ン', pitch: 5.3 }], accent: 1, pause_mora: null },
+      { moras: [{ text: 'ウ', pitch: 6.0 }], accent: 1, pause_mora: null }
+    ]
+  };
+  flowPhrases(query);
+  // 宠 チョン 与 物 ウ 之间无停顿,但 ウ 是纯元音,不并入,保留两个 phrase
+  assert.strictEqual(query.accent_phrases.length, 2);
+  assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['ウ']);
+});
+
 //// 节奏整形:合并停顿组内的相邻短语让组内连读、收紧标点停顿,不动元辅音时长 [@busybee 2026-06-15] ////
 test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   const query = {
     accent_phrases: [
-      // 组内两个无停顿相邻短语:应合并
+      // 组内两个无停顿相邻短语(均带声母,非纯元音):应合并
       { moras: [{ text: 'ジュ', consonant_length: 0.08, vowel_length: 0.06, pitch: 6.0 }], accent: 1, pause_mora: null },
-      { moras: [{ text: 'ウ', consonant_length: 0, vowel_length: 0.11, pitch: 6.0 }], accent: 1, pause_mora: { vowel_length: 0.40 } },
+      { moras: [{ text: 'ニ', consonant_length: 0.04, vowel_length: 0.11, pitch: 6.0 }], accent: 1, pause_mora: { vowel_length: 0.40 } },
       // 停顿后的另一组
       { moras: [{ text: 'マ', consonant_length: 0.20, vowel_length: 0.08, pitch: 5.5 }], accent: 1, pause_mora: null }
     ]
@@ -241,7 +255,7 @@ test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   shapeChineseRhythm(query);
   // 前两个无停顿相邻短语合并成一个,停顿后断开:共两个短语
   assert.strictEqual(query.accent_phrases.length, 2);
-  assert.deepStrictEqual(query.accent_phrases[0].moras.map((m) => m.text), ['ジュ', 'ウ']);
+  assert.deepStrictEqual(query.accent_phrases[0].moras.map((m) => m.text), ['ジュ', 'ニ']);
   // 标点停顿从 0.40 收到 0.20
   assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.20);
   // 不动各 mora 的元辅音时长(实测抻长元音、压短辅音都会拉低识别率)
