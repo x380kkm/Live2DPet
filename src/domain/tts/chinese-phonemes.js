@@ -220,32 +220,37 @@ function sentenceToAccentKana(tokens, options = {}) {
 
 //// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
 // 一声 55 高平、二声 35 升、三声 21 低、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
-// phraseFinal 为否时做连读协同:非句末四声只半降到中位、非句末三声读半三声(低平不下潜),
-// 免得连续四声各自跳回满高成锯齿、中段三声又低又弱。
-function mandarinTone(tone, moras, base, phraseFinal = true) {
-  const HI = base + 0.48;
+// 连读协同:非句末四声只半降到中位、非句末三声读半三声(低平不下潜),免得连续四声成锯齿、中段三声又低又弱。
+// 句末治虚:句末三声止于 FINAL3(不潜到最低)、句末四声落到 FINAL4、句末单拍三声略抬、四声略离顶,
+// 让句尾的字站得住、不发虚,且四声不反转。spread 缩放整体落差(<1 更平缓),默认 1。
+function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1) {
+  const HI = base + 0.40 * spread;
   const MID = base;
-  const LOW = base - 0.42;
-  const BOTTOM = base - 0.58;
+  const LOW = base - 0.36 * spread;
+  const FINAL3 = base - 0.46 * spread;
+  const FINAL4 = base - 0.34 * spread;
   // 轻声压到中低位:轻声前常接三声(你的、好的),落在中高位会从三声的低位猛跳上来显突兀,压低些过渡更顺。
-  const NEUTRAL = base - 0.22;
+  const NEUTRAL = base - 0.20 * spread;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   const out = [];
   const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
   if (moras === 1) {
     const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: NEUTRAL };
-    return [clamp(single[tone] !== undefined ? single[tone] : MID)];
+    // 句末单拍:三声略抬离最低、四声略离顶收一点,既站得住又不让句末四声低于句末三声。
+    const singleFinal = { 1: HI, 2: HI, 3: LOW + 0.10, 4: HI - 0.06, 5: NEUTRAL };
+    const table = phraseFinal ? singleFinal : single;
+    return [clamp(table[tone] !== undefined ? table[tone] : MID)];
   }
   if (tone === 1) {
     for (let i = 0; i < moras; i += 1) out.push(HI);
   } else if (tone === 2) {
     ramp(MID, HI);
   } else if (tone === 3) {
-    // 半三声:非句末的三声只读低平的前半段,不下潜到最低,免得中段音节又低又弱。
-    if (phraseFinal) { ramp(LOW, BOTTOM); } else { for (let i = 0; i < moras; i += 1) out.push(LOW); }
+    // 半三声:非句末三声低平不下潜;句末三声只到 FINAL3、不潜到最低,免得句尾又低又虚。
+    if (phraseFinal) { ramp(LOW, FINAL3); } else { for (let i = 0; i < moras; i += 1) out.push(LOW); }
   } else if (tone === 4) {
-    // 半四声:非句末的四声只半降到中位,接下来的四声从中位再起、不必跳回满高,连续四声不再锯齿。
-    ramp(HI, phraseFinal ? LOW : MID);
+    // 半四声:非句末四声只半降到中位;句末四声降到 FINAL4(比中位再低一点、保留落感但不潜)。
+    ramp(HI, phraseFinal ? FINAL4 : MID);
   } else {
     for (let i = 0; i < moras; i += 1) out.push(NEUTRAL);
   }
@@ -254,14 +259,36 @@ function mandarinTone(tone, moras, base, phraseFinal = true) {
 //// /据声调与 mora 数算普通话四声目标音高 ////
 
 // 停顿组内的语调下倾:每靠后一个音节整体压低一点,最多压 DECL_MAX。连续同调音节本会各自跳回满高度成锯齿、听着突兀,
-// 顺着自然下倾走就顺;停顿处由 plan 的 groupStart 重置,不跨停顿累积。
+// 顺着自然下倾走就顺;停顿处由 plan 的 groupStart 重置,不跨停顿累积。句末音节豁免下倾,免得句尾的字被压低发虚。
 const DECL_STEP = 0.05;
 const DECL_MAX = 0.18;
+// 卷舌、擦音、平舌音节的首假名:句末补收尾时长时跳过这些字,免得拉长元音把咬字弄糊、拉低识别率。
+const RETROFLEX_HEAD = new Set(['ジ', 'チ', 'シ', 'ズ', 'ス', 'ツ', 'ザ', 'サ', 'ゾ', 'ゼ', 'ソ']);
+
+//// 软化同一停顿组内相邻音节交界的硬跳:只把前音节末拍与后音节首拍向二者中点靠拢,音节内部其余拍不动 [@busybee 2026-06-15] ////
+// rows 是同组逐音节的有声 mora 数组列表。只动边界拍、保留音节内调型,blend 为向中点靠拢的比例;不跨停顿,故不连音。
+function smoothGroupBoundaries(rows, blend) {
+  for (let s = 0; s < rows.length - 1; s += 1) {
+    const a = rows[s];
+    const b = rows[s + 1];
+    const last = a[a.length - 1];
+    const first = b[0];
+    const mid = (last.pitch + first.pitch) / 2;
+    last.pitch = last.pitch + (mid - last.pitch) * blend;
+    first.pitch = first.pitch + (mid - first.pitch) * blend;
+  }
+}
+//// /软化同一停顿组内相邻音节交界的硬跳 ////
 
 //// 在自然时长的 query 上铺普通话四声音高:按计划逐音节吞 mora、覆盖该音节片假名,替换有声 mora 的音高 [@busybee 2026-06-15] ////
-// 与 applyTones 的轻微叠加不同,这里把四声调值完整铺上(在重音核路线的自然时长上),把四声都做分明;基准取 query 自身均值。
-// 再叠一层停顿组内的语调下倾,缓和连续同调音节交界处的突兀跳变。
-function applyMandarinTones(query, plan) {
+// 把四声调值完整铺上做分明,叠停顿组内下倾(句末豁免),再软化同组相邻音节交界的硬跳让过渡平顺;基准取 query 自身均值。
+// config:spread 缩放四声整体落差(<1 更平缓)、blend 边界软化比例、finalTail 句末非卷舌字补的收尾元音时长(秒,默认 0 关)。
+function applyMandarinTones(query, plan, config = {}) {
+  // 默认值是实测的平衡点:落差稍窄(spread 1.05)、边界中等软化(blend 0.28),既明显降突兀又保住声调辨识、识别率不退。
+  // 再窄、再平(如 spread 1.0、blend 0.34)会让声调发糊、近音字被认错,识别率显著下滑。
+  const spread = config.spread != null ? config.spread : 1.05;
+  const blend = config.blend != null ? config.blend : 0.28;
+  const finalTail = config.finalTail != null ? config.finalTail : 0;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -273,9 +300,12 @@ function applyMandarinTones(query, plan) {
 
   let index = 0;
   let position = 0;
+  let rows = [];
   for (let s = 0; s < plan.length; s += 1) {
     const syllable = plan[s];
     if (syllable.groupStart) {
+      smoothGroupBoundaries(rows, blend);
+      rows = [];
       position = 0;
     }
     const target = (syllable.kana || '').length;
@@ -287,18 +317,31 @@ function applyMandarinTones(query, plan) {
       covered += (mora.text || '').length || 1;
       group.push(mora);
     }
-    // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同。
+    // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同;句末豁免下倾。
     const next = plan[s + 1];
     const phraseFinal = !next || Boolean(next.groupStart);
-    const decline = Math.min(DECL_MAX, position * DECL_STEP);
-    const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal);
+    const decline = phraseFinal ? 0 : Math.min(DECL_MAX, position * DECL_STEP);
+    const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal, spread);
+    const row = [];
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
         group[i].pitch = Math.max(4.8, contour[i] - decline);
+        row.push(group[i]);
+      }
+    }
+    if (row.length) {
+      rows.push(row);
+    }
+    // 句末非卷舌单元音字补一点收尾元音时长,让句尾站得稳;一声不补,卷舌、擦音字跳过以保识别率。
+    if (finalTail > 0 && phraseFinal && syllable.tone !== 1 && !RETROFLEX_HEAD.has((syllable.kana || '')[0])) {
+      const voicedTail = group.filter((mora) => mora.vowel_length != null && mora.vowel_length > 0);
+      if (voicedTail.length) {
+        voicedTail[voicedTail.length - 1].vowel_length += finalTail;
       }
     }
     position += 1;
   }
+  smoothGroupBoundaries(rows, blend);
   return query;
 }
 //// /在自然时长的 query 上铺普通话四声音高 ////

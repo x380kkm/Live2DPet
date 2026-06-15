@@ -120,21 +120,39 @@ test('mandarinTone 四声调值走势', () => {
   assert.ok(neutral < base && neutral > mandarinTone(3, 1, base)[0], '轻声居于三声低位与基准之间');
 });
 
-//// 停顿组内逐音节语调下倾,groupStart 处重置不跨停顿累积 [@busybee 2026-06-15] ////
-test('applyMandarinTones 组内下倾且停顿处重置', () => {
-  // 三个同为一声的音节:第二个比第一个低(下倾),第三个标 groupStart 重置回第一个的高度
+//// 停顿组内逐音节语调下倾,句末音节豁免下倾 [@busybee 2026-06-15] ////
+test('applyMandarinTones 组内下倾,句末豁免', () => {
+  // 三个一声同组:句首、中段、句末;关掉边界平滑(blend:0)单看下倾
   const plan = [
     { kana: 'ガ', tone: 1, groupStart: true },
     { kana: 'ガ', tone: 1, groupStart: false },
-    { kana: 'ガ', tone: 1, groupStart: true }
+    { kana: 'ガ', tone: 1, groupStart: false }
   ];
   const query = { accent_phrases: [{ moras: [
     { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }
   ] }] };
-  applyMandarinTones(query, plan);
+  applyMandarinTones(query, plan, { blend: 0 });
   const [a, b, c] = query.accent_phrases[0].moras.map((m) => m.pitch);
-  assert.ok(b < a, '组内靠后的同调音节因下倾更低');
-  assert.ok(Math.abs(c - a) < 1e-9, 'groupStart 处重置,与组首同高');
+  assert.ok(b < a, '中段音节因下倾比句首低');
+  assert.ok(c > b, '句末音节豁免下倾,不被继续压低');
+});
+
+//// 边界平滑软化相邻音节交界的硬跳:高拍被拉低、低拍被抬高,差变小 [@busybee 2026-06-15] ////
+test('applyMandarinTones 边界平滑软化交界', () => {
+  const make = () => ({ accent_phrases: [{ moras: [
+    { text: 'ガ', pitch: 5.8 }, { text: 'ニ', pitch: 5.8 }
+  ] }] });
+  // 一声(高)接句末三声(低),交界处有硬跳
+  const plan = [
+    { kana: 'ガ', tone: 1, groupStart: true },
+    { kana: 'ニ', tone: 3, groupStart: false }
+  ];
+  const sharp = make(); applyMandarinTones(sharp, plan, { blend: 0 });
+  const soft = make(); applyMandarinTones(soft, plan, { blend: 0.34 });
+  const [sa, sb] = sharp.accent_phrases[0].moras.map((m) => m.pitch);
+  const [na, nb] = soft.accent_phrases[0].moras.map((m) => m.pitch);
+  assert.ok(Math.abs(na - nb) < Math.abs(sa - sb), '平滑后交界两拍音高差变小');
+  assert.ok(na < sa && nb > sb, '高拍被拉低、低拍被抬高');
 });
 
 //// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
