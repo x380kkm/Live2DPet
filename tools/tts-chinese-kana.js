@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, smoothPitch, emphasizeFricativeH, markNasalContrast } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, emphasizeFricativeH, markNasalContrast } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -45,9 +45,8 @@ query.speedScale = 1.0;
 query.volumeScale = 1.25;
 query.prePhonemeLength = 0.08;
 query.postPhonemeLength = 0.1;
-// 在重音核路线的自然时长上铺完整四声音高,把四声都做分明,再轻平滑让语调连贯。
+// 在重音核路线的自然时长上铺完整四声音高,把四声做分明(不平滑:平滑会把单拍音节的声调压平)。
 applyMandarinTones(query, plan);
-smoothPitch(query, 0.35);
 // 拉长 ハ 行辅音,逼近普通话 h 的较强擦音(好、很 这类)。
 emphasizeFricativeH(query);
 // 给 -ng 音节的鼻音拉长一点,作 -n 与 -ng 的区分线索。

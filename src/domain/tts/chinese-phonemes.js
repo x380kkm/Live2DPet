@@ -286,10 +286,10 @@ function emphasizeFricativeH(query, factor = 1.8, floor = 0.10) {
 //// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
 // 一声 55 高平、二声 35 升、三声 21 低(连读半三声)、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
 function mandarinTone(tone, moras, base) {
-  const HI = base + 0.38;
+  const HI = base + 0.48;
   const MID = base;
-  const LOW = base - 0.38;
-  const BOTTOM = base - 0.50;
+  const LOW = base - 0.42;
+  const BOTTOM = base - 0.58;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   const out = [];
   const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
