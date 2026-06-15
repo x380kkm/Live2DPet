@@ -112,6 +112,10 @@ function syllableToKana(parsed, options = {}) {
     return { kana: '', moras: 0, ok: false };
   }
   let kana = applyInitial(parsed.initial, finalKana);
+  // h + u 介音的 [xw]:ハ行 u 列 フ 偏 f,改用 ホ 保住 h(花 hua→ホア、欢 huan→ホアン)。
+  if (parsed.initial === 'h' && U_GLIDE_FINALS.has(parsed.final)) {
+    kana = 'ホ' + finalKana.slice(1);
+  }
   const elongate = options.elongate !== false;
   if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
     // 重音核路线传 kanaSafe:不收长音ー,改用重复基元音补一拍;否则用长音ー。
@@ -231,6 +235,8 @@ function smoothPitch(query, strength = 0.35) {
 const H_MORAS = new Set(['ハ', 'ヒ', 'フ', 'ヘ', 'ホ']);
 // 后鼻韵尾 -ng 的韵母:日语 ン 不分前后鼻,把这些音节的鼻音拉长一点作后鼻的听感线索。
 const NG_FINALS = new Set(['ang', 'eng', 'ing', 'ong', 'iang', 'iong', 'uang', 'ueng']);
+// 带 u 介音的韵母:声母 h 拼到 ウ 列得到 フ(偏 f),对 hua/huan/hui/huo 这类失真,改用 ホ 更保 h。
+const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
 
 //// 给 -ng 音节的末尾鼻音拉长一点,作前鼻 -n 与后鼻 -ng 的区分线索(日语 ン 本不分) [@busybee 2026-06-15] ////
 // 据计划逐音节吞 mora 覆盖该音节片假名,-ng 音节把最后一拍(ン)的元音时长按系数拉长,鼻音更沉、更靠后。
