@@ -188,6 +188,26 @@ function sentenceToAccentKana(tokens, options = {}) {
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
 
+//// 在每个语调短语内对有声 mora 的音高做轻量平滑,把音节间的硬跳变软成滑音,让语调连贯 [@busybee 2026-06-15] ////
+// applyMandarinTones 逐音节铺的是各自独立的调值,音节交界处是台阶式硬跳;轻平滑软化交界、保留调型走势。
+// 只在短语内平滑(不跨停顿),strength 为向邻拍靠拢的比例。
+function smoothPitch(query, strength = 0.35) {
+  for (const phrase of (query.accent_phrases || [])) {
+    const voiced = (phrase.moras || []).filter((mora) => mora.pitch > 0);
+    if (voiced.length < 3) {
+      continue;
+    }
+    const original = voiced.map((mora) => mora.pitch);
+    for (let i = 0; i < voiced.length; i += 1) {
+      const prev = i > 0 ? original[i - 1] : original[i];
+      const next = i < voiced.length - 1 ? original[i + 1] : original[i];
+      voiced[i].pitch = (1 - strength) * original[i] + strength * 0.5 * (prev + next);
+    }
+  }
+  return query;
+}
+//// /在每个语调短语内对音高做轻量平滑 ////
+
 // ハ 行片假名:中文声母 h 落在这几个 mora 上。
 const H_MORAS = new Set(['ハ', 'ヒ', 'フ', 'ヘ', 'ホ']);
 
@@ -406,6 +426,7 @@ module.exports = {
   sentenceToAccentKana,
   mandarinTone,
   applyMandarinTones,
+  smoothPitch,
   emphasizeFricativeH,
   toneContour,
   applyTones,

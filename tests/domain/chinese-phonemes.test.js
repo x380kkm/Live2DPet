@@ -11,6 +11,7 @@ const {
   sentenceToKana,
   sentenceToAccentKana,
   mandarinTone,
+  smoothPitch,
   emphasizeFricativeH,
   toneContour,
   applyTones,
@@ -182,6 +183,21 @@ test('shapeFlow 抻长元音压短辅音收紧停顿', () => {
   assert.strictEqual(mora.vowel_length, 0.16); // max(0.16, 0.10*1.5=0.15)
   assert.strictEqual(mora.consonant_length, 0.05); // min(0.10, 0.05)
   assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.22); // min(0.40, 0.22)
+});
+
+//// 短语内轻平滑软化音节间硬跳,谷被抬、峰被压,但走势方向不反 [@busybee 2026-06-15] ////
+test('smoothPitch 软化音节间硬跳', () => {
+  const query = { accent_phrases: [{ moras: [
+    { text: 'ガ', pitch: 6.1 }, { text: 'ニ', pitch: 5.3 }, { text: 'ガ', pitch: 6.1 }
+  ] }] };
+  smoothPitch(query, 0.35);
+  const [a, b, c] = query.accent_phrases[0].moras.map((m) => m.pitch);
+  assert.ok(b > 5.3 && b < 6.1, '中间的谷被抬向邻拍');
+  assert.ok(a < 6.1 && c < 6.1, '两侧峰略被拉低');
+  // 不跨停顿、短语过短不平滑
+  const tiny = { accent_phrases: [{ moras: [{ text: 'ニ', pitch: 5.3 }, { text: 'イ', pitch: 6.0 }] }] };
+  smoothPitch(tiny, 0.35);
+  assert.deepStrictEqual(tiny.accent_phrases[0].moras.map((m) => m.pitch), [5.3, 6.0], '少于三拍不平滑');
 });
 
 //// 只拉长 ハ 行辅音,逼近普通话 h 的较强擦音,不碰其他声母 [@busybee 2026-06-15] ////
