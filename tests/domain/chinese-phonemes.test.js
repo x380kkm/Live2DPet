@@ -11,6 +11,7 @@ const {
   sentenceToKana,
   sentenceToAccentKana,
   mandarinTone,
+  applyMandarinTones,
   toneContour,
   applyTones,
   flowPhrases,
@@ -86,6 +87,13 @@ test('sentenceToAccentKana 按停顿组并短语拼带重音片假名与计划',
   assert.strictEqual(sentenceToAccentKana(['ni3'], { elongate: true }).kana, "ニイ'");
   // 显式开变调时,前一个三声读二声
   assert.deepStrictEqual(sentenceToAccentKana(['ni3', 'hao3'], { sandhi: true }).plan.map((p) => p.tone), [2, 3]);
+  // 零声母单元音音节(物 ウ)自成一个语调短语,免得被前一鼻音吸收听不清
+  assert.strictEqual(sentenceToAccentKana(['chong3', 'wu4']).kana, "チョン'/ウ'");
+  // 停顿组首音节标 groupStart,逗号后重置
+  assert.deepStrictEqual(
+    sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5']).plan.map((p) => p.groupStart),
+    [true, false, true]
+  );
 });
 
 //// 普通话四声目标音高:一声高平、二声升、三声低、四声降 [@busybee 2026-06-15] ////
@@ -105,6 +113,23 @@ test('mandarinTone 四声调值走势', () => {
   // 轻声压到中低位,落在三声(低位)之上但不冒到基准之上,免得「你的」从低位猛跳显突兀
   const neutral = mandarinTone(5, 1, base)[0];
   assert.ok(neutral < base && neutral > mandarinTone(3, 1, base)[0], '轻声居于三声低位与基准之间');
+});
+
+//// 停顿组内逐音节语调下倾,groupStart 处重置不跨停顿累积 [@busybee 2026-06-15] ////
+test('applyMandarinTones 组内下倾且停顿处重置', () => {
+  // 三个同为一声的音节:第二个比第一个低(下倾),第三个标 groupStart 重置回第一个的高度
+  const plan = [
+    { kana: 'ガ', tone: 1, groupStart: true },
+    { kana: 'ガ', tone: 1, groupStart: false },
+    { kana: 'ガ', tone: 1, groupStart: true }
+  ];
+  const query = { accent_phrases: [{ moras: [
+    { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }
+  ] }] };
+  applyMandarinTones(query, plan);
+  const [a, b, c] = query.accent_phrases[0].moras.map((m) => m.pitch);
+  assert.ok(b < a, '组内靠后的同调音节因下倾更低');
+  assert.ok(Math.abs(c - a) < 1e-9, 'groupStart 处重置,与组首同高');
 });
 
 //// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////

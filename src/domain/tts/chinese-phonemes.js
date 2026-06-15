@@ -172,6 +172,32 @@ function chunkEvenly(items, max) {
 }
 //// /把一组元素等长切成若干份 ////
 
+// 零声母单元音的片假名:这几个独立成 mora 的纯元音音节(如「物」ウ、「一」イ)易被相邻鼻音吸收而听不清。
+const BARE_VOWEL_KANA = new Set(['ア', 'イ', 'ウ', 'エ', 'オ']);
+
+//// 把一个子短语再按零声母单元音切开:纯元音音节各自成段,免得被前一鼻音吸收听不清 [@busybee 2026-06-15] ////
+// 「宠物」的「物」(ウ)紧贴前一鼻音 ン 又处停顿前,会被吸收掉;让它自成一个语调短语,引擎重新起头,元音才听得清。
+function splitBareVowel(sub) {
+  const pieces = [];
+  let piece = [];
+  for (const kana of sub) {
+    if (BARE_VOWEL_KANA.has(kana)) {
+      if (piece.length) {
+        pieces.push(piece);
+        piece = [];
+      }
+      pieces.push([kana]);
+    } else {
+      piece.push(kana);
+    }
+  }
+  if (piece.length) {
+    pieces.push(piece);
+  }
+  return pieces;
+}
+//// /把一个子短语再按零声母单元音切开 ////
+
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按等长切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
@@ -187,12 +213,15 @@ function sentenceToAccentKana(tokens, options = {}) {
   const plan = [];
   const groups = [];
   let current = [];
+  // 标记每个停顿组的首音节,供 applyMandarinTones 在组内做语调下倾、并在停顿处重置。
+  let groupStart = true;
   for (const item of items) {
     if (item.punct) {
       if (current.length) {
         groups.push(current);
         current = [];
       }
+      groupStart = true;
       continue;
     }
     // 重音核路线默认不补拍:补拍虽利于声调展开,却显著拉低识别率(ASR 实测),故默认关、显式传 elongate:true 才开。
@@ -201,15 +230,21 @@ function sentenceToAccentKana(tokens, options = {}) {
       continue;
     }
     current.push(syllable.kana);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart });
+    groupStart = false;
   }
   if (current.length) {
     groups.push(current);
   }
 
-  // 每个停顿组按等长切成子短语(短组不切),子短语并成一个语调短语连读、子短语间用 / 无停顿、组间用 、停顿;
+  // 每个停顿组按等长切成子短语(短组不切),再把零声母单元音音节各自切出来;子短语间用 / 无停顿、组间用 、停顿;
   // 重音核置末仅为满足 AquesTalk 解析,实际四声听感由 applyMandarinTones 逐音节铺音高决定。
-  const kana = groups.map((group) => chunkEvenly(group, maxPhrase).map((sub) => sub.join('') + "'").join('/')).join('、');
+  const kana = groups
+    .map((group) => chunkEvenly(group, maxPhrase)
+      .flatMap((sub) => splitBareVowel(sub))
+      .map((piece) => piece.join('') + "'")
+      .join('/'))
+    .join('、');
   return { kana, plan };
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
@@ -245,8 +280,14 @@ function mandarinTone(tone, moras, base) {
 }
 //// /据声调与 mora 数算普通话四声目标音高 ////
 
+// 停顿组内的语调下倾:每靠后一个音节整体压低一点,最多压 DECL_MAX。连续同调音节本会各自跳回满高度成锯齿、听着突兀,
+// 顺着自然下倾走就顺;停顿处由 plan 的 groupStart 重置,不跨停顿累积。
+const DECL_STEP = 0.05;
+const DECL_MAX = 0.18;
+
 //// 在自然时长的 query 上铺普通话四声音高:按计划逐音节吞 mora、覆盖该音节片假名,替换有声 mora 的音高 [@busybee 2026-06-15] ////
 // 与 applyTones 的轻微叠加不同,这里把四声调值完整铺上(在重音核路线的自然时长上),把四声都做分明;基准取 query 自身均值。
+// 再叠一层停顿组内的语调下倾,缓和连续同调音节交界处的突兀跳变。
 function applyMandarinTones(query, plan) {
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
@@ -258,7 +299,11 @@ function applyMandarinTones(query, plan) {
   const base = voiced.length ? voiced.reduce((sum, mora) => sum + mora.pitch, 0) / voiced.length : 5.75;
 
   let index = 0;
+  let position = 0;
   for (const syllable of plan) {
+    if (syllable.groupStart) {
+      position = 0;
+    }
     const target = (syllable.kana || '').length;
     const group = [];
     let covered = 0;
@@ -268,12 +313,14 @@ function applyMandarinTones(query, plan) {
       covered += (mora.text || '').length || 1;
       group.push(mora);
     }
+    const decline = Math.min(DECL_MAX, position * DECL_STEP);
     const contour = mandarinTone(syllable.tone, group.length, base);
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
-        group[i].pitch = contour[i];
+        group[i].pitch = Math.max(4.8, contour[i] - decline);
       }
     }
+    position += 1;
   }
   return query;
 }
