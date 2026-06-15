@@ -15,7 +15,7 @@ const {
   toneContour,
   applyTones,
   flowPhrases,
-  shapeFlow
+  shapeChineseRhythm
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
@@ -87,8 +87,6 @@ test('sentenceToAccentKana 按停顿组并短语拼带重音片假名与计划',
   assert.strictEqual(sentenceToAccentKana(['ni3'], { elongate: true }).kana, "ニイ'");
   // 显式开变调时,前一个三声读二声
   assert.deepStrictEqual(sentenceToAccentKana(['ni3', 'hao3'], { sandhi: true }).plan.map((p) => p.tone), [2, 3]);
-  // 零声母单元音音节(物 ウ)自成一个语调短语,免得被前一鼻音吸收听不清
-  assert.strictEqual(sentenceToAccentKana(['chong3', 'wu4']).kana, "チョン'/ウ'");
   // 停顿组首音节标 groupStart,逗号后重置
   assert.deepStrictEqual(
     sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5']).plan.map((p) => p.groupStart),
@@ -204,19 +202,27 @@ test('flowPhrases 合并无停顿相邻 phrase', () => {
   assert.deepStrictEqual(query.accent_phrases[1].moras.map((m) => m.text), ['オ']);
 });
 
-//// 时长整形:抻长元音、压短辅音、收紧停顿 [@busybee 2026-06-15] ////
-test('shapeFlow 抻长元音压短辅音收紧停顿', () => {
+//// 节奏整形:合并停顿组内的相邻短语让组内连读、收紧标点停顿,不动元辅音时长 [@busybee 2026-06-15] ////
+test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   const query = {
-    accent_phrases: [{
-      moras: [{ text: 'ニ', consonant_length: 0.10, vowel_length: 0.10, pitch: 5.8 }],
-      pause_mora: { vowel_length: 0.40 }
-    }]
+    accent_phrases: [
+      // 组内两个无停顿相邻短语:应合并
+      { moras: [{ text: 'ジュ', consonant_length: 0.08, vowel_length: 0.06, pitch: 6.0 }], accent: 1, pause_mora: null },
+      { moras: [{ text: 'ウ', consonant_length: 0, vowel_length: 0.11, pitch: 6.0 }], accent: 1, pause_mora: { vowel_length: 0.40 } },
+      // 停顿后的另一组
+      { moras: [{ text: 'マ', consonant_length: 0.20, vowel_length: 0.08, pitch: 5.5 }], accent: 1, pause_mora: null }
+    ]
   };
-  shapeFlow(query, { vowelFloor: 0.16, vowelScale: 1.5, consonantCap: 0.05, pauseCap: 0.22 });
-  const mora = query.accent_phrases[0].moras[0];
-  assert.strictEqual(mora.vowel_length, 0.16); // max(0.16, 0.10*1.5=0.15)
-  assert.strictEqual(mora.consonant_length, 0.05); // min(0.10, 0.05)
-  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.22); // min(0.40, 0.22)
+  shapeChineseRhythm(query);
+  // 前两个无停顿相邻短语合并成一个,停顿后断开:共两个短语
+  assert.strictEqual(query.accent_phrases.length, 2);
+  assert.deepStrictEqual(query.accent_phrases[0].moras.map((m) => m.text), ['ジュ', 'ウ']);
+  // 标点停顿从 0.40 收到 0.20
+  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.20);
+  // 不动各 mora 的元辅音时长(实测抻长元音、压短辅音都会拉低识别率)
+  assert.strictEqual(query.accent_phrases[0].moras[0].vowel_length, 0.06);
+  assert.strictEqual(query.accent_phrases[0].moras[1].vowel_length, 0.11);
+  assert.strictEqual(query.accent_phrases[1].moras[0].consonant_length, 0.20);
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////

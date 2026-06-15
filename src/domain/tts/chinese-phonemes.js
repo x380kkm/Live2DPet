@@ -172,32 +172,6 @@ function chunkEvenly(items, max) {
 }
 //// /把一组元素等长切成若干份 ////
 
-// 零声母单元音的片假名:这几个独立成 mora 的纯元音音节(如「物」ウ、「一」イ)易被相邻鼻音吸收而听不清。
-const BARE_VOWEL_KANA = new Set(['ア', 'イ', 'ウ', 'エ', 'オ']);
-
-//// 把一个子短语再按零声母单元音切开:纯元音音节各自成段,免得被前一鼻音吸收听不清 [@busybee 2026-06-15] ////
-// 「宠物」的「物」(ウ)紧贴前一鼻音 ン 又处停顿前,会被吸收掉;让它自成一个语调短语,引擎重新起头,元音才听得清。
-function splitBareVowel(sub) {
-  const pieces = [];
-  let piece = [];
-  for (const kana of sub) {
-    if (BARE_VOWEL_KANA.has(kana)) {
-      if (piece.length) {
-        pieces.push(piece);
-        piece = [];
-      }
-      pieces.push([kana]);
-    } else {
-      piece.push(kana);
-    }
-  }
-  if (piece.length) {
-    pieces.push(piece);
-  }
-  return pieces;
-}
-//// /把一个子短语再按零声母单元音切开 ////
-
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按等长切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
@@ -237,14 +211,9 @@ function sentenceToAccentKana(tokens, options = {}) {
     groups.push(current);
   }
 
-  // 每个停顿组按等长切成子短语(短组不切),再把零声母单元音音节各自切出来;子短语间用 / 无停顿、组间用 、停顿;
-  // 重音核置末仅为满足 AquesTalk 解析,实际四声听感由 applyMandarinTones 逐音节铺音高决定。
-  const kana = groups
-    .map((group) => chunkEvenly(group, maxPhrase)
-      .flatMap((sub) => splitBareVowel(sub))
-      .map((piece) => piece.join('') + "'")
-      .join('/'))
-    .join('、');
+  // 每个停顿组按等长切成子短语(短组不切),子短语间用 / 无停顿、组间用 、停顿;
+  // 重音核置末仅为满足 AquesTalk 解析,实际四声听感由 applyMandarinTones 铺音高、节奏由 shapeChineseRhythm 整时长决定。
+  const kana = groups.map((group) => chunkEvenly(group, maxPhrase).map((sub) => sub.join('') + "'").join('/')).join('、');
   return { kana, plan };
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
@@ -368,30 +337,23 @@ function flowPhrases(query) {
 }
 //// /把一个停顿组内的多个 accent_phrase 合并成一个 ////
 
-//// 把各 mora 的时长拉成中文那种持续、连贯的样子:抻长元音、压短辅音、收紧停顿 [@busybee 2026-06-15] ////
-// 日语 mora 短促,逐拍听起来一顿一顿;中文音节更长更连。抻长元音让音持续、声调滑得开,压短辅音减少音节间空隙,
-// 标点停顿收到适中长度。config 可调 vowelFloor/vowelScale/consonantCap/pauseCap。
-function shapeFlow(query, config = {}) {
-  const vowelFloor = config.vowelFloor != null ? config.vowelFloor : 0.16;
-  const vowelScale = config.vowelScale != null ? config.vowelScale : 1.5;
-  const consonantCap = config.consonantCap != null ? config.consonantCap : 0.05;
-  const pauseCap = config.pauseCap != null ? config.pauseCap : 0.22;
+//// 把节奏整成更像中文:合并停顿组内的多个 accent_phrase 让组内连读,再把标点停顿收到适中 [@busybee 2026-06-15] ////
+// 日语 mora 节奏一顿一顿、词界还插微停顿,听着不像中文。这里把同一停顿组的多个短语并成一个,清掉词界微停顿与音高重置,
+// 组内连读;再把标点处过长的停顿收紧。只动短语结构与停顿、不动各 mora 的元辅音时长:实测抻长元音或压短辅音都会
+// 把卷舌、擦音咬糊、显著拉低识别率,而合并加收停顿对识别率零损耗。config 可调 pauseCap。须在 applyMandarinTones 后调用。
+function shapeChineseRhythm(query, config = {}) {
+  const pauseCap = config.pauseCap != null ? config.pauseCap : 0.20;
+  // 合并同一停顿组内的多个 accent_phrase,清掉词界微停顿与音高重置,组内连读。
+  flowPhrases(query);
+  // 标点处残留的停顿封顶到适中,不抬高、只收紧过长的。
   for (const phrase of (query.accent_phrases || [])) {
-    for (const mora of (phrase.moras || [])) {
-      if (mora.vowel_length != null && mora.vowel_length > 0) {
-        mora.vowel_length = Math.max(vowelFloor, mora.vowel_length * vowelScale);
-      }
-      if (mora.consonant_length != null) {
-        mora.consonant_length = Math.min(mora.consonant_length, consonantCap);
-      }
-    }
     if (phrase.pause_mora && phrase.pause_mora.vowel_length != null) {
       phrase.pause_mora.vowel_length = Math.min(phrase.pause_mora.vowel_length, pauseCap);
     }
   }
   return query;
 }
-//// /把各 mora 的时长拉成中文那种持续、连贯的样子 ////
+//// /把节奏整成更像中文:合并组内短语、收紧标点停顿 ////
 
 //// 据声调与音节 mora 数算各 mora 的音高微调量(相对 0 的增量,不替换引擎的自然音高) [@busybee 2026-06-15] ////
 // 只给一个轻微偏置:一声略抬、二声尾升、三声压低、四声尾降、轻声略低。增量小,保留 VOICEVOX 自然起伏,听感更自然。
@@ -468,7 +430,7 @@ module.exports = {
   toneContour,
   applyTones,
   flowPhrases,
-  shapeFlow,
+  shapeChineseRhythm,
   moraCount,
   INITIAL_CV,
   FINAL_KANA

@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -45,8 +45,9 @@ query.speedScale = 1.0;
 query.volumeScale = 1.25;
 query.prePhonemeLength = 0.08;
 query.postPhonemeLength = 0.1;
-// 在重音核路线的自然时长上铺完整四声音高,把四声做分明;只控音高、不再额外改时长,免得过度控制听起来生硬。
+// 先铺完整四声音高,把四声做分明;再合并组内短语、收紧标点停顿,让组内连读、停顿干净,听着更像中文。
 applyMandarinTones(query, plan);
+shapeChineseRhythm(query);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);

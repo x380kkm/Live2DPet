@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
 
 const VOICE = 2;
 // 测试句:汉字供识别比对,tokens 是带声调的拼音(先手给,接入后由汉字转拼音替代)。
@@ -41,6 +41,7 @@ for (const sentence of SENTENCES) {
   query.prePhonemeLength = 0.08;
   query.postPhonemeLength = 0.1;
   applyMandarinTones(query, plan);
+  shapeChineseRhythm(query);
   const wav = backend.synthesizeQuery(query, VOICE);
   const file = path.join(outDir, `${sentence.id}.wav`);
   fs.writeFileSync(file, wav);
