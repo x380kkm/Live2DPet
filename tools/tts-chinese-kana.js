@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, smoothPitch, emphasizeFricativeH } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, smoothPitch, emphasizeFricativeH, markNasalContrast } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -29,7 +29,8 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQueryFromKana(kana, VOICE);
-query.speedScale = 1.0;
+// 整体偏快:补拍后偏慢,提语速回到口语的快。
+query.speedScale = 1.12;
 // 提音量、收句首句尾留白,让整体更响更干脆,句尾不拖。
 query.volumeScale = 1.25;
 query.prePhonemeLength = 0.08;
@@ -39,6 +40,8 @@ applyMandarinTones(query, plan);
 smoothPitch(query, 0.35);
 // 拉长 ハ 行辅音,逼近普通话 h 的较强擦音(好、很 这类)。
 emphasizeFricativeH(query);
+// 给 -ng 音节的鼻音拉长一点,作 -n 与 -ng 的区分线索。
+markNasalContrast(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);

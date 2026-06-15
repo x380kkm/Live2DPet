@@ -175,7 +175,7 @@ function sentenceToAccentKana(tokens, options = {}) {
       continue;
     }
     current += syllable.kana;
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, ng: NG_FINALS.has(item.parsed.final) });
   }
   if (current) {
     groups.push(current);
@@ -210,6 +210,39 @@ function smoothPitch(query, strength = 0.35) {
 
 // ハ 行片假名:中文声母 h 落在这几个 mora 上。
 const H_MORAS = new Set(['ハ', 'ヒ', 'フ', 'ヘ', 'ホ']);
+// 后鼻韵尾 -ng 的韵母:日语 ン 不分前后鼻,把这些音节的鼻音拉长一点作后鼻的听感线索。
+const NG_FINALS = new Set(['ang', 'eng', 'ing', 'ong', 'iang', 'iong', 'uang', 'ueng']);
+
+//// 给 -ng 音节的末尾鼻音拉长一点,作前鼻 -n 与后鼻 -ng 的区分线索(日语 ン 本不分) [@busybee 2026-06-15] ////
+// 据计划逐音节吞 mora 覆盖该音节片假名,-ng 音节把最后一拍(ン)的元音时长按系数拉长,鼻音更沉、更靠后。
+function markNasalContrast(query, plan, ngFactor = 1.7) {
+  const moras = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      moras.push(mora);
+    }
+  }
+  let index = 0;
+  for (const syllable of plan) {
+    const target = (syllable.kana || '').length;
+    const group = [];
+    let covered = 0;
+    while (index < moras.length && covered < target) {
+      const mora = moras[index];
+      index += 1;
+      covered += (mora.text || '').length || 1;
+      group.push(mora);
+    }
+    if (syllable.ng && group.length) {
+      const last = group[group.length - 1];
+      if (last.vowel_length != null) {
+        last.vowel_length *= ngFactor;
+      }
+    }
+  }
+  return query;
+}
+//// /给 -ng 音节的末尾鼻音拉长一点 ////
 
 //// 拉长 ハ 行辅音,逼近普通话声母 h 的较强软腭擦音(日语只有更轻的 h,长一点更像) [@busybee 2026-06-15] ////
 function emphasizeFricativeH(query, factor = 1.8, floor = 0.10) {
@@ -428,6 +461,7 @@ module.exports = {
   applyMandarinTones,
   smoothPitch,
   emphasizeFricativeH,
+  markNasalContrast,
   toneContour,
   applyTones,
   flowPhrases,

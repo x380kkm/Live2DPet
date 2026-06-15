@@ -13,6 +13,7 @@ const {
   mandarinTone,
   smoothPitch,
   emphasizeFricativeH,
+  markNasalContrast,
   toneContour,
   applyTones,
   flowPhrases,
@@ -198,6 +199,22 @@ test('smoothPitch 软化音节间硬跳', () => {
   const tiny = { accent_phrases: [{ moras: [{ text: 'ニ', pitch: 5.3 }, { text: 'イ', pitch: 6.0 }] }] };
   smoothPitch(tiny, 0.35);
   assert.deepStrictEqual(tiny.accent_phrases[0].moras.map((m) => m.pitch), [5.3, 6.0], '少于三拍不平滑');
+});
+
+//// 只给 -ng 音节的末尾鼻音拉长,-n 音节不动 [@busybee 2026-06-15] ////
+test('markNasalContrast 只拉长 -ng 的鼻音', () => {
+  const plan = [
+    { kana: 'シン', moras: 2, tone: 4, ng: true },
+    { kana: 'ヘン', moras: 2, tone: 3, ng: false }
+  ];
+  const query = { accent_phrases: [{ moras: [
+    { text: 'シ', vowel_length: 0.09, pitch: 6.0 }, { text: 'ン', vowel_length: 0.07, pitch: 5.3 },
+    { text: 'ヘ', vowel_length: 0.09, pitch: 5.3 }, { text: 'ン', vowel_length: 0.07, pitch: 5.2 }
+  ] }] };
+  markNasalContrast(query, plan, 1.7);
+  const m = query.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[1].vowel_length - 0.07 * 1.7) < 1e-9, '-ng 的 ン 被拉长');
+  assert.strictEqual(m[3].vowel_length, 0.07, '-n 的 ン 不动');
 });
 
 //// 只拉长 ハ 行辅音,逼近普通话 h 的较强擦音,不碰其他声母 [@busybee 2026-06-15] ////
