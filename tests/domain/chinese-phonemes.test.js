@@ -36,9 +36,9 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   assert.strictEqual(k('hao3'), 'ハオ');
   assert.strictEqual(k('zhuo1'), 'ジュオ');
   assert.strictEqual(k('mian4'), 'ミェン');
-  // 后鼻韵尾 -ng 补长音,与 -n 区分:xing→シーン、chong→チョーン
-  assert.strictEqual(k('xing4'), 'シーン');
-  assert.strictEqual(k('chong3'), 'チョーン');
+  // -ng 与 -n 都收到 ン(补长音会拖慢连读):xing→シン、chong→チョン
+  assert.strictEqual(k('xing4'), 'シン');
+  assert.strictEqual(k('chong3'), 'チョン');
   // 卷舌 zh 与平舌 z 区别在 i:zhi→ジー、zi→ズー
   assert.strictEqual(k('zhi1'), 'ジー');
   assert.strictEqual(k('zi4'), 'ズー');
