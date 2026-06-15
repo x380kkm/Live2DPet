@@ -39,8 +39,8 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQueryFromKana(kana, VOICE);
-// 整体偏快:补拍后偏慢,提语速回到口语的快。
-query.speedScale = 1.12;
+// 语速 1.0:实测识别率最高,也比 1.12 慢一点、少些日语连读感。
+query.speedScale = 1.0;
 // 提音量、收句首句尾留白,让整体更响更干脆,句尾不拖。
 query.volumeScale = 1.25;
 query.prePhonemeLength = 0.08;

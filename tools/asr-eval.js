@@ -30,13 +30,13 @@ const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.warmup();
 
-// 默认随模块(不补拍);传 elong 时开补拍,A/B 比对补拍对识别率的影响。
-const elongate = process.argv[2] === 'elong';
+// argv[2] 传语速(默认 1.12),用来扫语速对识别率的影响。
+const speed = parseFloat(process.argv[2]) || 1.12;
 const manifest = [];
 for (const sentence of SENTENCES) {
-  const { kana, plan } = sentenceToAccentKana(sentence.tokens, { elongate });
+  const { kana, plan } = sentenceToAccentKana(sentence.tokens);
   const query = backend.audioQueryFromKana(kana, VOICE);
-  query.speedScale = 1.12;
+  query.speedScale = speed;
   query.volumeScale = 1.25;
   query.prePhonemeLength = 0.08;
   query.postPhonemeLength = 0.1;
