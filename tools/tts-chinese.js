@@ -32,14 +32,14 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQuery(kana, VOICE);
-// 略放慢便于听清,不抻长时长(抻长会失真不自然)。
-query.speedScale = 0.95;
+// 口语该偏快而咬字清:用自然语速,不放慢(放慢反而拖、不连贯)。
+query.speedScale = 1.0;
 const phrasesBefore = (query.accent_phrases || []).length;
-// 合并词间停顿组,只在引擎自然音高上叠轻微声调偏置,保留自然起伏。
+// 合并词间停顿组,在引擎自然音高上叠声调偏置;强度收到 0.9,声调点到为止、保住口语的连贯。
 flowPhrases(query);
 const phrasesAfter = (query.accent_phrases || []).length;
 const moraTotal = (query.accent_phrases || []).reduce((sum, ph) => sum + (ph.moras || []).length, 0);
-applyTones(query, plan, { strength: 1.0 });
+applyTones(query, plan, { strength: 0.9 });
 const wav = backend.synthesizeQuery(query, VOICE);
 console.log(`accent_phrase 合并:${phrasesBefore} → ${phrasesAfter}`);
 
