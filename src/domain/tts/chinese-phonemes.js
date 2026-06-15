@@ -177,9 +177,12 @@ function placeAccent(kana, moraIndex) {
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:每音节一个重音核,句内 / 连读、标点处 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
-function sentenceToAccentKana(tokens) {
+function sentenceToAccentKana(tokens, options = {}) {
   const items = tokens.map((token) => (isPunctuation(token) ? { punct: token } : { parsed: parsePinyin(token) }));
-  applyToneSandhi(items);
+  // 三声变调默认关:变调会把「你好」的「你」读成上扬的二声、听感像「尼」;需要时传 sandhi:true 打开。
+  if (options.sandhi) {
+    applyToneSandhi(items);
+  }
 
   let kana = '';
   const plan = [];

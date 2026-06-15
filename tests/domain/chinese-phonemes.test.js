@@ -87,12 +87,14 @@ test('placeAccent 在第 N 个 mora 后插重音记号', () => {
 //// 整句拼成 AquesTalk 带重音片假名与声调计划:句内 / 连读、标点处 、停顿,不带长音ー [@busybee 2026-06-15] ////
 test('sentenceToAccentKana 拼带重音片假名与计划', () => {
   // ni3 hao3 三声变调成 ni2 hao3;重音核路线不补长音
+  // 默认不变调:ni 保持三声;单元音 ni 用重复基元音补拍成 ニイ(不用长音ー);ma 轻声不补
   const { kana, plan } = sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5', '。']);
-  // 单元音 ni 用重复基元音补拍成 ニイ(不用长音ー);ma 轻声不补
   assert.strictEqual(kana, "ニイ'/ハオ'、マ'");
   assert.ok(!kana.includes('ー'), '不含长音ー(AquesTalk 不收)');
-  assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3, 5]);
+  assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3, 5]);
   assert.deepStrictEqual(plan.map((p) => p.kana), ['ニイ', 'ハオ', 'マ']);
+  // 显式开变调时,前一个三声读二声
+  assert.deepStrictEqual(sentenceToAccentKana(['ni3', 'hao3'], { sandhi: true }).plan.map((p) => p.tone), [2, 3]);
 });
 
 //// 普通话四声目标音高:一声高平、二声升、三声低、四声降 [@busybee 2026-06-15] ////
