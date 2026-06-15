@@ -101,15 +101,16 @@ function applyInitial(initial, finalKana) {
 }
 //// /把声母拼到韵母首元音上 ////
 
-//// 把一个拼音音节拼成片假名,单元音韵母补长音ー,回 { kana, moras, ok } [@busybee 2026-06-15] ////
-// 长音让中文单元音持续得更像中文,也把单拍音节拉成两拍,使升降调能在音节内展开;轻声不拉。
-function syllableToKana(parsed) {
+//// 把一个拼音音节拼成片假名,单元音韵母可补长音ー,回 { kana, moras, ok } [@busybee 2026-06-15] ////
+// 长音让中文单元音持续得更像中文、把单拍拉成两拍承调;但 AquesTalk 风记法不收 ー,故重音核路线传 elongate:false 关掉。
+function syllableToKana(parsed, options = {}) {
   const finalKana = FINAL_KANA[parsed.final];
   if (!finalKana) {
     return { kana: '', moras: 0, ok: false };
   }
   let kana = applyInitial(parsed.initial, finalKana);
-  if (ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
+  const elongate = options.elongate !== false;
+  if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
     kana += 'ー';
   }
   return { kana, moras: moraCount(kana), ok: true };
@@ -144,6 +145,127 @@ function sentenceToKana(tokens) {
   return { kana, plan };
 }
 //// /把一串拼音与标点 token 拼成片假名串与声调计划 ////
+
+//// 把声调映射成 AquesTalk 重音核位置(1 起):四声落首拍后下降,其余落末拍上扬,一三声靠后续微调区分 [@busybee 2026-06-15] ////
+function accentIndex(tone, moraCount) {
+  if (tone === 4) {
+    return 1;
+  }
+  return Math.max(1, moraCount);
+}
+//// /把声调映射成重音核位置 ////
+
+//// 在片假名的第 moraIndex 个 mora 后插入重音记号 ',小书写假名并入前一拍 [@busybee 2026-06-15] ////
+function placeAccent(kana, moraIndex) {
+  let mora = 0;
+  for (let i = 0; i < kana.length; i += 1) {
+    const next = kana[i + 1];
+    if (!next || !COMBINING.has(next)) {
+      mora += 1;
+      if (mora === moraIndex) {
+        return kana.slice(0, i + 1) + "'" + kana.slice(i + 1);
+      }
+    }
+  }
+  return kana + "'";
+}
+//// /在片假名的第 moraIndex 个 mora 后插入重音记号 ////
+
+//// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:每音节一个重音核,句内 / 连读、标点处 、停顿 [@busybee 2026-06-15] ////
+// 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
+// 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
+function sentenceToAccentKana(tokens) {
+  const items = tokens.map((token) => (isPunctuation(token) ? { punct: token } : { parsed: parsePinyin(token) }));
+  applyToneSandhi(items);
+
+  let kana = '';
+  const plan = [];
+  let needSeparator = false;
+  let pausePending = false;
+  for (const item of items) {
+    if (item.punct) {
+      pausePending = true;
+      continue;
+    }
+    const syllable = syllableToKana(item.parsed, { elongate: false });
+    if (!syllable.ok || syllable.moras === 0) {
+      continue;
+    }
+    const marked = placeAccent(syllable.kana, accentIndex(item.parsed.tone, syllable.moras));
+    if (needSeparator) {
+      kana += pausePending ? '、' : '/';
+    }
+    kana += marked;
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
+    needSeparator = true;
+    pausePending = false;
+  }
+  return { kana, plan };
+}
+//// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
+
+//// 据声调与 mora 数算一个音节各 mora 的普通话四声目标音高(相对基准的五度调值) [@busybee 2026-06-15] ////
+// 一声 55 高平、二声 35 升、三声 21 低(连读半三声)、四声 51 降、轻声中略低。单拍取关键调值,走势靠相邻音节体现。
+function mandarinTone(tone, moras, base) {
+  const HI = base + 0.38;
+  const MID = base;
+  const LOW = base - 0.38;
+  const BOTTOM = base - 0.50;
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  const out = [];
+  const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
+  if (moras === 1) {
+    const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: MID - 0.08 };
+    return [clamp(single[tone] !== undefined ? single[tone] : MID)];
+  }
+  if (tone === 1) {
+    for (let i = 0; i < moras; i += 1) out.push(HI);
+  } else if (tone === 2) {
+    ramp(MID, HI);
+  } else if (tone === 3) {
+    ramp(LOW, BOTTOM);
+  } else if (tone === 4) {
+    ramp(HI, LOW);
+  } else {
+    for (let i = 0; i < moras; i += 1) out.push(MID - 0.08);
+  }
+  return out.map(clamp);
+}
+//// /据声调与 mora 数算普通话四声目标音高 ////
+
+//// 在自然时长的 query 上铺普通话四声音高:按计划逐音节吞 mora、覆盖该音节片假名,替换有声 mora 的音高 [@busybee 2026-06-15] ////
+// 与 applyTones 的轻微叠加不同,这里把四声调值完整铺上(在重音核路线的自然时长上),把四声都做分明;基准取 query 自身均值。
+function applyMandarinTones(query, plan) {
+  const moras = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      moras.push(mora);
+    }
+  }
+  const voiced = moras.filter((mora) => mora.pitch > 0);
+  const base = voiced.length ? voiced.reduce((sum, mora) => sum + mora.pitch, 0) / voiced.length : 5.75;
+
+  let index = 0;
+  for (const syllable of plan) {
+    const target = (syllable.kana || '').length;
+    const group = [];
+    let covered = 0;
+    while (index < moras.length && covered < target) {
+      const mora = moras[index];
+      index += 1;
+      covered += (mora.text || '').length || 1;
+      group.push(mora);
+    }
+    const contour = mandarinTone(syllable.tone, group.length, base);
+    for (let i = 0; i < group.length; i += 1) {
+      if (group[i].pitch > 0 && contour[i] !== undefined) {
+        group[i].pitch = contour[i];
+      }
+    }
+  }
+  return query;
+}
+//// /在自然时长的 query 上铺普通话四声音高 ////
 
 //// 三声变调:相邻两个三声里前一个改读二声,标点断开则重置不跨标点变调 [@busybee 2026-06-15] ////
 function applyToneSandhi(items) {
@@ -281,6 +403,11 @@ module.exports = {
   parsePinyin,
   syllableToKana,
   sentenceToKana,
+  sentenceToAccentKana,
+  accentIndex,
+  placeAccent,
+  mandarinTone,
+  applyMandarinTones,
   toneContour,
   applyTones,
   flowPhrases,

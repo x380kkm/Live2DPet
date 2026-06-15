@@ -149,6 +149,8 @@ class VoicevoxBackend extends SpeechBackend {
       loadVoiceModel: l.func('int32 voicevox_synthesizer_load_voice_model(VoicevoxSynthesizer *, VoicevoxVoiceModelFile *)'),
       // 用 void** 接住原始指针以便正确释放
       createAudioQuery: l.func('int32 voicevox_synthesizer_create_audio_query(VoicevoxSynthesizer *, const char *, uint32, _Out_ void **)'),
+      // 从 AquesTalk 风格片假名(带 ' 重音核、/ 句界、ー 长音)生成 audio_query,供中文凑音素按声调置重音
+      createAudioQueryFromKana: l.func('int32 voicevox_synthesizer_create_audio_query_from_kana(VoicevoxSynthesizer *, const char *, uint32, _Out_ void **)'),
       synthesis: l.func('int32 voicevox_synthesizer_synthesis(VoicevoxSynthesizer *, const char *, uint32, VoicevoxSynthesisOptions, _Out_ uintptr_t *, _Out_ void **)'),
       jsonFree: l.func('void voicevox_json_free(void *)'),
       wavFree: l.func('void voicevox_wav_free(void *)'),
@@ -210,6 +212,21 @@ class VoicevoxBackend extends SpeechBackend {
     }
   }
   //// /为文本创建并解析 audio_query ////
+
+  //// 从 AquesTalk 风格片假名创建并解析 audio_query,重音核由 ' 指定,供中文按声调置重音 [@busybee 2026-06-15] ////
+  // kana 为带重音记号的全角片假名(' 重音核、/ 无停顿句界、、停顿句界、ー 长音、_ 无声化);释放原生内存后返回纯数据。
+  audioQueryFromKana(kana, sid) {
+    const queryOut = [null];
+    const rc = this._fn.createAudioQueryFromKana(this.synthesizer, kana, sid, queryOut);
+    if (rc !== VOICEVOX_RESULT_OK) throw new Error(`createAudioQueryFromKana: ${this._getError(rc)}`);
+    const queryPtr = queryOut[0];
+    try {
+      return JSON.parse(this.koffi.decode(queryPtr, 'char', -1));
+    } finally {
+      this._fn.jsonFree(queryPtr);
+    }
+  }
+  //// /从 AquesTalk 风格片假名创建并解析 audio_query ////
 
   //// 从一份(可能已被改过的)audio_query 直接合成 WAV,供参数探索与查表渲染用 [@busybee 2026-06-14] ////
   // 不走缓存与增益,失败返回 null;调用方自负 query 的合法性。

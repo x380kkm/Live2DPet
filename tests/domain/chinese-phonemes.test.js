@@ -9,6 +9,10 @@ const {
   parsePinyin,
   syllableToKana,
   sentenceToKana,
+  sentenceToAccentKana,
+  accentIndex,
+  placeAccent,
+  mandarinTone,
   toneContour,
   applyTones,
   flowPhrases,
@@ -62,6 +66,48 @@ test('sentenceToKana 拼整句、三声变调与长音', () => {
   assert.strictEqual(plan.length, 3);
   assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3, 5]);
   assert.deepStrictEqual(plan.map((p) => p.kana), ['ニー', 'ハオ', 'マ']);
+});
+
+//// 声调到重音核位置:四声落首拍,其余落末拍,至少为 1 [@busybee 2026-06-15] ////
+test('accentIndex 按声调定重音核位置', () => {
+  assert.strictEqual(accentIndex(4, 2), 1, '四声落首拍');
+  assert.strictEqual(accentIndex(1, 2), 2, '一声落末拍');
+  assert.strictEqual(accentIndex(2, 3), 3, '二声落末拍');
+  assert.strictEqual(accentIndex(2, 1), 1, '单拍至少为 1');
+});
+
+//// 在指定 mora 后插重音记号,小书写假名并入前一拍 [@busybee 2026-06-15] ////
+test('placeAccent 在第 N 个 mora 后插重音记号', () => {
+  assert.strictEqual(placeAccent('ハオ', 1), "ハ'オ");
+  assert.strictEqual(placeAccent('ハオ', 2), "ハオ'");
+  // ミェ 是一拍(ェ 并入 ミ),重音落第 1 拍后即在 ェ 后
+  assert.strictEqual(placeAccent('ミェン', 1), "ミェ'ン");
+});
+
+//// 整句拼成 AquesTalk 带重音片假名与声调计划:句内 / 连读、标点处 、停顿,不带长音ー [@busybee 2026-06-15] ////
+test('sentenceToAccentKana 拼带重音片假名与计划', () => {
+  // ni3 hao3 三声变调成 ni2 hao3;重音核路线不补长音
+  const { kana, plan } = sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5', '。']);
+  assert.strictEqual(kana, "ニ'/ハオ'、マ'");
+  assert.ok(!kana.includes('ー'), '不含长音ー(AquesTalk 不收)');
+  assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3, 5]);
+  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニ', 'ハオ', 'マ']);
+});
+
+//// 普通话四声目标音高:一声高平、二声升、三声低、四声降 [@busybee 2026-06-15] ////
+test('mandarinTone 四声调值走势', () => {
+  const base = 5.75;
+  const t1 = mandarinTone(1, 2, base);
+  assert.ok(t1[0] === t1[1] && t1[0] > base, '一声高平');
+  const t2 = mandarinTone(2, 2, base);
+  assert.ok(t2[1] > t2[0], '二声升');
+  const t3 = mandarinTone(3, 2, base);
+  assert.ok(t3[0] < base && t3[1] < t3[0], '三声低且下压');
+  const t4 = mandarinTone(4, 2, base);
+  assert.ok(t4[0] > t4[1] && t4[0] > base, '四声降且起点高');
+  // 单拍取关键调值:三声压低、其余抬高
+  assert.ok(mandarinTone(3, 1, base)[0] < base);
+  assert.ok(mandarinTone(1, 1, base)[0] > base);
 });
 
 //// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
