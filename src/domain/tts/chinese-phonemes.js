@@ -150,7 +150,23 @@ function sentenceToKana(tokens) {
 }
 //// /把一串拼音与标点 token 拼成片假名串与声调计划 ////
 
-//// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:每音节一个重音核,句内 / 连读、标点处 、停顿 [@busybee 2026-06-15] ////
+//// 把一组元素等长切成至多 max 个一份的若干份:短于 max 不切 [@busybee 2026-06-15] ////
+function chunkEvenly(items, max) {
+  const total = items.length;
+  if (total <= max) {
+    return [items];
+  }
+  const count = Math.ceil(total / max);
+  const size = Math.ceil(total / count);
+  const out = [];
+  for (let i = 0; i < total; i += size) {
+    out.push(items.slice(i, i + size));
+  }
+  return out;
+}
+//// /把一组元素等长切成若干份 ////
+
+//// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按等长切子短语,组内 / 连读、组间 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
 function sentenceToAccentKana(tokens, options = {}) {
@@ -160,14 +176,16 @@ function sentenceToAccentKana(tokens, options = {}) {
     applyToneSandhi(items);
   }
 
+  // 每短语最多几个音节:太长的停顿组会飘、听不清,切成等长子短语重新锚定(子短语间用 / 无停顿)。
+  const maxPhrase = options.maxPhrase || 4;
   const plan = [];
   const groups = [];
-  let current = '';
+  let current = [];
   for (const item of items) {
     if (item.punct) {
-      if (current) {
+      if (current.length) {
         groups.push(current);
-        current = '';
+        current = [];
       }
       continue;
     }
@@ -175,16 +193,16 @@ function sentenceToAccentKana(tokens, options = {}) {
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
-    current += syllable.kana;
+    current.push(syllable.kana);
     plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, ng: NG_FINALS.has(item.parsed.final) });
   }
-  if (current) {
+  if (current.length) {
     groups.push(current);
   }
 
-  // 每个停顿组并成一个语调短语,组内不切短语让连读连贯;重音核置末仅为满足 AquesTalk 解析,
-  // 实际四声听感由 applyMandarinTones 逐音节铺音高决定。组间用 、停顿。
-  const kana = groups.map((group) => group + "'").join('、');
+  // 每个停顿组按等长切成子短语(短组不切),子短语并成一个语调短语连读、子短语间用 / 无停顿、组间用 、停顿;
+  // 重音核置末仅为满足 AquesTalk 解析,实际四声听感由 applyMandarinTones 逐音节铺音高决定。
+  const kana = groups.map((group) => chunkEvenly(group, maxPhrase).map((sub) => sub.join('') + "'").join('/')).join('、');
   return { kana, plan };
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
