@@ -149,31 +149,6 @@ function sentenceToKana(tokens) {
 }
 //// /把一串拼音与标点 token 拼成片假名串与声调计划 ////
 
-//// 把声调映射成 AquesTalk 重音核位置(1 起):四声落首拍后下降,其余落末拍上扬,一三声靠后续微调区分 [@busybee 2026-06-15] ////
-function accentIndex(tone, moraCount) {
-  if (tone === 4) {
-    return 1;
-  }
-  return Math.max(1, moraCount);
-}
-//// /把声调映射成重音核位置 ////
-
-//// 在片假名的第 moraIndex 个 mora 后插入重音记号 ',小书写假名并入前一拍 [@busybee 2026-06-15] ////
-function placeAccent(kana, moraIndex) {
-  let mora = 0;
-  for (let i = 0; i < kana.length; i += 1) {
-    const next = kana[i + 1];
-    if (!next || !COMBINING.has(next)) {
-      mora += 1;
-      if (mora === moraIndex) {
-        return kana.slice(0, i + 1) + "'" + kana.slice(i + 1);
-      }
-    }
-  }
-  return kana + "'";
-}
-//// /在片假名的第 moraIndex 个 mora 后插入重音记号 ////
-
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:每音节一个重音核,句内 / 连读、标点处 、停顿 [@busybee 2026-06-15] ////
 // 先三声变调,再据声调置重音核,让引擎按重音生成自然时长;重音核路线不补长音(AquesTalk 不收 ー)。
 // 返回 { kana, plan }:kana 交 audioQueryFromKana,plan 供 applyMandarinTones 在自然时长上铺四声音高。
@@ -184,28 +159,31 @@ function sentenceToAccentKana(tokens, options = {}) {
     applyToneSandhi(items);
   }
 
-  let kana = '';
   const plan = [];
-  let needSeparator = false;
-  let pausePending = false;
+  const groups = [];
+  let current = '';
   for (const item of items) {
     if (item.punct) {
-      pausePending = true;
+      if (current) {
+        groups.push(current);
+        current = '';
+      }
       continue;
     }
     const syllable = syllableToKana(item.parsed, { elongate: true, kanaSafe: true });
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
-    const marked = placeAccent(syllable.kana, accentIndex(item.parsed.tone, syllable.moras));
-    if (needSeparator) {
-      kana += pausePending ? '、' : '/';
-    }
-    kana += marked;
+    current += syllable.kana;
     plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone });
-    needSeparator = true;
-    pausePending = false;
   }
+  if (current) {
+    groups.push(current);
+  }
+
+  // 每个停顿组并成一个语调短语,组内不切短语让连读连贯;重音核置末仅为满足 AquesTalk 解析,
+  // 实际四声听感由 applyMandarinTones 逐音节铺音高决定。组间用 、停顿。
+  const kana = groups.map((group) => group + "'").join('、');
   return { kana, plan };
 }
 //// /把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划 ////
@@ -426,8 +404,6 @@ module.exports = {
   syllableToKana,
   sentenceToKana,
   sentenceToAccentKana,
-  accentIndex,
-  placeAccent,
   mandarinTone,
   applyMandarinTones,
   emphasizeFricativeH,
