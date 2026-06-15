@@ -30,7 +30,7 @@ const OUT_NAME = key === 'default' ? 'chinese-kana.wav' : `chinese-${key}.wav`;
 const outDir = path.join(__dirname, 'samples');
 fs.mkdirSync(outDir, { recursive: true });
 
-const { kana, plan } = sentenceToAccentKana(TOKENS);
+const { kana, plan } = sentenceToAccentKana(TOKENS, { sandhi: true });
 console.log(`带重音片假名:${kana}`);
 
 const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });

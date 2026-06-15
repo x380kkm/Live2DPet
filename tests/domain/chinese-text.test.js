@@ -37,8 +37,11 @@ test('textToPinyinTokens 标点保留、非汉字跳过', () => {
 });
 
 //// 文本直通片假名与声调计划 [@busybee 2026-06-15] ////
-test('textToAccentKana 贯通到片假名', () => {
+test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   const { kana, plan } = textToAccentKana('你好');
   assert.strictEqual(kana, "ニハオ'");
-  assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3]);
+  // 三声变调:你好两个三声,前一个「你」变二声,念 ní hǎo
+  assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3]);
+  // 显式关掉变调则保留原调
+  assert.deepStrictEqual(textToAccentKana('你好', { sandhi: false }).plan.map((p) => p.tone), [3, 3]);
 });

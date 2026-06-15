@@ -65,9 +65,11 @@ function textToPinyinTokens(text) {
 //// /把任意中文文本转成拼音与标点 token 序列 ////
 
 //// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@busybee 2026-06-15] ////
+// 默认开三声连读变调:两个三声相连,前一个变二声(你好念 ní hǎo)。pinyin-pro 已处理一、不的变调,这里只补三声。
 function textToAccentKana(text, options = {}) {
   const { tokens, wordStart } = textToTokens(text);
-  return sentenceToAccentKana(tokens, { ...options, wordStart });
+  const sandhi = options.sandhi != null ? options.sandhi : true;
+  return sentenceToAccentKana(tokens, { ...options, wordStart, sandhi });
 }
 //// /把任意中文文本直接转成带重音片假名与声调计划 ////
 

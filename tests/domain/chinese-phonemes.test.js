@@ -14,7 +14,8 @@ const {
   flowPhrases,
   shapeChineseRhythm,
   splitFinalAspiratedStop,
-  normalizeSyllableDurations
+  normalizeSyllableDurations,
+  drawToneContours
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
@@ -105,8 +106,13 @@ test('mandarinTone 四声调值走势', () => {
   assert.ok(Math.abs(t4mid[1] - base) < 1e-9, '非句末四声只半降到中位');
   assert.ok(t4mid[1] > mandarinTone(4, 2, base, true)[1], '非句末四声尾比句末四声高');
   const t3half = mandarinTone(3, 2, base, false);
-  assert.ok(t3half[0] === t3half[1] && t3half[0] < base, '非句末三声低平');
-  assert.ok(t3half[1] > mandarinTone(3, 2, base, true)[1], '半三声不像句末三声那样下潜到底');
+  assert.ok(t3half[0] === t3half[1] && t3half[0] < base, '非句末三声低平,不回升(回升会听成二声)');
+  assert.ok(t3half[0] > mandarinTone(3, 2, base, true)[1], '半三声不像句末三声那样下潜到底');
+  // 二声先低后抬:起点在 LOW(低于基准),尾端升起;riseScale 收小则升幅变小但仍上升
+  assert.ok(t2[0] < base, '二声起点压到低位(先压再抬)');
+  const t2full = mandarinTone(2, 2, base, true, 1, 1.0);
+  const t2soft = mandarinTone(2, 2, base, true, 1, 0.5);
+  assert.ok(t2soft[1] < t2full[1] && t2soft[1] > t2soft[0], 'riseScale 小则二声升得不那么足,但仍上升');
   // 单拍取关键调值:三声压低、其余抬高
   assert.ok(mandarinTone(3, 1, base)[0] < base);
   assert.ok(mandarinTone(1, 1, base)[0] > base);
@@ -136,9 +142,9 @@ test('sentenceToAccentKana 三声变调不跨标点', () => {
   // 两个三声被逗号隔开,不变调
   const { plan } = sentenceToAccentKana(['hao3', '，', 'ni3'], { sandhi: true });
   assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3]);
-  // 连续三个三声变成 二 二 三
+  // 连续三个三声从右往左变成「三 二 三」(我 | 很好,我留三声、很变二声)
   const { plan: p3 } = sentenceToAccentKana(['wo3', 'hen3', 'hao3'], { sandhi: true });
-  assert.deepStrictEqual(p3.map((p) => p.tone), [2, 2, 3]);
+  assert.deepStrictEqual(p3.map((p) => p.tone), [3, 2, 3]);
 });
 
 //// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@busybee 2026-06-15] ////
@@ -245,6 +251,26 @@ test('normalizeSyllableDurations 双向拉平音节时长', () => {
   const mm = q2.accent_phrases[0].moras;
   assert.ok(mm[1].vowel_length > mm[0].vowel_length, '句末音节被额外拉长');
   assert.strictEqual(mm[0].vowel_length, 0.12, '非句末音节在 strength=0 时不变');
+});
+
+//// 二声画"先低后抬"的升、三声画 214 曲折并加长;一声不动 [@busybee 2026-06-15] ////
+test('drawToneContours 给二三声画多拍调型', () => {
+  // 三声单拍「你」ニ:画成三拍曲折(降到底再不完全回升),拍数变多、谷底最低
+  const third = { accent_phrases: [{ moras: [{ text: 'ニ', consonant: 'n', consonant_length: 0.03, vowel: 'i', vowel_length: 0.10, pitch: 5.5 }] }] };
+  drawToneContours(third, [{ kana: 'ニ', tone: 3, groupStart: true }]);
+  const tm = third.accent_phrases[0].moras;
+  assert.strictEqual(tm.length, 3, '三声单拍画成三拍');
+  assert.ok(tm[1].pitch < tm[0].pitch && tm[2].pitch > tm[1].pitch, '先降到谷底再回升');
+  assert.strictEqual(tm[0].consonant, 'n', '辅音留在第一拍');
+  // 二声单拍「学」:画成升(末拍高于首拍)
+  const second = { accent_phrases: [{ moras: [{ text: 'シュ', consonant: 'sh', consonant_length: 0.05, vowel: 'u', vowel_length: 0.10, pitch: 6.0 }] }] };
+  drawToneContours(second, [{ kana: 'シュ', tone: 2, groupStart: true }]);
+  const sm = second.accent_phrases[0].moras;
+  assert.ok(sm[sm.length - 1].pitch > sm[0].pitch, '二声末拍高于首拍,画出升');
+  // 一声不动
+  const first = { accent_phrases: [{ moras: [{ text: 'ジ', consonant: 'j', consonant_length: 0.05, vowel: 'i', vowel_length: 0.10, pitch: 6.1 }] }] };
+  drawToneContours(first, [{ kana: 'ジ', tone: 1, groupStart: true }]);
+  assert.strictEqual(first.accent_phrases[0].moras.length, 1, '一声不重切');
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////

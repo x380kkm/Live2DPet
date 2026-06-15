@@ -18,7 +18,7 @@ fs.mkdirSync(outDir, { recursive: true });
 const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.warmup();
-const { kana, plan } = sentenceToAccentKana(TOKENS);
+const { kana, plan } = sentenceToAccentKana(TOKENS, { sandhi: true });
 const query = backend.audioQueryFromKana(kana, VOICE);
 Object.assign(query, CHINESE_QUERY_DEFAULTS);
 applyChineseProsody(query, plan, cfg);

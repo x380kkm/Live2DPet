@@ -269,31 +269,36 @@ function sentenceToAccentKana(tokens, options = {}) {
 // 连读协同:非句末四声只半降到中位、非句末三声读半三声(低平不下潜),免得连续四声成锯齿、中段三声又低又弱。
 // 句末治虚:句末三声止于 FINAL3(不潜到最低)、句末四声落到 FINAL4、句末单拍三声略抬、四声略离顶,
 // 让句尾的字站得住、不发虚,且四声不反转。spread 缩放整体落差(<1 更平缓),默认 1。
-function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1) {
+function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1, riseScale = 1, lowDepth = 0.36) {
   const HI = base + 0.40 * spread;
   const MID = base;
-  const LOW = base - 0.36 * spread;
-  const FINAL3 = base - 0.46 * spread;
+  // 三声是压到底的低调:LOW 的下压深度由 lowDepth 控制(越大压得越深),二声也从这个低位起步抬升,故 LOW 深、三声才像三声、二声起伏才对。
+  const LOW = base - lowDepth * spread;
+  const FINAL3 = base - (lowDepth + 0.10) * spread;
   const FINAL4 = base - 0.34 * spread;
+  // 上扬封顶:二声的升、三声的回升只升到 MID 与 HI 之间的 RISE(riseScale<1 即不完全的回升)。
+  // 连读里二声升到顶、三声回升不及就接下个字,听着诡异;升一个不完全的量更自然。riseScale=1 即升满到 HI。
+  const RISE = MID + riseScale * (HI - MID);
   // 轻声压到中低位:轻声前常接三声(你的、好的),落在中高位会从三声的低位猛跳上来显突兀,压低些过渡更顺。
   const NEUTRAL = base - 0.20 * spread;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   const out = [];
   const ramp = (lo, hi) => { for (let i = 0; i < moras; i += 1) out.push(lo + (hi - lo) * (i / (moras - 1))); };
   if (moras === 1) {
-    const single = { 1: HI, 2: HI, 3: LOW, 4: HI, 5: NEUTRAL };
+    const single = { 1: HI, 2: RISE, 3: LOW, 4: HI, 5: NEUTRAL };
     // 句末单拍:三声略抬离最低;四声放中高位而非顶——句末单拍四声(如「物」)放顶会被引擎从低邻拍顶成上冲尖峰、
     // 冲到全句最高(实测 F0 反升、听感像二声),放中高位只是个收尾的小高点,不上冲。非句末单拍四声(气、去)仍放顶,保辨识。
-    const singleFinal = { 1: HI, 2: HI, 3: LOW + 0.10, 4: MID + 0.16, 5: NEUTRAL };
+    const singleFinal = { 1: HI, 2: RISE, 3: LOW + 0.10, 4: MID + 0.16, 5: NEUTRAL };
     const table = phraseFinal ? singleFinal : single;
     return [clamp(table[tone] !== undefined ? table[tone] : MID)];
   }
   if (tone === 1) {
     for (let i = 0; i < moras; i += 1) out.push(HI);
   } else if (tone === 2) {
-    ramp(MID, HI);
+    // 二声先低后抬:起点压到 LOW(前一个字常偏高,二声要先压下来一点),再升到 RISE(riseScale 控制升幅、不升满)。
+    ramp(LOW, RISE);
   } else if (tone === 3) {
-    // 半三声:非句末三声低平不下潜;句末三声只到 FINAL3、不潜到最低,免得句尾又低又虚。
+    // 三声先压后平,不回升:句末降到 FINAL3、不潜到最低;非句末低平住(回升会被听成上扬的二声「尼」)。
     if (phraseFinal) { ramp(LOW, FINAL3); } else { for (let i = 0; i < moras; i += 1) out.push(LOW); }
   } else if (tone === 4) {
     // 半四声:非句末四声只半降到中位;句末四声降到 FINAL4(比中位再低一点、保留落感但不潜)。
@@ -313,6 +318,9 @@ function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1) {
 function applyMandarinTones(query, plan, config = {}) {
   const toneStrength = config.toneStrength != null ? config.toneStrength : 1.0;
   const spread = config.spread != null ? config.spread : 0.7;
+  // 上扬封顶比例:二声从低位抬起时只抬到 MID 与 HI 之间的此比例处(<1 即不完全地抬,免得连读里抬过头显诡异)。
+  // 默认 0.5:实听二声「学」从低位抬到半程最自然,抬满到顶反而冲、像在喊。
+  const riseScale = config.riseScale != null ? config.riseScale : 0.5;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -337,7 +345,7 @@ function applyMandarinTones(query, plan, config = {}) {
     // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同。
     const next = plan[s + 1];
     const phraseFinal = !next || Boolean(next.groupStart);
-    const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal, spread);
+    const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal, spread, riseScale);
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
         // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀。
@@ -350,18 +358,21 @@ function applyMandarinTones(query, plan, config = {}) {
 }
 //// /在自然时长的 query 上铺普通话四声音高 ////
 
-//// 三声变调:相邻两个三声里前一个改读二声,标点断开则重置不跨标点变调 [@busybee 2026-06-15] ////
+//// 三声变调:从右往左,相邻两个三声里前一个改读二声;标点断开则重置不跨标点变调 [@busybee 2026-06-15] ////
+// 从右往左扫:三个三声成「三二三」(我很好 → wǒ hén hǎo,「我 | 很好」右组合),而非「二二三」;
+// 会话里「我很、你很、我想」这类几乎都是右组合,默认从右更合理(紧密一体的「九九九」念「二二三」是少数例外,这里不特判)。
 function applyToneSandhi(items) {
-  let prev = null;
-  for (const item of items) {
+  let next = null;
+  for (let i = items.length - 1; i >= 0; i -= 1) {
+    const item = items[i];
     if (item.punct) {
-      prev = null;
+      next = null;
       continue;
     }
-    if (prev && prev.tone === 3 && item.parsed.tone === 3) {
-      prev.tone = 2;
+    if (next && item.parsed.tone === 3 && next.tone === 3) {
+      item.parsed.tone = 2;
     }
-    prev = item.parsed;
+    next = item.parsed;
   }
 }
 //// /三声变调 ////
@@ -501,14 +512,86 @@ function normalizeSyllableDurations(query, plan, config = {}) {
 }
 //// /把各音节时长向全句平均拉平、句末轻微拉长 ////
 
-//// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平音节时长、句末送气字落到短语首 [@busybee 2026-06-15] ////
-// 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高,再合并组内短语收停顿,再拉平各音节时长匀节奏,最后把句末送气字切到短语首送气。
-// query 需已铺好 CHINESE_QUERY_DEFAULTS 的语速音量等;config 透传给各步(toneStrength、spread、normalizeStrength、finalBoost 等)。
+//// 把一个音节的 mora 组重切成按 pitches 画出的多拍:前几拍用原 mora 元音(单拍音节复制凑够)、末拍复制最后元音作尾,元音总长按 len 拉伸 [@busybee 2026-06-15] ////
+// 复韵母(好 ハオ=ha-o)各拍沿用原元音、不被抹成单元音;辅音只留在第一拍。供 drawToneContours 画升调、曲折。
+function contourBeats(group, pitches, len) {
+  const consonant = group.reduce((sum, m) => sum + (m.consonant_length || 0), 0);
+  const vowel = group.reduce((sum, m) => sum + (m.vowel_length || 0), 0) * len;
+  const bodyCount = pitches.length - 1;
+  const beats = [];
+  for (let i = 0; i < bodyCount; i += 1) {
+    beats.push({ ...group[Math.min(i, group.length - 1)] });
+  }
+  beats.push({ ...beats[beats.length - 1] });
+  const seg = vowel / beats.length;
+  for (let i = 0; i < beats.length; i += 1) {
+    beats[i].vowel_length = seg;
+    beats[i].consonant = i === 0 ? (group[0].consonant || null) : null;
+    beats[i].consonant_length = i === 0 ? consonant : null;
+    beats[i].pitch = pitches[i];
+    if (i > 0) beats[i].text = '';
+  }
+  return beats;
+}
+//// /把一个音节的 mora 组重切成按 pitches 画出的多拍 ////
+
+//// 给二声、三声画出多拍调型:二声拉长画"先低后抬"的升,三声拉长画 214 曲折(降到底再不完全回升),短语末三声再加长 [@busybee 2026-06-15] ////
+// 单拍音节一拍画不出升、画不出曲折,听着像高平或没调;这里把二声、三声的音节拉长重切成多拍,按调型铺音高,保留原元音。
+// 一声、四声、轻声不动。须在 applyMandarinTones、时长归一、句末送气之后调用——它重排 mora、改时长,是管线最后一步。
+function drawToneContours(query, plan, config = {}) {
+  const t2 = Object.assign({ len: 1.4, low: -0.30, rise: 0.16 }, config.t2 || {});
+  const t3 = Object.assign({ lenNonFinal: 1.6, lenFinal: 2.2, mid: -0.20, bottom: -0.68, top: 0.05 }, config.t3 || {});
+  const all = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      if (mora.pitch > 0) all.push(mora.pitch);
+    }
+  }
+  if (!all.length) {
+    return query;
+  }
+  const base = all.reduce((sum, p) => sum + p, 0) / all.length;
+  let index = 0;
+  let covered = 0;
+  let group = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    const out = [];
+    for (const mora of phrase.moras) {
+      group.push(mora);
+      covered += (mora.text || '').length || 1;
+      if (index < plan.length && covered >= (plan[index].kana || '').length) {
+        const tone = plan[index].tone;
+        const phraseFinal = (index === plan.length - 1) || (plan[index + 1] && plan[index + 1].groupStart);
+        if (tone === 2) {
+          for (const beat of contourBeats(group, [base + t2.low, base + t2.low, base + t2.rise], t2.len)) out.push(beat);
+        } else if (tone === 3) {
+          const len = phraseFinal ? t3.lenFinal : t3.lenNonFinal;
+          for (const beat of contourBeats(group, [base + t3.mid, base + t3.bottom, base + t3.top], len)) out.push(beat);
+        } else {
+          for (const g of group) out.push(g);
+        }
+        index += 1;
+        covered = 0;
+        group = [];
+      }
+    }
+    for (const g of group) out.push(g);
+    group = [];
+    phrase.moras = out;
+  }
+  return query;
+}
+//// /给二声、三声画出多拍调型 ////
+
+//// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平音节时长、句末送气字落到短语首、二三声画调型 [@busybee 2026-06-15] ////
+// 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高,再合并组内短语收停顿,再拉平各音节时长匀节奏,再把句末送气字切到短语首送气,
+// 最后给二声画升、三声画曲折(这步重排 mora,放最后)。query 需已铺好 CHINESE_QUERY_DEFAULTS;config 透传给各步。
 function applyChineseProsody(query, plan, config = {}) {
   applyMandarinTones(query, plan, config);
   shapeChineseRhythm(query, config);
   normalizeSyllableDurations(query, plan, config);
   splitFinalAspiratedStop(query, plan);
+  drawToneContours(query, plan, config);
   return query;
 }
 //// /把一份 audio_query 按中文韵律整形 ////
@@ -524,6 +607,7 @@ module.exports = {
   shapeChineseRhythm,
   splitFinalAspiratedStop,
   normalizeSyllableDurations,
+  drawToneContours,
   applyChineseProsody,
   moraCount,
   CHINESE_QUERY_DEFAULTS,
