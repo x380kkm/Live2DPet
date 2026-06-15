@@ -4,7 +4,7 @@
 // 运行:node tools/tts-analyze-synth.js [spread] [blend] [finalTail]
 const path = require('path'); const fs = require('fs'); const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm, splitFinalAspiratedStop } = require('../src/domain/tts/chinese-phonemes');
 const VOICE = 2;
 const TOKENS = ['ni3','hao3','，','wo3','shi4','si4','guo2','mei2','tan4','。'];
 // 非标点 token 作逐音节标签(拼音),与 plan 一一对应。
@@ -20,9 +20,10 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 const { kana, plan } = sentenceToAccentKana(TOKENS);
 const query = backend.audioQueryFromKana(kana, VOICE);
-query.speedScale = 1.0; query.volumeScale = 1.25; query.prePhonemeLength = 0.08; query.postPhonemeLength = 0.1;
+query.speedScale = 1.2; query.volumeScale = 1.25; query.prePhonemeLength = 0.08; query.postPhonemeLength = 0.1;
 applyMandarinTones(query, plan, cfg);
 shapeChineseRhythm(query);
+splitFinalAspiratedStop(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
 const wavPath = path.join(outDir, 'std.wav');
 fs.writeFileSync(wavPath, wav);

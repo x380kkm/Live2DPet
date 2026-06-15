@@ -15,7 +15,8 @@ const {
   toneContour,
   applyTones,
   flowPhrases,
-  shapeChineseRhythm
+  shapeChineseRhythm,
+  splitFinalAspiratedStop
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@busybee 2026-06-15] ////
@@ -249,6 +250,28 @@ test('shapeChineseRhythm 合并组内短语并收紧停顿', () => {
   assert.strictEqual(query.accent_phrases[0].moras[0].vowel_length, 0.06);
   assert.strictEqual(query.accent_phrases[0].moras[1].vowel_length, 0.11);
   assert.strictEqual(query.accent_phrases[1].moras[0].consonant_length, 0.20);
+});
+
+//// 句末送气塞音字切成独立无停顿短语落到短语首送气;非送气或单字不动 [@busybee 2026-06-15] ////
+test('splitFinalAspiratedStop 切出句末送气字', () => {
+  // 碳 タン(送气 t)黏在玫 メイ 后:切成独立短语,前短语去掉末两个 mora、无停顿
+  const aspirated = {
+    accent_phrases: [
+      { moras: [{ text: 'メ' }, { text: 'イ' }, { text: 'タ' }, { text: 'ン' }], accent: 1, pause_mora: null }
+    ]
+  };
+  splitFinalAspiratedStop(aspirated, [{ kana: 'メイ', aspirated: false }, { kana: 'タン', aspirated: true }]);
+  assert.strictEqual(aspirated.accent_phrases.length, 2, '切成两个短语');
+  assert.deepStrictEqual(aspirated.accent_phrases[1].moras.map((m) => m.text), ['タ', 'ン'], '碳 独立成尾短语');
+  assert.strictEqual(aspirated.accent_phrases[1].pause_mora, null, '不留停顿');
+  // 末字非送气(你 ニ):不动
+  const plain = { accent_phrases: [{ moras: [{ text: 'メ' }, { text: 'イ' }, { text: 'ニ' }], accent: 1, pause_mora: null }] };
+  splitFinalAspiratedStop(plain, [{ kana: 'メイ', aspirated: false }, { kana: 'ニ', aspirated: false }]);
+  assert.strictEqual(plain.accent_phrases.length, 1, '非送气末字不切');
+  // 整句仅一个送气字:它已在短语首,不动
+  const single = { accent_phrases: [{ moras: [{ text: 'タ' }, { text: 'ン' }], accent: 1, pause_mora: null }] };
+  splitFinalAspiratedStop(single, [{ kana: 'タン', aspirated: true }]);
+  assert.strictEqual(single.accent_phrases.length, 1, '单字已在短语首不切');
 });
 
 //// 不改无声 mora 的音高 [@busybee 2026-06-15] ////

@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm, splitFinalAspiratedStop } = require('../src/domain/tts/chinese-phonemes');
 
 const VOICE = 2;
 // 测试句:汉字供识别比对,tokens 是带声调的拼音(先手给,接入后由汉字转拼音替代)。
@@ -30,8 +30,8 @@ const backend = new VoicevoxBackend({ koffi, path, fs, circuitBreaker: null });
 backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { gpuMode: false });
 backend.warmup();
 
-// argv[2] 语速(默认 1.0);argv[3] 音高落差 spread、argv[4] 边界平滑 blend,用来扫音高参数对识别率的影响。
-const speed = parseFloat(process.argv[2]) || 1.0;
+// argv[2] 语速(默认 1.2,中文连读推荐值);argv[3] 四声强度 toneStrength、argv[4] 四声落差 spread,用来扫音高参数对识别率的影响。
+const speed = parseFloat(process.argv[2]) || 1.2;
 const toneCfg = {};
 if (process.argv[3]) toneCfg.toneStrength = parseFloat(process.argv[3]);
 if (process.argv[4]) toneCfg.spread = parseFloat(process.argv[4]);
@@ -45,6 +45,7 @@ for (const sentence of SENTENCES) {
   query.postPhonemeLength = 0.1;
   applyMandarinTones(query, plan, toneCfg);
   shapeChineseRhythm(query);
+  splitFinalAspiratedStop(query, plan);
   const wav = backend.synthesizeQuery(query, VOICE);
   const file = path.join(outDir, `${sentence.id}.wav`);
   fs.writeFileSync(file, wav);

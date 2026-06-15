@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm, splitFinalAspiratedStop, CHINESE_QUERY_DEFAULTS } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
@@ -38,15 +38,12 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQueryFromKana(kana, VOICE);
-// 语速 1.0:实测识别率最高,也比 1.12 慢一点、少些日语连读感。
-query.speedScale = 1.0;
-// 提音量、收句首句尾留白,让整体更响更干脆,句尾不拖。
-query.volumeScale = 1.25;
-query.prePhonemeLength = 0.08;
-query.postPhonemeLength = 0.1;
-// 先铺四声音高(默认落差 spread=0.7,识别率与不突兀的实测最优点);再合并组内短语、收紧标点停顿,让组内连读、停顿干净,听着更像中文。
+// 套用实听定下的中文合成推荐参数(语速 1.2 连读、音量 1.25、收句首尾留白)。
+Object.assign(query, CHINESE_QUERY_DEFAULTS);
+// 先铺四声音高(默认落差 spread=0.7,识别率与不突兀的实测最优点);再合并组内短语、收紧标点停顿让组内连读;最后把句末送气字切到短语首送气。
 applyMandarinTones(query, plan);
 shapeChineseRhythm(query);
+splitFinalAspiratedStop(query, plan);
 const wav = backend.synthesizeQuery(query, VOICE);
 
 const f = analyze(query);

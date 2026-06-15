@@ -59,10 +59,17 @@ const COMBINING = new Set(['ァ', 'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ
 const ELONGATE_FINALS = new Set(['a', 'o', 'e', 'ê', 'i', 'u', 'ü', 'v']);
 // 重音核路线不收长音ー,改用重复基元音补拍(ニ→ニイ);每个单元音韵母对应的补拍假名。
 const ELONGATE_VOWEL = { a: 'ア', o: 'オ', e: 'ウ', ê: 'エ', i: 'イ', u: 'ウ', ü: 'ウ', v: 'ウ' };
-// 带 u 介音的韵母:声母 h 拼到 ウ 列得到 フ(偏 f),对 hua/huan/hui/huo 这类失真,改用 ホ 更保 h。
+// 带 u 介音的韵母(花、欢、火、会):声母 h 在这些韵母上单独走 フ 行融合拼法,见 syllableToKana。
 const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
+// 普通话送气声母:这些字的塞音/塞擦音要送气([pʰ tʰ kʰ tɕʰ tsʰ tʂʰ]),日语只在短语首才给清塞音送气,见 splitFinalAspiratedStop。
+const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
+
+// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.1 让音节连读、不一顿一顿,也压短单元音(ua 不拖),
+// 比 1.2 慢一点、整句不显急;音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。
+// 调用方取 query 后铺上这组值,再依次 applyMandarinTones、shapeChineseRhythm、splitFinalAspiratedStop。
+const CHINESE_QUERY_DEFAULTS = { speedScale: 1.1, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
 
 //// 数片假名的 mora 数:小书写假名并入前一个,其余各计一个 [@busybee 2026-06-15] ////
 function moraCount(kana) {
@@ -119,9 +126,12 @@ function syllableToKana(parsed, options = {}) {
     return { kana: '', moras: 0, ok: false };
   }
   let kana = applyInitial(parsed.initial, finalKana);
-  // h + u 介音的 [xw]:ハ行 u 列 フ 偏 f,改用 ホ 保住 h(花 hua→ホア、欢 huan→ホアン)。
+  // h + u 介音的 [xw](花、欢、火、会):日语无 [xw],拼成 ホ+元音(ホアン)会拆成两个元音、听着像「ho-a-n」;
+  // 改用 フ 行,把介音与韵腹并成一个 mora(欢 huan→ファン、花 hua→ファ、火 huo→フォ、会 hui→フィ),听感更像一个整字(实听确认 ファン 最接近「欢」)。
   if (parsed.initial === 'h' && U_GLIDE_FINALS.has(parsed.final)) {
-    kana = 'ホ' + finalKana.slice(1);
+    const rest = finalKana.slice(1); // 去掉介音 ウ,余下韵腹与韵尾
+    const nucleus = BASE_VOWEL[rest[0]];
+    kana = nucleus ? (INITIAL_CV.f[nucleus] || 'フ') + rest.slice(1) : 'フ' + rest;
   }
   const elongate = options.elongate !== false;
   if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
@@ -234,7 +244,7 @@ function sentenceToAccentKana(tokens, options = {}) {
       continue;
     }
     current.push(syllable.kana);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial) });
     groupStart = false;
   }
   if (current.length) {
@@ -401,6 +411,31 @@ function shapeChineseRhythm(query, config = {}) {
 }
 //// /把节奏整成更像中文:合并组内短语、收紧标点停顿 ////
 
+//// 把句末的送气塞音字单独切成一个无停顿短语,让它落在短语首被引擎送气(碳 tàn 不被听成 dàn) [@busybee 2026-06-15] ////
+// 日语只在短语首给清塞音送那口气;句末送气字(p/t/k/q/c/ch)黏在前字后面就丢了送气、听成不送气的浊音。
+// 这里把它切出来落到短语首,无停顿(不留空),换来送气;句末本就允许一点收尾的轻微强调。须在 shapeChineseRhythm 合并之后调用,否则又被并回去。
+function splitFinalAspiratedStop(query, plan) {
+  const phrases = (query && query.accent_phrases) || [];
+  if (!phrases.length || !plan || !plan.length) {
+    return query;
+  }
+  const last = plan[plan.length - 1];
+  if (!last.aspirated) {
+    return query;
+  }
+  const moraN = moraCount(last.kana || '');
+  const lastPhrase = phrases[phrases.length - 1];
+  // 整句仅剩这一字时它已在短语首,不动;否则把末 moraN 个 mora 切成尾随的无停顿短语。
+  if (!lastPhrase || (lastPhrase.moras || []).length <= moraN) {
+    return query;
+  }
+  const tail = lastPhrase.moras.splice(lastPhrase.moras.length - moraN, moraN);
+  lastPhrase.pause_mora = null;
+  phrases.push({ moras: tail, accent: 1, pause_mora: null, is_interrogative: false });
+  return query;
+}
+//// /把句末的送气塞音字单独切成一个无停顿短语 ////
+
 //// 据声调与音节 mora 数算各 mora 的音高微调量(相对 0 的增量,不替换引擎的自然音高) [@busybee 2026-06-15] ////
 // 只给一个轻微偏置:一声略抬、二声尾升、三声压低、四声尾降、轻声略低。增量小,保留 VOICEVOX 自然起伏,听感更自然。
 // 单 mora 取代表增量(调内走势难展开,靠相邻音节体现);多 mora 用线性走势。
@@ -477,7 +512,9 @@ module.exports = {
   applyTones,
   flowPhrases,
   shapeChineseRhythm,
+  splitFinalAspiratedStop,
   moraCount,
+  CHINESE_QUERY_DEFAULTS,
   INITIAL_CV,
   FINAL_KANA
 };
