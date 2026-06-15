@@ -8,6 +8,7 @@ archive/
 ref/
 manyread/short/
 manyread/user/
+tools/samples/
 nul
 build.bat
 start-pet.ps1

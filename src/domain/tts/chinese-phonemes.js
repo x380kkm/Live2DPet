@@ -25,9 +25,12 @@ const INITIAL_CV = {
   ch: { a: 'チャ', i: 'チ', u: 'チュ', e: 'チェ', o: 'チョ' },
   sh: { a: 'シャ', i: 'シ', u: 'シュ', e: 'シェ', o: 'ショ' },
   r: { a: 'ラ', i: 'リ', u: 'ル', e: 'レ', o: 'ロ' },
-  z: { a: 'ザ', i: 'ズ', u: 'ズ', e: 'ゼ', o: 'ゾ' },
-  c: { a: 'ツァ', i: 'ツ', u: 'ツ', e: 'ツェ', o: 'ツォ' },
-  s: { a: 'サ', i: 'ス', u: 'ス', e: 'セ', o: 'ソ' },
+  // z/c/s 的 i 列是普通话舌尖元音(资、次、四),日语サ/ザ/タ行无 [si/tsi/dzi]:
+  // 用拗音 ズィ/ツィ/スィ([zi/tsi/si],不圆唇)比 ズ/ツ/ス([zu/tsu/su],圆唇)更近普通话,
+  // 也把「是」(シ shi)与「四」(スィ si)分成两个清楚的 mora、不黏成一个字。u 列仍是ズ/ツ/ス(苏、粗、租 本就读 [u])。
+  z: { a: 'ザ', i: 'ズィ', u: 'ズ', e: 'ゼ', o: 'ゾ' },
+  c: { a: 'ツァ', i: 'ツィ', u: 'ツ', e: 'ツェ', o: 'ツォ' },
+  s: { a: 'サ', i: 'スィ', u: 'ス', e: 'セ', o: 'ソ' },
   y: { a: 'ヤ', i: 'イ', u: 'ユ', e: 'イェ', o: 'ヨ', v: 'ユ' },
   // wu(物、五、无)的 u 列用 ヴ 不用 ウ:纯元音 ウ 没有起音、会黏进前一字的鼻音(宠物听成葱),
   // ヴ 给一个清楚的浊起音把这个字分出来。听感是 [vu] 偏 [wu],带点口音但是个独立的字、不会丢。
@@ -291,37 +294,14 @@ function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1) {
 }
 //// /据声调与 mora 数算普通话四声目标音高 ////
 
-// 停顿组内的语调下倾:每靠后一个音节整体压低一点,最多压 DECL_MAX。连续同调音节本会各自跳回满高度成锯齿、听着突兀,
-// 顺着自然下倾走就顺;停顿处由 plan 的 groupStart 重置,不跨停顿累积。句末音节豁免下倾,免得句尾的字被压低发虚。
-const DECL_STEP = 0.05;
-const DECL_MAX = 0.18;
-// 卷舌、擦音、平舌音节的首假名:句末补收尾时长时跳过这些字,免得拉长元音把咬字弄糊、拉低识别率。
-const RETROFLEX_HEAD = new Set(['ジ', 'チ', 'シ', 'ズ', 'ス', 'ツ', 'ザ', 'サ', 'ゾ', 'ゼ', 'ソ']);
-
-//// 软化同一停顿组内相邻音节交界的硬跳:只把前音节末拍与后音节首拍向二者中点靠拢,音节内部其余拍不动 [@busybee 2026-06-15] ////
-// rows 是同组逐音节的有声 mora 数组列表。只动边界拍、保留音节内调型,blend 为向中点靠拢的比例;不跨停顿,故不连音。
-function smoothGroupBoundaries(rows, blend) {
-  for (let s = 0; s < rows.length - 1; s += 1) {
-    const a = rows[s];
-    const b = rows[s + 1];
-    const last = a[a.length - 1];
-    const first = b[0];
-    const mid = (last.pitch + first.pitch) / 2;
-    last.pitch = last.pitch + (mid - last.pitch) * blend;
-    first.pitch = first.pitch + (mid - first.pitch) * blend;
-  }
-}
-//// /软化同一停顿组内相邻音节交界的硬跳 ////
-
-//// 在自然时长的 query 上铺普通话四声音高:按计划逐音节吞 mora、覆盖该音节片假名,替换有声 mora 的音高 [@busybee 2026-06-15] ////
-// 把四声调值完整铺上做分明,叠停顿组内下倾(句末豁免),再软化同组相邻音节交界的硬跳让过渡平顺;基准取 query 自身均值。
-// config:spread 缩放四声整体落差(<1 更平缓)、blend 边界软化比例、finalTail 句末非卷舌字补的收尾元音时长(秒,默认 0 关)。
+//// 在自然时长的 query 上铺普通话四声音高:逐音节吞 mora 覆盖片假名,与引擎自然音高按 toneStrength 混合 [@busybee 2026-06-15] ////
+// 按四声调值铺音高把声调做出来,但不完全替换——与引擎自身平滑的自然音高混合,既听得出四声、又保留自然过渡不突兀;基准取 query 自身均值。
+// config:toneStrength 四声强度(1=完全按四声、最分明也最突兀;小=更自然、四声更淡)、spread 四声整体落差。
+// spread 默认 0.7:多句识别率实测在 0.7 处有明显峰值(总 69%,卷舌句「学习中文」整句正确),
+// 高于 0.8 后音高摆幅过大反把卷舌、擦音的辅音冲糊、识别率掉到 50% 以下、句尾还冲出尖峰(峰 F0 515→442Hz);故落差收到 0.7 兼顾识别率与不突兀。
 function applyMandarinTones(query, plan, config = {}) {
-  // 默认值是实测平衡点:落差接近原值(spread 1.1)、边界只做轻软化(blend 0.15)。
-  // 实测再窄、再平(如 spread ≤1.05、blend ≥0.28)会让卷舌、近音字发糊被认错,难句识别率崩到接近零。
-  const spread = config.spread != null ? config.spread : 1.1;
-  const blend = config.blend != null ? config.blend : 0.15;
-  const finalTail = config.finalTail != null ? config.finalTail : 0;
+  const toneStrength = config.toneStrength != null ? config.toneStrength : 1.0;
+  const spread = config.spread != null ? config.spread : 0.7;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -332,15 +312,8 @@ function applyMandarinTones(query, plan, config = {}) {
   const base = voiced.length ? voiced.reduce((sum, mora) => sum + mora.pitch, 0) / voiced.length : 5.75;
 
   let index = 0;
-  let position = 0;
-  let rows = [];
   for (let s = 0; s < plan.length; s += 1) {
     const syllable = plan[s];
-    if (syllable.groupStart) {
-      smoothGroupBoundaries(rows, blend);
-      rows = [];
-      position = 0;
-    }
     const target = (syllable.kana || '').length;
     const group = [];
     let covered = 0;
@@ -350,31 +323,18 @@ function applyMandarinTones(query, plan, config = {}) {
       covered += (mora.text || '').length || 1;
       group.push(mora);
     }
-    // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同;句末豁免下倾。
+    // 句末音节:全句最后一个,或下一个音节是新停顿组的开头。非句末走半四声、半三声的连读协同。
     const next = plan[s + 1];
     const phraseFinal = !next || Boolean(next.groupStart);
-    const decline = phraseFinal ? 0 : Math.min(DECL_MAX, position * DECL_STEP);
     const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal, spread);
-    const row = [];
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
-        group[i].pitch = Math.max(4.8, contour[i] - decline);
-        row.push(group[i]);
+        // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀。
+        const blended = group[i].pitch * (1 - toneStrength) + contour[i] * toneStrength;
+        group[i].pitch = Math.max(4.8, Math.min(6.6, blended));
       }
     }
-    if (row.length) {
-      rows.push(row);
-    }
-    // 句末非卷舌单元音字补一点收尾元音时长,让句尾站得稳;一声不补,卷舌、擦音字跳过以保识别率。
-    if (finalTail > 0 && phraseFinal && syllable.tone !== 1 && !RETROFLEX_HEAD.has((syllable.kana || '')[0])) {
-      const voicedTail = group.filter((mora) => mora.vowel_length != null && mora.vowel_length > 0);
-      if (voicedTail.length) {
-        voicedTail[voicedTail.length - 1].vowel_length += finalTail;
-      }
-    }
-    position += 1;
   }
-  smoothGroupBoundaries(rows, blend);
   return query;
 }
 //// /在自然时长的 query 上铺普通话四声音高 ////

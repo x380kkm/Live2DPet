@@ -13,8 +13,8 @@ const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require
 const VOICE = 2;
 // 测试句:汉字供识别比对,tokens 是带声调的拼音(先手给,接入后由汉字转拼音替代)。
 const SENTENCES = [
-  { id: 'nihao', hanzi: '你好我是你的桌面宠物很高兴见到你',
-    tokens: ['ni3', 'hao3', '，', 'wo3', 'shi4', 'ni3', 'de5', 'zhuo1', 'mian4', 'chong3', 'wu4', '，', 'hen3', 'gao1', 'xing4', 'jian4', 'dao4', 'ni3', '。'] },
+  { id: 'nihao', hanzi: '你好我是四国玫碳',
+    tokens: ['ni3', 'hao3', '，', 'wo3', 'shi4', 'si4', 'guo2', 'mei2', 'tan4', '。'] },
   { id: 'xuexi', hanzi: '你知道吗我喜欢学习中文',
     tokens: ['ni3', 'zhi1', 'dao4', 'ma5', '？', 'wo3', 'xi3', 'huan1', 'xue2', 'xi2', 'zhong1', 'wen2', '。'] },
   { id: 'tianqi', hanzi: '今天天气很好我们出去玩吧',
@@ -33,8 +33,8 @@ backend.warmup();
 // argv[2] 语速(默认 1.0);argv[3] 音高落差 spread、argv[4] 边界平滑 blend,用来扫音高参数对识别率的影响。
 const speed = parseFloat(process.argv[2]) || 1.0;
 const toneCfg = {};
-if (process.argv[3]) toneCfg.spread = parseFloat(process.argv[3]);
-if (process.argv[4]) toneCfg.blend = parseFloat(process.argv[4]);
+if (process.argv[3]) toneCfg.toneStrength = parseFloat(process.argv[3]);
+if (process.argv[4]) toneCfg.spread = parseFloat(process.argv[4]);
 const manifest = [];
 for (const sentence of SENTENCES) {
   const { kana, plan } = sentenceToAccentKana(sentence.tokens);

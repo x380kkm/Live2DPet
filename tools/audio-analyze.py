@@ -79,14 +79,18 @@ def main():
     f0_end = f0_mid
     inten_mean = inten_peak
 
-    # 字间音高跳变(前字尾 F0 → 后字头 F0),用半音衡量更贴感知
+    # 字间音高跳变(前字尾 F0 → 后字头 F0),用半音衡量更贴感知;均值越小越平顺、越自然
     print("\n字间音高跳变(半音,正=上跳):")
+    jumps = []
     for i in range(len(syl) - 1):
         a, b = f0_end[i], f0_start[i + 1]
         if a > 0 and b > 0:
             semi = 12 * np.log2(b / a)
+            jumps.append(abs(semi))
             flag = "  <== 跳变大" if abs(semi) >= 4 else ""
             print(f"  {syl[i]['label']}->{syl[i+1]['label']}: {semi:+.1f}{flag}")
+    if jumps:
+        print(f"突兀度:字间跳变绝对值 均{np.mean(jumps):.1f} 半音、最大{np.max(jumps):.1f}(越小越自然)")
 
     # 强度偏弱的字(比中位低 6 dB 以上)
     med = float(np.median([x for x in inten_mean if x > 0]))

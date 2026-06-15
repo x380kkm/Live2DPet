@@ -6,13 +6,12 @@ const path = require('path'); const fs = require('fs'); const koffi = require('k
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
 const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require('../src/domain/tts/chinese-phonemes');
 const VOICE = 2;
-const TOKENS = ['ni3','hao3','，','wo3','shi4','ni3','de5','zhuo1','mian4','chong3','wu4','，','hen3','gao1','xing4','jian4','dao4','ni3','。'];
+const TOKENS = ['ni3','hao3','，','wo3','shi4','si4','guo2','mei2','tan4','。'];
 // 非标点 token 作逐音节标签(拼音),与 plan 一一对应。
 const LABELS = TOKENS.filter((t) => !/^[，。、!?！？；;：:]+$/.test(t));
 const cfg = {};
-if (process.argv[2]) cfg.spread = parseFloat(process.argv[2]);
-if (process.argv[3]) cfg.blend = parseFloat(process.argv[3]);
-if (process.argv[4]) cfg.finalTail = parseFloat(process.argv[4]);
+if (process.argv[2]) cfg.toneStrength = parseFloat(process.argv[2]);
+if (process.argv[3]) cfg.spread = parseFloat(process.argv[3]);
 
 const outDir = path.join(__dirname, 'samples', 'analyze');
 fs.mkdirSync(outDir, { recursive: true });

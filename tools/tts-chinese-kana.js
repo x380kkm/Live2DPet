@@ -12,12 +12,11 @@ const { sentenceToAccentKana, applyMandarinTones, shapeChineseRhythm } = require
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 const VOICE = 2;
-// 多句备选:default 是反复迭代的标准句;hard 覆盖卷舌、ü、q/x 等难点,压测凑音素表覆盖度。
+// 多句备选:default 是反复迭代的标准句(无卷舌、无 ü,纯纯音素发音);hard 覆盖卷舌、ü、q/x 等难点,压测凑音素表覆盖度。
 const SENTENCES = {
   default: [
     'ni3', 'hao3', '，',
-    'wo3', 'shi4', 'ni3', 'de5', 'zhuo1', 'mian4', 'chong3', 'wu4', '，',
-    'hen3', 'gao1', 'xing4', 'jian4', 'dao4', 'ni3', '。'
+    'wo3', 'shi4', 'si4', 'guo2', 'mei2', 'tan4', '。'
   ],
   hard: [
     'ni3', 'zhi1', 'dao4', 'ma5', '？',
@@ -45,7 +44,7 @@ query.speedScale = 1.0;
 query.volumeScale = 1.25;
 query.prePhonemeLength = 0.08;
 query.postPhonemeLength = 0.1;
-// 先铺完整四声音高,把四声做分明;再合并组内短语、收紧标点停顿,让组内连读、停顿干净,听着更像中文。
+// 先铺四声音高(默认落差 spread=0.7,识别率与不突兀的实测最优点);再合并组内短语、收紧标点停顿,让组内连读、停顿干净,听着更像中文。
 applyMandarinTones(query, plan);
 shapeChineseRhythm(query);
 const wav = backend.synthesizeQuery(query, VOICE);

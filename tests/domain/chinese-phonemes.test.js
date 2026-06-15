@@ -43,9 +43,11 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   // -ng 与 -n 都收到 ン(补长音会拖慢连读):xing→シン、chong→チョン
   assert.strictEqual(k('xing4'), 'シン');
   assert.strictEqual(k('chong3'), 'チョン');
-  // 卷舌 zh 与平舌 z 区别在 i:zhi→ジー、zi→ズー
+  // 卷舌 zh 与平舌 z/c/s 区别在 i:zhi 类用 ジ([shi/ji]),平舌舌尖元音用拗音 ズィ/ツィ/スィ([zi/tsi/si]不圆唇)
   assert.strictEqual(k('zhi1'), 'ジー');
-  assert.strictEqual(k('zi4'), 'ズー');
+  assert.strictEqual(k('zi4'), 'ズィー');
+  assert.strictEqual(k('ci4'), 'ツィー');
+  assert.strictEqual(k('si4'), 'スィー');
   // ü 韵母:声母拼到 ü 列(单元音 ü 默认路线补长音ー);去 qù→チュー、学 xué→シュエ、女 nǚ→ニュー、月 yuè→ユエ
   assert.strictEqual(k('qu4'), 'チュー');
   assert.strictEqual(k('xue2'), 'シュエ');
@@ -124,39 +126,20 @@ test('mandarinTone 四声调值走势', () => {
   assert.ok(neutral < base && neutral > mandarinTone(3, 1, base)[0], '轻声居于三声低位与基准之间');
 });
 
-//// 停顿组内逐音节语调下倾,句末音节豁免下倾 [@busybee 2026-06-15] ////
-test('applyMandarinTones 组内下倾,句末豁免', () => {
-  // 三个一声同组:句首、中段、句末;关掉边界平滑(blend:0)单看下倾
-  const plan = [
-    { kana: 'ガ', tone: 1, groupStart: true },
-    { kana: 'ガ', tone: 1, groupStart: false },
-    { kana: 'ガ', tone: 1, groupStart: false }
-  ];
-  const query = { accent_phrases: [{ moras: [
-    { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }, { text: 'ガ', pitch: 5.8 }
-  ] }] };
-  applyMandarinTones(query, plan, { blend: 0 });
-  const [a, b, c] = query.accent_phrases[0].moras.map((m) => m.pitch);
-  assert.ok(b < a, '中段音节因下倾比句首低');
-  assert.ok(c > b, '句末音节豁免下倾,不被继续压低');
-});
-
-//// 边界平滑软化相邻音节交界的硬跳:高拍被拉低、低拍被抬高,差变小 [@busybee 2026-06-15] ////
-test('applyMandarinTones 边界平滑软化交界', () => {
-  const make = () => ({ accent_phrases: [{ moras: [
-    { text: 'ガ', pitch: 5.8 }, { text: 'ニ', pitch: 5.8 }
-  ] }] });
-  // 一声(高)接句末三声(低),交界处有硬跳
-  const plan = [
-    { kana: 'ガ', tone: 1, groupStart: true },
-    { kana: 'ニ', tone: 3, groupStart: false }
-  ];
-  const sharp = make(); applyMandarinTones(sharp, plan, { blend: 0 });
-  const soft = make(); applyMandarinTones(soft, plan, { blend: 0.34 });
-  const [sa, sb] = sharp.accent_phrases[0].moras.map((m) => m.pitch);
-  const [na, nb] = soft.accent_phrases[0].moras.map((m) => m.pitch);
-  assert.ok(Math.abs(na - nb) < Math.abs(sa - sb), '平滑后交界两拍音高差变小');
-  assert.ok(na < sa && nb > sb, '高拍被拉低、低拍被抬高');
+//// 四声音高与引擎自然音高按 toneStrength 混合,不完全替换 [@busybee 2026-06-15] ////
+test('applyMandarinTones 与自然音高按 toneStrength 混合', () => {
+  const plan = [{ kana: 'ガ', tone: 1, groupStart: true }];
+  // 完全按四声(强度 1):一声单拍铺到 HI,高于自然音高 5.6
+  const full = { accent_phrases: [{ moras: [{ text: 'ガ', pitch: 5.6 }] }] };
+  applyMandarinTones(full, plan, { toneStrength: 1.0 });
+  const target = full.accent_phrases[0].moras[0].pitch;
+  assert.ok(target > 5.6, '强度 1 完全按四声、抬到 HI');
+  // 半强度:结果是自然音高与四声目标的中点,过渡更自然
+  const mix = { accent_phrases: [{ moras: [{ text: 'ガ', pitch: 5.6 }] }] };
+  applyMandarinTones(mix, plan, { toneStrength: 0.5 });
+  const blended = mix.accent_phrases[0].moras[0].pitch;
+  assert.ok(blended > 5.6 && blended < target, '半强度介于自然音高与四声目标之间');
+  assert.ok(Math.abs(blended - (5.6 + target) / 2) < 1e-6, '0.5 是二者中点');
 });
 
 //// 三声变调不跨标点,标点断开则重置 [@busybee 2026-06-15] ////
