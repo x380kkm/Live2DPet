@@ -50,8 +50,10 @@ const FINAL_KANA = {
 const BASE_VOWEL = { ア: 'a', イ: 'i', ウ: 'u', エ: 'e', オ: 'o' };
 // 与前一基音合成一个 mora 的小书写假名,数 mora 时跳过。
 const COMBINING = new Set(['ァ', 'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ']);
-// 单元音韵母:中文这些音比日语 mora 长而平,补长音ー拉成两拍,既更像中文也给升降调留出展开空间(轻声不拉)。
+// 单元音韵母:中文这些音比日语 mora 长而平,补一拍拉成两拍,既更像中文也给升降调留出展开空间(轻声不拉)。
 const ELONGATE_FINALS = new Set(['a', 'o', 'e', 'ê', 'i', 'u', 'ü', 'v']);
+// 重音核路线不收长音ー,改用重复基元音补拍(ニ→ニイ);每个单元音韵母对应的补拍假名。
+const ELONGATE_VOWEL = { a: 'ア', o: 'オ', e: 'ウ', ê: 'エ', i: 'イ', u: 'ウ', ü: 'ウ', v: 'ウ' };
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 
@@ -111,7 +113,8 @@ function syllableToKana(parsed, options = {}) {
   let kana = applyInitial(parsed.initial, finalKana);
   const elongate = options.elongate !== false;
   if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
-    kana += 'ー';
+    // 重音核路线传 kanaSafe:不收长音ー,改用重复基元音补一拍;否则用长音ー。
+    kana += options.kanaSafe ? (ELONGATE_VOWEL[parsed.final] || '') : 'ー';
   }
   return { kana, moras: moraCount(kana), ok: true };
 }
@@ -187,7 +190,7 @@ function sentenceToAccentKana(tokens) {
       pausePending = true;
       continue;
     }
-    const syllable = syllableToKana(item.parsed, { elongate: false });
+    const syllable = syllableToKana(item.parsed, { elongate: true, kanaSafe: true });
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
