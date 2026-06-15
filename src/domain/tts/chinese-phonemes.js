@@ -211,59 +211,48 @@ function shapeFlow(query, config = {}) {
 }
 //// /把各 mora 的时长拉成中文那种持续、连贯的样子 ////
 
-//// 据声调与音节 mora 数算各 mora 的目标音高,相对基准音高 [@busybee 2026-06-15] ////
-// 一声高平、二声上升、三声压低微升、四声下降、轻声略低;单 mora 取代表值(调内走势靠相邻音节体现)。
-function toneContour(tone, moras, base) {
+//// 据声调与音节 mora 数算各 mora 的音高微调量(相对 0 的增量,不替换引擎的自然音高) [@busybee 2026-06-15] ////
+// 只给一个轻微偏置:一声略抬、二声尾升、三声压低、四声尾降、轻声略低。增量小,保留 VOICEVOX 自然起伏,听感更自然。
+// 单 mora 取代表增量(调内走势难展开,靠相邻音节体现);多 mora 用线性走势。
+function toneContour(tone, moras) {
   const out = [];
   const fill = (value) => { for (let i = 0; i < moras; i++) out.push(value); };
   const ramp = (lo, hi) => {
     for (let i = 0; i < moras; i++) {
-      out.push(moras === 1 ? hi : lo + (hi - lo) * (i / (moras - 1)));
+      out.push(lo + (hi - lo) * (i / (moras - 1)));
     }
   };
-  if (tone === 1) {
-    fill(base + 0.30);
-  } else if (tone === 2) {
-    ramp(base - 0.05, base + 0.30);
-  } else if (tone === 3) {
-    if (moras === 1) {
-      fill(base - 0.40);
-    } else {
-      // 低降到谷底再略升:三声的特征是压低,升尾很弱
-      const valley = Math.max(1, Math.floor(moras * 0.6));
-      for (let i = 0; i < moras; i += 1) {
-        if (i < valley) {
-          out.push(base - 0.45 - 0.10 * (i / valley));
-        } else {
-          out.push(base - 0.45 + 0.30 * ((i - valley) / Math.max(1, moras - valley)));
-        }
-      }
-    }
-  } else if (tone === 4) {
-    if (moras === 1) {
-      fill(base + 0.32);
-    } else {
-      ramp(base + 0.42, base - 0.30);
-    }
-  } else {
-    fill(base - 0.05);
+  if (moras === 1) {
+    const single = { 1: 0.12, 2: 0.14, 3: -0.18, 4: 0.10, 5: -0.05 };
+    out.push(single[tone] !== undefined ? single[tone] : 0);
+    return out;
   }
-  return out.map((pitch) => Math.max(4.8, Math.min(6.6, pitch)));
+  if (tone === 1) {
+    fill(0.12);
+  } else if (tone === 2) {
+    ramp(-0.04, 0.18);
+  } else if (tone === 3) {
+    ramp(-0.20, -0.08);
+  } else if (tone === 4) {
+    ramp(0.16, -0.18);
+  } else {
+    fill(-0.05);
+  }
+  return out;
 }
-//// /据声调与音节 mora 数算各 mora 的目标音高 ////
+//// /据声调与音节 mora 数算各 mora 的音高微调量 ////
 
-//// 按声调计划把 query 各 mora 的音高改成对应调型,音高以 query 自身均值为基准 [@busybee 2026-06-15] ////
-// 把全句 mora 铺平;按计划逐音节吞 mora,直到吞下的 mora 文本覆盖该音节的片假名,据实际吞到的 mora 数算调型,
-// 这样不依赖事先预测的 mora 数,引擎把 ドゥ 这类拆成两拍也能对齐。只改有声 mora 的音高。
-function applyTones(query, plan) {
+//// 按声调计划给 query 各 mora 的音高叠一个轻微偏置,保留引擎自然起伏 [@busybee 2026-06-15] ////
+// 把全句 mora 铺平;按计划逐音节吞 mora,直到吞下的 mora 文本覆盖该音节的片假名,据实际吞到的 mora 数算微调量;
+// 只在引擎给的音高上加增量(不替换),strength 缩放偏置强度,只改有声 mora,结果夹在合法区间。
+function applyTones(query, plan, options = {}) {
+  const strength = options.strength != null ? options.strength : 1.0;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
       moras.push(mora);
     }
   }
-  const voiced = moras.filter((mora) => mora.pitch > 0);
-  const base = voiced.length ? voiced.reduce((sum, mora) => sum + mora.pitch, 0) / voiced.length : 5.8;
 
   let index = 0;
   for (const syllable of plan) {
@@ -276,10 +265,10 @@ function applyTones(query, plan) {
       covered += (mora.text || '').length || 1;
       group.push(mora);
     }
-    const contour = toneContour(syllable.tone, group.length, base);
+    const deltas = toneContour(syllable.tone, group.length);
     for (let i = 0; i < group.length; i += 1) {
-      if (group[i].pitch > 0 && contour[i] !== undefined) {
-        group[i].pitch = contour[i];
+      if (group[i].pitch > 0 && deltas[i] !== undefined) {
+        group[i].pitch = Math.max(4.8, Math.min(6.6, group[i].pitch + deltas[i] * strength));
       }
     }
   }

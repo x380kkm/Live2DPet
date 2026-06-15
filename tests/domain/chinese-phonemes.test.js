@@ -72,28 +72,25 @@ test('sentenceToKana 三声变调不跨标点', () => {
   assert.deepStrictEqual(p3.map((p) => p.tone), [2, 2, 3]);
 });
 
-//// 四声调型形状:一声高平、四声多音下降、三声单音压低,且夹在区间内 [@busybee 2026-06-15] ////
-test('toneContour 各声调形状与夹紧', () => {
-  const base = 5.8;
-  const t1 = toneContour(1, 2, base);
-  assert.ok(t1.every((p) => Math.abs(p - (base + 0.30)) < 1e-9), '一声高平');
+//// 四声微调量是相对 0 的轻微偏置:一声略抬、四声尾降、二声尾升、三声压低 [@busybee 2026-06-15] ////
+test('toneContour 各声调微调走势', () => {
+  const t1 = toneContour(1, 2);
+  assert.ok(t1.every((d) => Math.abs(d - 0.12) < 1e-9), '一声略抬且平');
 
-  const t4 = toneContour(4, 3, base);
-  assert.ok(t4[0] > t4[2], '四声多音应下降');
+  const t4 = toneContour(4, 3);
+  assert.ok(t4[0] > t4[2], '四声多音偏置应由高到低');
 
-  const t2 = toneContour(2, 3, base);
-  assert.ok(t2[0] < t2[2], '二声多音应上升');
+  const t2 = toneContour(2, 3);
+  assert.ok(t2[0] < t2[2], '二声多音偏置应由低到高');
 
-  assert.deepStrictEqual(toneContour(3, 1, base), [base - 0.40], '三声单音压低');
-
-  // 夹在 [4.8, 6.6]
-  const extreme = toneContour(4, 2, 6.5);
-  assert.ok(extreme.every((p) => p >= 4.8 && p <= 6.6));
+  assert.deepStrictEqual(toneContour(3, 1), [-0.18], '三声单音压低');
+  // 偏置量都很轻微(绝对值不超过 0.25)
+  assert.ok([t1, t4, t2].flat().every((d) => Math.abs(d) <= 0.25));
 });
 
-//// 按 mora 文本覆盖对齐:引擎把 ドゥ 拆成两拍也不串调 [@busybee 2026-06-15] ////
-test('applyTones 按片假名覆盖对齐,容忍引擎拆拍', () => {
-  // 计划:du(一声)+ ni(四声);query 把 ドゥ 拆成 ド+ゥ 两拍
+//// 按 mora 文本覆盖对齐,只在引擎音高上叠轻微偏置,容忍引擎拆拍 [@busybee 2026-06-15] ////
+test('applyTones 叠偏置且按片假名覆盖对齐', () => {
+  // 计划:du(一声)+ ni(四声);query 把 ドゥ 拆成 ド+ゥ 两拍,引擎音高 5.8
   const plan = [{ kana: 'ドゥ', tone: 1 }, { kana: 'ニ', tone: 4 }];
   const query = {
     accent_phrases: [{
@@ -106,10 +103,19 @@ test('applyTones 按片假名覆盖对齐,容忍引擎拆拍', () => {
   };
   applyTones(query, plan);
   const moras = query.accent_phrases[0].moras;
-  // base=5.8:一声两拍都抬到 6.1,四声单拍代表值 6.12
-  assert.ok(Math.abs(moras[0].pitch - 6.10) < 1e-6, '吞下 ド 属第一音节一声');
-  assert.ok(Math.abs(moras[1].pitch - 6.10) < 1e-6, '吞下 ゥ 仍属第一音节,未串到第二音节');
-  assert.ok(Math.abs(moras[2].pitch - 6.12) < 1e-6, 'ニ 属第二音节四声');
+  // 一声两拍各叠 +0.12;四声单拍叠 +0.10
+  assert.ok(Math.abs(moras[0].pitch - 5.92) < 1e-6, '吞下 ド 属第一音节,叠一声偏置');
+  assert.ok(Math.abs(moras[1].pitch - 5.92) < 1e-6, '吞下 ゥ 仍属第一音节,未串到第二音节');
+  assert.ok(Math.abs(moras[2].pitch - 5.90) < 1e-6, 'ニ 属第二音节,叠四声偏置');
+});
+
+//// strength 缩放偏置强度 [@busybee 2026-06-15] ////
+test('applyTones strength 缩放偏置', () => {
+  const plan = [{ kana: 'ニ', tone: 1 }];
+  const query = { accent_phrases: [{ moras: [{ text: 'ニ', pitch: 5.8 }] }] };
+  applyTones(query, plan, { strength: 0.5 });
+  // 一声单拍偏置 +0.12,半强度即 +0.06
+  assert.ok(Math.abs(query.accent_phrases[0].moras[0].pitch - 5.86) < 1e-6);
 });
 
 //// 合并停顿组内的多个 accent_phrase,只在停顿处断开 [@busybee 2026-06-15] ////

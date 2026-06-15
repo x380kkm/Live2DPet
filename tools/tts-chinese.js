@@ -8,7 +8,7 @@ const path = require('path');
 const fs = require('fs');
 const koffi = require('koffi');
 const { VoicevoxBackend } = require('../src/platform/speech/voicevox-backend');
-const { sentenceToKana, applyTones, flowPhrases, shapeFlow } = require('../src/domain/tts/chinese-phonemes');
+const { sentenceToKana, applyTones, flowPhrases } = require('../src/domain/tts/chinese-phonemes');
 const { analyze } = require('../src/domain/tts/prosody-analyzer');
 
 // 四国めたん ノーマル:清晰的女声,便于先判清凑音素与声调;声线可换。
@@ -32,15 +32,14 @@ backend.init(path.join(__dirname, '..', 'voicevox_core'), ['0.vvm', '8.vvm'], { 
 backend.warmup();
 
 const query = backend.audioQuery(kana, VOICE);
-// 稍放慢,给四声调型与韵尾更多发音时间。
-query.speedScale = 0.92;
+// 略放慢便于听清,不抻长时长(抻长会失真不自然)。
+query.speedScale = 0.95;
 const phrasesBefore = (query.accent_phrases || []).length;
-// 合并词间停顿组、抻长元音压短辅音让连读连贯,再按声调改音高。
+// 合并词间停顿组,只在引擎自然音高上叠轻微声调偏置,保留自然起伏。
 flowPhrases(query);
 const phrasesAfter = (query.accent_phrases || []).length;
-shapeFlow(query);
 const moraTotal = (query.accent_phrases || []).reduce((sum, ph) => sum + (ph.moras || []).length, 0);
-applyTones(query, plan);
+applyTones(query, plan, { strength: 1.0 });
 const wav = backend.synthesizeQuery(query, VOICE);
 console.log(`accent_phrase 合并:${phrasesBefore} → ${phrasesAfter}`);
 
