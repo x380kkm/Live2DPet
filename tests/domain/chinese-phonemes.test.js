@@ -54,6 +54,10 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   // 轻声不补长音
   assert.strictEqual(k('de5'), 'ドゥ');
   assert.strictEqual(k('ma5'), 'マ');
+  // wu 用 ヴ 给一个起音,免得纯元音 ウ 黏进前一字(宠物听成葱);默认路线单元音补长音:物 wù→ヴー
+  assert.strictEqual(k('wu4'), 'ヴー');
+  // 重音核路线不补长音:物 wù→ヴ
+  assert.strictEqual(syllableToKana(parsePinyin('wu4'), { elongate: false }).kana, 'ヴ');
 });
 
 //// 未知韵母跳过,不拼出也不抛 [@busybee 2026-06-15] ////
