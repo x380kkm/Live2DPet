@@ -40,7 +40,8 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   // 复元音、鼻韵尾不补长音(本就两拍以上)
   assert.strictEqual(k('hao3'), 'ハオ');
   assert.strictEqual(k('zhuo1'), 'ジュオ');
-  assert.strictEqual(k('mian4'), 'ミェン');
+  // ian 用全角エ(避免 t/d+ian 出双小假名):mian→ミエン
+  assert.strictEqual(k('mian4'), 'ミエン');
   // -ng 与 -n 都收到 ン(补长音会拖慢连读):xing→シン、chong→チョン
   assert.strictEqual(k('xing4'), 'シン');
   assert.strictEqual(k('chong3'), 'チョン');
@@ -76,14 +77,16 @@ test('sentenceToKana 拼整句、三声变调与长音', () => {
 
 //// 整句拼成 AquesTalk 带重音片假名与声调计划:停顿组并成一个短语连读、组间 、停顿,不带长音ー [@busybee 2026-06-15] ////
 test('sentenceToAccentKana 按停顿组并短语拼带重音片假名与计划', () => {
-  // 默认不变调:ni 保持三声;单元音 ni 用重复基元音补拍成 ニイ(不用长音ー);ma 轻声不补
+  // 默认不变调、不补拍(补拍拉低识别率):ni→ニ、hao→ハオ、ma→マ
   const { kana, plan } = sentenceToAccentKana(['ni3', 'hao3', '，', 'ma5', '。']);
   // 你好并成一个短语(重音核置末仅供解析),逗号处断成另一组
-  assert.strictEqual(kana, "ニイハオ'、マ'");
+  assert.strictEqual(kana, "ニハオ'、マ'");
   assert.ok(!kana.includes('ー'), '不含长音ー(AquesTalk 不收)');
   assert.ok(!kana.includes('/'), '组内不再切短语');
   assert.deepStrictEqual(plan.map((p) => p.tone), [3, 3, 5]);
-  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニイ', 'ハオ', 'マ']);
+  assert.deepStrictEqual(plan.map((p) => p.kana), ['ニ', 'ハオ', 'マ']);
+  // 显式开补拍则单元音补一拍(ニ→ニイ)
+  assert.strictEqual(sentenceToAccentKana(['ni3'], { elongate: true }).kana, "ニイ'");
   // 显式开变调时,前一个三声读二声
   assert.deepStrictEqual(sentenceToAccentKana(['ni3', 'hao3'], { sandhi: true }).plan.map((p) => p.tone), [2, 3]);
 });

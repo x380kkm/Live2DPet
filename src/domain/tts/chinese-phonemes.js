@@ -40,7 +40,7 @@ const FINAL_KANA = {
   an: 'アン', en: 'エン', ang: 'アン', eng: 'エン', ong: 'オン',
   er: 'アル',
   i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イウ', iou: 'イウ',
-  ian: 'イェン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
+  ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
   u: 'ウ', ua: 'ウア', uo: 'ウオ', uai: 'ウアイ', ui: 'ウイ', uei: 'ウイ',
   uan: 'ウアン', un: 'ウン', uen: 'ウン', uang: 'ウアン', ueng: 'ウオン',
   ü: 'ユ', v: 'ユ', üe: 'ユエ', ve: 'ユエ', üan: 'ユエン', van: 'ユエン', ün: 'ユン', vn: 'ユン'
@@ -193,7 +193,8 @@ function sentenceToAccentKana(tokens, options = {}) {
       }
       continue;
     }
-    const syllable = syllableToKana(item.parsed, { elongate: true, kanaSafe: true });
+    // 重音核路线默认不补拍:补拍虽利于声调展开,却显著拉低识别率(ASR 实测),故默认关、显式传 elongate:true 才开。
+    const syllable = syllableToKana(item.parsed, { elongate: options.elongate === true, kanaSafe: true });
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
