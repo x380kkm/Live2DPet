@@ -24,7 +24,8 @@ const {
   drawToneContours,
   applyDeclination,
   applySentenceIntonation,
-  chineseVoicePitch
+  chineseVoicePitch,
+  chineseVoiceSpeed
 } = require('../../src/domain/tts/chinese-phonemes');
 
 //// 拼音拆成声母、韵母、声调,j/q/x/y 后的 u 当 ü [@x380kkm 2026-06-15] ////
@@ -401,10 +402,13 @@ test('applyToneSandhi 按词边界变调', () => {
   assert.deepStrictEqual(tones(['ni3', 'hao3'], [true, false]), [2, 3], '你好(一个词)读 2-3');
 });
 
-//// 按声线取全局音高偏移:WhiteCUL びえーん(26)压 -0.08,其余声线 0 不动 [@x380kkm 2026-06-16] ////
-test('chineseVoicePitch 按 styleId 取音高偏移', () => {
+//// 按声线取全局音高偏移与语速倍率:WhiteCUL(26)压 -0.08、後鬼布偶(28)压 -0.03 且语速 1.08,其余不动 [@x380kkm 2026-06-17] ////
+test('chineseVoicePitch 与 chineseVoiceSpeed 按 styleId 取值', () => {
   assert.strictEqual(chineseVoicePitch(26), -0.08, 'WhiteCUL びえーん 压低');
-  assert.strictEqual(chineseVoicePitch(2), 0, '其它声线不动');
+  assert.strictEqual(chineseVoicePitch(28), -0.03, '後鬼 ぬいぐるみ 压低');
+  assert.strictEqual(chineseVoicePitch(2), 0, '其它声线音高不动');
+  assert.strictEqual(chineseVoiceSpeed(28), 1.08, '後鬼 ぬいぐるみ 稍快');
+  assert.strictEqual(chineseVoiceSpeed(2), 1, '其它声线语速不动');
 });
 
 //// `/` 断句记号断成组并在前一字标 minor,标点标 full [@x380kkm 2026-06-16] ////

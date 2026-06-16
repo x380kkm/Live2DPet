@@ -79,11 +79,19 @@ const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
 const CHINESE_QUERY_DEFAULTS = { speedScale: 1.3, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
 
 // 个别声线偏高,按 styleId 单独压低全局音高(pitchScale);只列需要调的,其余按 0 不动。
-// 26 = WhiteCUL びえーん:实听偏高,压 -0.08。
-const CHINESE_VOICE_PITCH = { 26: -0.08 };
+// 26 = WhiteCUL びえーん:实听偏高,压 -0.08。28 = 後鬼 ぬいぐるみ:实听偏高,压 -0.03。
+const CHINESE_VOICE_PITCH = { 26: -0.08, 28: -0.03 };
 //// 取某声线的中文全局音高偏移,未列出的声线为 0(不动) [@x380kkm 2026-06-16] ////
 function chineseVoicePitch(styleId) {
   return CHINESE_VOICE_PITCH[styleId] != null ? CHINESE_VOICE_PITCH[styleId] : 0;
+}
+
+// 个别声线发音偏慢或偏快,按 styleId 给一个语速倍率(乘在基准 speedScale 上);只列需要调的,其余按 1 不动。
+// 28 = 後鬼 ぬいぐるみ:实听偏慢,语速乘 1.08 稍快一点。
+const CHINESE_VOICE_SPEED = { 28: 1.08 };
+//// 取某声线的中文语速倍率,未列出的声线为 1(不动) [@x380kkm 2026-06-17] ////
+function chineseVoiceSpeed(styleId) {
+  return CHINESE_VOICE_SPEED[styleId] != null ? CHINESE_VOICE_SPEED[styleId] : 1;
 }
 
 //// 数片假名的 mora 数:小书写假名并入前一个,其余各计一个 [@x380kkm 2026-06-15] ////
@@ -989,6 +997,8 @@ module.exports = {
   CHINESE_QUERY_DEFAULTS,
   CHINESE_VOICE_PITCH,
   chineseVoicePitch,
+  CHINESE_VOICE_SPEED,
+  chineseVoiceSpeed,
   INITIAL_CV,
   FINAL_KANA
 };
