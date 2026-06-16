@@ -529,8 +529,9 @@ function shapeChineseRhythm(query, config = {}) {
 // plan 上 breakAfter 标了每个组边界的等级(full/minor),顺序与合并后 query 里带 pause_mora 的短语一一对应(停顿只在组边界出现);
 // 按序取等级,把全停顿设为 fullPause、半半停顿设为 minorPause。须在 shapeChineseRhythm 合并之后调用。
 function sizePhrasePauses(query, plan, config = {}) {
-  const fullPause = config.fullPause != null ? config.fullPause : 0.20;
-  const minorPause = config.minorPause != null ? config.minorPause : 0.06;
+  // 停顿时长减半(实听更紧凑):全停顿 0.20→0.10、半半停顿 0.06→0.03。
+  const fullPause = config.fullPause != null ? config.fullPause : 0.10;
+  const minorPause = config.minorPause != null ? config.minorPause : 0.03;
   const levels = [];
   for (const p of (plan || [])) { if (p.breakAfter) levels.push(p.breakAfter); }
   let k = 0;
@@ -794,7 +795,7 @@ function tightenGlideMedial(query, plan, config = {}) {
 // 须在 drawToneContours 之前调用:那步把元音乘声调拉长系数(只乘元音、辅音不动),故有效时长=辅音+元音×系数;这里按同一套系数(读同一份 config.t1/t2/t3)反推,夹完再交给它画。
 // 系数:一声重位 lenStrong、轻位 lenWeak、二声 len、句末三声 lenFinal、句中三声 lenLow,与 drawToneContours 一致。speedScale 把 mora 时长整体压缩,故区间按它折算。
 function fitSyllableDuration(query, plan, config = {}) {
-  const minMs = config.minDurMs != null ? config.minDurMs : 240;
+  const minMs = config.minDurMs != null ? config.minDurMs : 180;
   const maxMs = config.maxDurMs != null ? config.maxDurMs : 390;
   const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05 }, config.t1 || {});
   const t2 = Object.assign({ len: 1.2 }, config.t2 || {});
