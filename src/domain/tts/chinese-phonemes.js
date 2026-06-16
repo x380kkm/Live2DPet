@@ -391,6 +391,9 @@ function applyMandarinTones(query, plan, config = {}) {
   // step 默认 0.24(约 4 个半音):经主观试听确认这一加大档比 0.144 更听得出三声后高调被压一级再回升。
   const dsStep = (downstep && downstep.step != null) ? downstep.step : 0.24;
   const dsRecovery = (downstep && downstep.recovery != null) ? downstep.recovery : 0.535;
+  // 前瞻抬升(anticipatory raising):三声(低调)之前的高调(一/二/四声)峰值略抬,是 downstep 的逆向异化一半(另一半是 downstep 压后字)。
+  // 默认 0.04 对数 Hz(约 0.7 个半音),量小;只在句内(有后邻)、后邻是三声时对当前高调音节加。
+  const antRaise = config.antRaise != null ? config.antRaise : 0.04;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -435,12 +438,14 @@ function applyMandarinTones(query, plan, config = {}) {
         downReg *= dsRecovery;
       }
     }
+    // 前瞻抬升:后邻是三声、当前是高调(一/二/四声)时,把当前音节略抬;三声本身不抬(无真高点)。
+    const antOffset = (antRaise > 0 && nextTone === 3 && (syllable.tone === 1 || syllable.tone === 2 || syllable.tone === 4)) ? antRaise : 0;
     for (let i = 0; i < group.length; i += 1) {
       // 给每个 mora 打上所属音节下标:画调型会重排、复制 mora,标签随之带过去,供焦点这步在重排后仍按音节定位。
       group[i].syl = s;
       if (group[i].pitch > 0 && contour[i] !== undefined) {
-        // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀;downstep 偏移叠在声调目标上。
-        const blended = group[i].pitch * (1 - toneStrength) + (contour[i] + dsOffset) * toneStrength;
+        // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀;downstep 与前瞻抬升偏移叠在声调目标上。
+        const blended = group[i].pitch * (1 - toneStrength) + (contour[i] + dsOffset + antOffset) * toneStrength;
         group[i].pitch = Math.max(4.8, Math.min(6.6, blended));
       }
     }

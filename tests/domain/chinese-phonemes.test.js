@@ -428,6 +428,24 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
 });
 
+//// 前瞻抬升:三声前的高调(一声)被略抬,后邻非三声则不抬 [@x380kkm 2026-06-17] ////
+test('applyMandarinTones 前瞻抬升', () => {
+  const mk = () => ({ accent_phrases: [{ moras: [
+    { text: 'マ', pitch: 5.5, vowel_length: 0.1 }, { text: 'ニ', pitch: 5.5, vowel_length: 0.1 },
+  ] }] });
+  const plan = [{ kana: 'マ', tone: 1, groupStart: true }, { kana: 'ニ', tone: 3 }];
+  const off = mk(); applyMandarinTones(off, plan, { antRaise: 0 });
+  const on = mk(); applyMandarinTones(on, plan, { antRaise: 0.04 });
+  // 一声「マ」在三声「ニ」前:开前瞻抬升后比关时高约 0.04。
+  assert.ok(on.accent_phrases[0].moras[0].pitch > off.accent_phrases[0].moras[0].pitch, '三声前的一声被抬');
+  assert.ok(Math.abs((on.accent_phrases[0].moras[0].pitch - off.accent_phrases[0].moras[0].pitch) - 0.04) < 1e-9, '抬升量为 antRaise');
+  // 后邻非三声:同样的一声不被抬。
+  const plan2 = [{ kana: 'マ', tone: 1, groupStart: true }, { kana: 'ニ', tone: 1 }];
+  const a = mk(); applyMandarinTones(a, plan2, { antRaise: 0 });
+  const c = mk(); applyMandarinTones(c, plan2, { antRaise: 0.04 });
+  assert.ok(Math.abs(a.accent_phrases[0].moras[0].pitch - c.accent_phrases[0].moras[0].pitch) < 1e-9, '后邻非三声则不抬');
+});
+
 //// 整句下倾:首拍不动、末拍压最多、中间按位置线性插值,短句压得少 [@x380kkm 2026-06-16] ////
 test('applyDeclination 整句线性下压', () => {
   const fresh = (n) => ({ accent_phrases: [{ moras: Array.from({ length: n }, () => ({ text: 'ア', pitch: 5.5 })) }] });
