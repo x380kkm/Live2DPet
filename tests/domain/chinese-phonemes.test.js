@@ -283,6 +283,12 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   assert.ok(Math.abs(am[1].pitch - 5.5) < 1e-9, '加速降:末段首拍不降');
   assert.ok(am[3].pitch < am[2].pitch && am[2].pitch < 5.5, '加速降:越到末降得越多');
   assert.ok(Math.abs(am[3].pitch - (5.5 - 0.12)) < 1e-9, '加速降:末字压满 finalFall');
+  // 默认(不传配置)就走加速降:末字压满 0.12、越到末降得越多,锁住主观确认后的默认档。
+  const def = fresh();
+  applySentenceIntonation(def, planOf('statement'));
+  const dm = def.accent_phrases[0].moras;
+  assert.ok(Math.abs(dm[3].pitch - (5.5 - 0.12)) < 1e-9, '默认末字压满 0.12');
+  assert.ok(dm[3].pitch < dm[2].pitch && dm[2].pitch < 5.5, '默认就加速降');
 });
 
 //// 整句下倾:首拍不动、末拍压最多、中间按位置线性插值,短句压得少 [@x380kkm 2026-06-16] ////

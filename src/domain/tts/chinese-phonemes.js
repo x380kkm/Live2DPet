@@ -800,13 +800,14 @@ function applyDeclination(query, plan, config = {}) {
 // 是非问:句末尾段(约 ynMoras 个有声拍)按位置幂次渐强抬高,越到末抬越多(全局抬升,非单点边界调)。
 // 陈述与特指问:句末最后一小段(约 fallMoras 个有声拍)再压低一档(final lowering),与疑问句末上扬成对比。感叹句暂不特殊处理。
 // 末段降幅由 fallExp 控制走向:0 是整段同压一档(平降);大于 0 时降幅随位置幂次加速,末字降最多(文献说陈述句最大降幅落在最后一个音节)。
+// 默认 fallExp 取 1.5 走加速降、末段取最后 3 个有声拍、末字压满 0.12,经主观试听确认比平降收得更利落。
 // 须在 drawToneContours 之后调用(它重排 mora);这里直接在扁平化的句末有声拍上加偏移,不依赖逐音节分组。
 function applySentenceIntonation(query, plan, config = {}) {
   const ynRise = config.ynRise != null ? config.ynRise : 0.22;
   const ynMoras = config.ynMoras != null ? config.ynMoras : 6;
-  const finalFall = config.finalFall != null ? config.finalFall : 0.07;
-  const fallMoras = config.fallMoras != null ? config.fallMoras : 2;
-  const fallExp = config.fallExp != null ? config.fallExp : 0;
+  const finalFall = config.finalFall != null ? config.finalFall : 0.12;
+  const fallMoras = config.fallMoras != null ? config.fallMoras : 3;
+  const fallExp = config.fallExp != null ? config.fallExp : 1.5;
   const type = (plan && plan.length) ? (plan[plan.length - 1].sentenceType || 'statement') : 'statement';
   const voiced = [];
   for (const phrase of (query.accent_phrases || [])) {
