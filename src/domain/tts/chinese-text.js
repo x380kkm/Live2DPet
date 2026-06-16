@@ -70,13 +70,29 @@ function textToPinyinTokens(text) {
 }
 //// /把任意中文文本转成拼音与标点 token 序列 ////
 
+// 特指问的疑问词:含其一即判为特指问(走陈述句的下降,不套用是非问的句末上扬)。
+const WH_WORDS = ['为什么', '为何', '怎么', '怎样', '什么', '哪儿', '哪里', '哪', '谁', '多少', '几', '啥'];
+
+//// 据疑问词与句末标点判句类型:感叹、特指问、是非问、陈述 [@x380kkm 2026-06-16] ////
+// 分词对生僻词不可靠,这里只用疑问词表与标点这类稳的线索。有疑问词→特指问(走下降);否则有问号或句末是非问语气词(吗/吧/呢)→是非问(句末上扬);叹号→感叹;其余→陈述。
+function classifySentenceType(text) {
+  const s = String(text || '');
+  if (/[！!]/.test(s)) return 'exclamation';
+  if (WH_WORDS.some((w) => s.includes(w))) return 'whQuestion';
+  if (/[？?]/.test(s) || /[吗呢吧][。.！!？?」』"'）)\s]*$/.test(s)) return 'ynQuestion';
+  return 'statement';
+}
+//// /据疑问词与句末标点判句类型 ////
+
 //// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@x380kkm 2026-06-15] ////
 // 默认开三声连读变调:两个三声相连,前一个变二声(你好念 ní hǎo)。pinyin-pro 已处理一、不的变调,这里只补三声。
+// 句类型默认按文本自动判,显式传 options.sentenceType 可覆盖(供试听对比不同句调)。
 function textToAccentKana(text, options = {}) {
   const { tokens, wordStart } = textToTokens(text);
   const sandhi = options.sandhi != null ? options.sandhi : true;
-  return sentenceToAccentKana(tokens, { ...options, wordStart, sandhi });
+  const sentenceType = options.sentenceType || classifySentenceType(text);
+  return sentenceToAccentKana(tokens, { ...options, wordStart, sandhi, sentenceType });
 }
 //// /把任意中文文本直接转成带重音片假名与声调计划 ////
 
-module.exports = { textToTokens, textToPinyinTokens, textToAccentKana };
+module.exports = { textToTokens, textToPinyinTokens, textToAccentKana, classifySentenceType };

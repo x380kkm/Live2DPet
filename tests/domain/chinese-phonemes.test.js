@@ -20,6 +20,8 @@ const {
   extendPrePausal,
   sustainFinalNeutral,
   drawToneContours,
+  applyDeclination,
+  applySentenceIntonation,
   chineseVoicePitch
 } = require('../../src/domain/tts/chinese-phonemes');
 
@@ -256,6 +258,40 @@ test('normalizeSyllableDurations 双向拉平音节时长', () => {
   const mm = q2.accent_phrases[0].moras;
   assert.ok(mm[1].vowel_length > mm[0].vowel_length, '句末音节被额外拉长');
   assert.strictEqual(mm[0].vowel_length, 0.12, '非句末音节在 strength=0 时不变');
+});
+
+//// 句类型铺句调:是非问句末上扬(越到末越高、句首不动),陈述句末压低 [@x380kkm 2026-06-16] ////
+test('applySentenceIntonation 按句类型铺句调', () => {
+  const fresh = () => ({ accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.5 }, { text: 'イ', pitch: 5.5 }, { text: 'ウ', pitch: 5.5 }, { text: 'エ', pitch: 5.5 }
+  ] }] });
+  const planOf = (type) => [0, 1, 2, 3].map((i) => ({ kana: 'ア', sentenceType: type }));
+  const yn = fresh();
+  applySentenceIntonation(yn, planOf('ynQuestion'), { ynMoras: 3, ynRise: 0.2 });
+  const ym = yn.accent_phrases[0].moras;
+  assert.strictEqual(ym[0].pitch, 5.5, '是非问句首不动');
+  assert.ok(ym[3].pitch > ym[2].pitch && ym[2].pitch > 5.5, '是非问句末越到末抬越多');
+  const st = fresh();
+  applySentenceIntonation(st, planOf('statement'), { fallMoras: 1, finalFall: 0.07 });
+  const sm = st.accent_phrases[0].moras;
+  assert.ok(Math.abs(sm[3].pitch - 5.43) < 1e-9, '陈述末拍压低一档');
+  assert.strictEqual(sm[2].pitch, 5.5, '陈述非末拍不动');
+});
+
+//// 整句下倾:首拍不动、末拍压最多、中间按位置线性插值,短句压得少 [@x380kkm 2026-06-16] ////
+test('applyDeclination 整句线性下压', () => {
+  const fresh = (n) => ({ accent_phrases: [{ moras: Array.from({ length: n }, () => ({ text: 'ア', pitch: 5.5 })) }] });
+  const q = fresh(6);
+  applyDeclination(q, [], { declSlope: 0.03, declMax: 0.30 });
+  const m = q.accent_phrases[0].moras;
+  assert.strictEqual(m[0].pitch, 5.5, '句首拍不动');
+  assert.ok(m[5].pitch < m[3].pitch && m[3].pitch < m[1].pitch, '越往后压得越低');
+  // 六拍:drop = min(0.30, 0.03×5) = 0.15,末拍 5.5 − 0.15。
+  assert.ok(Math.abs(m[5].pitch - 5.35) < 1e-9, '末拍压满 drop');
+  // 单拍不足以定义斜率,原样返回。
+  const one = { accent_phrases: [{ moras: [{ text: 'ア', pitch: 5.5 }] }] };
+  applyDeclination(one, [], {});
+  assert.strictEqual(one.accent_phrases[0].moras[0].pitch, 5.5, '单拍不下倾');
 });
 
 //// 三声变调按词边界:双音节词+单音节词读 2-2-3,单音节词+双音节词读 3-2-3 [@x380kkm 2026-06-16] ////

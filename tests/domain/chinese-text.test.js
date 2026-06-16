@@ -5,7 +5,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { textToPinyinTokens, textToAccentKana } = require('../../src/domain/tts/chinese-text');
+const { textToPinyinTokens, textToAccentKana, classifySentenceType } = require('../../src/domain/tts/chinese-text');
 
 //// 汉字转带声调拼音,轻声归 5 [@x380kkm 2026-06-15] ////
 test('textToPinyinTokens 基本转换与轻声', () => {
@@ -34,6 +34,16 @@ test('textToPinyinTokens 标点保留、非汉字跳过', () => {
   // 空串与纯符号回空数组,不抛
   assert.deepStrictEqual(textToPinyinTokens(''), []);
   assert.deepStrictEqual(textToPinyinTokens('123 %#'), []);
+});
+
+//// 据疑问词与句末标点判句类型 [@x380kkm 2026-06-16] ////
+test('classifySentenceType 判句类型', () => {
+  assert.strictEqual(classifySentenceType('你吃饭了吗？'), 'ynQuestion', '吗 加问号是是非问');
+  assert.strictEqual(classifySentenceType('你吃饭了吗'), 'ynQuestion', '句末吗无标点也是是非问');
+  assert.strictEqual(classifySentenceType('你想吃什么？'), 'whQuestion', '含疑问词什么是特指问');
+  assert.strictEqual(classifySentenceType('你想吃什么'), 'whQuestion', '含疑问词即特指问,不靠问号');
+  assert.strictEqual(classifySentenceType('我已经吃过了。'), 'statement', '无疑问词无问号是陈述');
+  assert.strictEqual(classifySentenceType('太好了！'), 'exclamation', '叹号是感叹');
 });
 
 //// 文本直通片假名与声调计划 [@x380kkm 2026-06-15] ////

@@ -235,6 +235,8 @@ function sentenceToAccentKana(tokens, options = {}) {
   // 不再据此自动断句——句内停顿改由 LLM 插的 `/` 记号驱动(分词对生僻词、专名不可靠,机械切会切坏「罗生门」、孤立「的」)。
   const maxPhrase = options.maxPhrase || 8;
   const wordStart = options.wordStart || null;
+  // 句类型(陈述/是非问/特指问/感叹),供 applySentenceIntonation 铺句调:陈述句末压低、是非问句末上扬、特指问与陈述同走下降。
+  const sentenceType = options.sentenceType || 'statement';
   const plan = [];
   const groups = [];
   const groupWordStarts = [];
@@ -263,7 +265,7 @@ function sentenceToAccentKana(tokens, options = {}) {
     }
     current.push(syllable.kana);
     currentWordStart.push(wordStart ? Boolean(wordStart[i]) : true);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial) });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType });
     groupStart = false;
   }
   if (current.length) {
@@ -768,9 +770,70 @@ function sustainFinalNeutral(query, plan, config = {}) {
 }
 //// /句末轻声取消对自身的弱化 ////
 
-//// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平时长、缩补拍、停顿前延长、句末轻声撑住、句末送气字落到短语首、二三声画调型 [@x380kkm 2026-06-15] ////
+//// 整句下倾:把全句有声拍的 pitch 按位置线性向下压一点,越往后压得越多,叠在四声之上 [@x380kkm 2026-06-16] ////
+// 普通话(及多数语言)一句话从头到尾基频整体缓慢走低,叫下倾(declination)。原中文路径没有这一项,整句听起来偏平、缺收束感。
+// 这里在画好四声之后,对扁平化的全句有声拍加一道线性下压:首拍不动,末拍压 drop,中间按位置比例插值。
+// drop 随句长增长但有上限(declMax),短句压得少、长句压到上限就不再加深,免得长句末尾被拖到过低。
+// 下倾与句调分工:下倾管整句的缓慢走低,句调(applySentenceIntonation)只管句末一小段的升或降,两者叠加。问句的句末上扬由句调负责抵消末段的下压。
+function applyDeclination(query, plan, config = {}) {
+  const declSlope = config.declSlope != null ? config.declSlope : 0.03;
+  const declMax = config.declMax != null ? config.declMax : 0.30;
+  const voiced = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      if (mora.pitch > 0) voiced.push(mora);
+    }
+  }
+  if (voiced.length < 2) return query;
+  const drop = Math.min(declMax, declSlope * (voiced.length - 1));
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  for (let i = 0; i < voiced.length; i += 1) {
+    const pos = i / (voiced.length - 1);
+    voiced[i].pitch = clamp(voiced[i].pitch - drop * pos);
+  }
+  return query;
+}
+//// /整句下倾 ////
+
+//// 按句类型铺句调:是非问句末区域上扬、陈述与特指问句末压低,只动整句最后一小段的 pitch、骑在四声之上 [@x380kkm 2026-06-16] ////
+// 语调只改整体音高(这里是句末尾段的 pitch 偏移),不重画四声曲线——四声目标已铺好,句调叠在上面。
+// 是非问:句末尾段(约 ynMoras 个有声拍)按位置幂次渐强抬高,越到末抬越多(全局抬升,非单点边界调)。
+// 陈述与特指问:句末最后一小段(约 fallMoras 个有声拍)再压低一档(final lowering),与疑问句末上扬成对比。感叹句暂不特殊处理。
+// 须在 drawToneContours 之后调用(它重排 mora);这里直接在扁平化的句末有声拍上加偏移,不依赖逐音节分组。
+function applySentenceIntonation(query, plan, config = {}) {
+  const ynRise = config.ynRise != null ? config.ynRise : 0.22;
+  const ynMoras = config.ynMoras != null ? config.ynMoras : 6;
+  const finalFall = config.finalFall != null ? config.finalFall : 0.07;
+  const fallMoras = config.fallMoras != null ? config.fallMoras : 2;
+  const type = (plan && plan.length) ? (plan[plan.length - 1].sentenceType || 'statement') : 'statement';
+  const voiced = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const mora of (phrase.moras || [])) {
+      if (mora.pitch > 0) voiced.push(mora);
+    }
+  }
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  if (type === 'ynQuestion') {
+    const start = Math.max(0, voiced.length - ynMoras);
+    const span = voiced.length - start;
+    for (let i = start; i < voiced.length; i += 1) {
+      const pos = span > 1 ? (i - start) / (span - 1) : 1;
+      voiced[i].pitch = clamp(voiced[i].pitch + ynRise * Math.pow(pos, 1.5));
+    }
+  } else if (type === 'statement' || type === 'whQuestion') {
+    const start = Math.max(0, voiced.length - fallMoras);
+    for (let i = start; i < voiced.length; i += 1) {
+      voiced[i].pitch = clamp(voiced[i].pitch - finalFall);
+    }
+  }
+  return query;
+}
+//// /按句类型铺句调 ////
+
+//// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平时长、缩补拍、停顿前延长、句末轻声撑住、句末送气字落到短语首、二三声画调型、整句下倾、按句类型铺句调 [@x380kkm 2026-06-15] ////
 // 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高,再合并组内短语收停顿,再拉平各音节时长匀节奏,再把单元音补拍压短,
-// 再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,最后给二声画升、三声画曲折(这步重排 mora,放最后)。
+// 再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,再给二声画升、三声画曲折(这步重排 mora)。
+// 最后两步只动 pitch、骑在已铺好的四声之上:先整句下倾让全句缓慢走低,再按句类型铺句调收住句末(是非问上扬、陈述与特指问压低)。
 // query 需已铺好 CHINESE_QUERY_DEFAULTS;config 透传给各步。音量回拉是合成后的 PCM 处理,不在这条流水线里。
 function applyChineseProsody(query, plan, config = {}) {
   applyMandarinTones(query, plan, config);
@@ -782,6 +845,8 @@ function applyChineseProsody(query, plan, config = {}) {
   sustainFinalNeutral(query, plan, config);
   splitFinalAspiratedStop(query, plan);
   drawToneContours(query, plan, config);
+  applyDeclination(query, plan, config);
+  applySentenceIntonation(query, plan, config);
   return query;
 }
 //// /把一份 audio_query 按中文韵律整形 ////
@@ -802,6 +867,8 @@ module.exports = {
   extendPrePausal,
   sustainFinalNeutral,
   drawToneContours,
+  applyDeclination,
+  applySentenceIntonation,
   applyChineseProsody,
   moraCount,
   CHINESE_QUERY_DEFAULTS,
