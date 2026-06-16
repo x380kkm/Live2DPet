@@ -5,7 +5,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { textToPinyinTokens, textToAccentKana, classifySentenceType } = require('../../src/domain/tts/chinese-text');
+const { textToPinyinTokens, textToAccentKana, classifySentenceType, predictProsodicBreaks } = require('../../src/domain/tts/chinese-text');
 
 //// 汉字转带声调拼音,轻声归 5 [@x380kkm 2026-06-15] ////
 test('textToPinyinTokens 基本转换与轻声', () => {
@@ -55,4 +55,33 @@ test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   assert.deepStrictEqual(plan.map((p) => p.tone), [2, 3]);
   // 显式关掉变调则保留原调
   assert.deepStrictEqual(textToAccentKana('你好', { sandhi: false }).plan.map((p) => p.tone), [3, 3]);
+});
+
+//// 韵律边界预测:标点定语调短语、顿号半停、后附虚词连读、按音节数软切韵律短语、领头虚词不切 [@x380kkm 2026-06-17] ////
+test('predictProsodicBreaks 确定性定边界', () => {
+  // 标点:句号定语调短语(全停),其前在长度内不另切。
+  const a = predictProsodicBreaks([{ word: '你好', sylls: 2 }, { word: '世界', sylls: 2 }, { punct: '。' }]);
+  assert.deepStrictEqual(a, ['none', 'none', 'IP'], '四音节一短语,句末全停');
+  // 顿号降为韵律短语半停,句号全停。
+  const b = predictProsodicBreaks([{ word: '苹果', sylls: 2 }, { punct: '、' }, { word: '香蕉', sylls: 2 }, { punct: '。' }]);
+  assert.strictEqual(b[1], 'PPh', '顿号半停');
+  assert.strictEqual(b[3], 'IP', '句号全停');
+  // 后附虚词「的」与单音节字连读进左侧韵律词,内部标 PW(不停)。
+  const c = predictProsodicBreaks([{ word: '我', sylls: 1 }, { word: '的', sylls: 1 }, { word: '书', sylls: 1 }]);
+  assert.deepStrictEqual(c, ['PW', 'PW', 'none'], '我的书连读成一个韵律词');
+  // 长块按累计音节数软切:五个双音节词切成 4-4-2 三段(两处韵律短语半停)。
+  const d = predictProsodicBreaks([
+    { word: '昨天', sylls: 2 }, { word: '晚上', sylls: 2 }, { word: '我们', sylls: 2 },
+    { word: '看见', sylls: 2 }, { word: '流星', sylls: 2 }, { punct: '。' },
+  ]);
+  assert.strictEqual(d[1], 'PPh', '晚上后半停(昨天晚上一段)');
+  assert.strictEqual(d[3], 'PPh', '看见后半停(我们看见一段)');
+  assert.strictEqual(d[5], 'IP', '句末全停');
+  // 领头虚词「把」前后不切:他把书放下整体不出现韵律短语停顿。
+  const e = predictProsodicBreaks([
+    { word: '他', sylls: 1 }, { word: '把', sylls: 1 }, { word: '书', sylls: 1 },
+    { word: '放下', sylls: 2 }, { punct: '。' },
+  ]);
+  assert.ok(!e.slice(0, 4).includes('PPh'), '领头虚词把前后不切韵律短语');
+  assert.strictEqual(e[4], 'IP', '句末全停');
 });

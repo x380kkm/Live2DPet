@@ -95,4 +95,74 @@ function textToAccentKana(text, options = {}) {
 }
 //// /把任意中文文本直接转成带重音片假名与声调计划 ////
 
-module.exports = { textToTokens, textToPinyinTokens, textToAccentKana, classifySentenceType };
+// 后附虚词(轻声助词、语气词):它们贴着前一个字念、其前不断,合进左侧韵律词。
+const PROSODY_ENCLITIC = new Set(['的', '地', '得', '了', '着', '过', '们', '吗', '呢', '吧', '啊', '呀', '嘛', '啦']);
+// 领头虚词(介词、连词):语义上领起后文,不在它前后单独制造停顿,把成组交给音节数与标点决定。
+const PROSODY_LEADING = new Set(['把', '被', '在', '向', '对', '从', '给', '跟', '和', '与', '及', '或', '而']);
+// 韵律短语目标音节数与上限:依据归档蓝图(Lai 2016 实测短语峰在 2 到 4、范围到 5;Hong 1999 两停顿间均约 3.6 音节)。
+const PPH_TARGET = 3; const PPH_SOFTMAX = 4; const PPH_HARDMAX = 5;
+// 韵律词最长音节数:标准音步两音节,右端允许扩到三(冯胜利右向音步)。单音节连读到此上限即另起,免得分词把整句切成单字时全黏成一个超长韵律词、按长度切短语失效。
+const PW_MAX = 3;
+
+//// 在一个语调短语块(标点之间的若干词)内,先并韵律词、再按累计音节数软切韵律短语,写回每个词后的边界层级 [@x380kkm 2026-06-17] ////
+function phraseProsodicBlock(positions, units, breaks) {
+  // 第二步:并韵律词。单音节词与后附虚词合进左侧;领头虚词自成一组、且其前后不切。多音节词起新组。
+  const groups = [];
+  const leadingBoundary = new Set(); // 不可升为韵律短语停顿的组边界(领头虚词两侧)
+  for (let k = 0; k < positions.length; k += 1) {
+    const u = units[positions[k]];
+    const isLeading = u.word && u.word.length === 1 && PROSODY_LEADING.has(u.word);
+    const isEnclitic = u.word && u.word.length === 1 && PROSODY_ENCLITIC.has(u.word);
+    const monosyllable = (u.sylls || 1) === 1;
+    // 后附虚词无条件并左;普通单音节只在左侧韵律词还没满(< PW_MAX)时并左,满了就另起,免得长串单字黏成一个超长词。
+    const last = groups[groups.length - 1];
+    const gluesLeft = groups.length > 0 && !isLeading && (isEnclitic || (monosyllable && last.sylls < PW_MAX));
+    if (gluesLeft) {
+      groups[groups.length - 1].positions.push(k);
+      groups[groups.length - 1].sylls += (u.sylls || 1);
+      breaks[positions[k - 1]] = 'PW'; // 与前一字连读,内部不停
+    } else {
+      groups.push({ positions: [k], sylls: u.sylls || 1 });
+    }
+    if (isLeading) { leadingBoundary.add(groups.length - 1); leadingBoundary.add(groups.length - 2); }
+  }
+  // 第三步:在韵律词序列上按累计音节数软切韵律短语。组内连读,组间到长度阈值处断。
+  let acc = 0;
+  for (let g = 0; g < groups.length; g += 1) {
+    acc += groups[g].sylls;
+    const last = g === groups.length - 1;
+    if (last) break; // 块末由标点(IP)收尾,不在此加韵律短语停顿
+    const nextSyl = groups[g + 1].sylls;
+    const shouldBreak = acc >= PPH_HARDMAX || (acc >= PPH_TARGET && acc + nextSyl > PPH_SOFTMAX);
+    const suppressed = leadingBoundary.has(g);
+    if (shouldBreak && !suppressed) {
+      const lastPosInGroup = groups[g].positions[groups[g].positions.length - 1];
+      breaks[positions[lastPosInGroup]] = 'PPh';
+      acc = 0;
+    }
+  }
+}
+//// /在一个语调短语块内并韵律词、软切韵律短语 ////
+
+//// 从词单元与标点确定性预测每个单元后的韵律边界层级(none/PW/PPh/IP),替掉大模型凭感觉插的 / 记号 [@x380kkm 2026-06-17] ////
+// units 是 { word, sylls } 词单元与 { punct } 标点单元的有序数组。三级:PW 韵律词内连读不停、PPh 韵律短语半停、IP 语调短语全停。
+// 算法:标点定 IP(顿号降为 PPh),把序列切成语调短语块;块内并韵律词、再按音节数软切 PPh。依据归档蓝图,经对抗式核验;参数为工程取值,需试听校准。
+function predictProsodicBreaks(units) {
+  const breaks = new Array(units.length).fill('none');
+  let block = [];
+  const flush = () => { if (block.length) phraseProsodicBlock(block, units, breaks); block = []; };
+  for (let i = 0; i < units.length; i += 1) {
+    const u = units[i];
+    if (u.punct != null) {
+      flush();
+      breaks[i] = u.punct === '、' ? 'PPh' : 'IP';
+    } else {
+      block.push(i);
+    }
+  }
+  flush();
+  return breaks;
+}
+//// /从词单元与标点确定性预测韵律边界层级 ////
+
+module.exports = { textToTokens, textToPinyinTokens, textToAccentKana, classifySentenceType, predictProsodicBreaks };
