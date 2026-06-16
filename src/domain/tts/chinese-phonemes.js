@@ -376,6 +376,12 @@ function applyMandarinTones(query, plan, config = {}) {
     t4Compress: config.t4Compress != null ? config.t4Compress : 0,
     neutralAfter: config.neutralAfter,
   };
+  // downstep:由低调(三声)触发的句内局部下压,opt-in,默认关(默认走 applyDeclination 的线性下倾)。
+  // 经核验的研究认定这才是普通话句内下行的主因:一个低调把其后的高调拍整体压低一档(首个高调拍压满 step、其后按 recovery 指数回升),
+  // 低调自身不被压、作为新的触发点,边界不清零。step 默认 0.144(约 2.5 个半音),recovery 默认 0.535(即 exp(-1/1.6))。
+  const downstep = config.downstep || null;
+  const dsStep = (downstep && downstep.step != null) ? downstep.step : 0.144;
+  const dsRecovery = (downstep && downstep.recovery != null) ? downstep.recovery : 0.535;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -388,6 +394,8 @@ function applyMandarinTones(query, plan, config = {}) {
   let index = 0;
   // 前一个字的(变调后)声调,供轻声按前字定高低;停顿组开头处重置不跨标点。
   let prevTone = null;
+  // downstep 寄存器(对数 Hz,≤0):每遇三声压满到 -dsStep,其后每个高调拍按 dsRecovery 回升,边界不重置。
+  let downReg = 0;
   for (let s = 0; s < plan.length; s += 1) {
     const syllable = plan[s];
     if (syllable.groupStart) {
@@ -408,10 +416,20 @@ function applyMandarinTones(query, plan, config = {}) {
     // 后邻声调供四声压低判定;句末/跨停顿组时无连读后邻,置 null。
     const nextTone = phraseFinal ? null : next.tone;
     const contour = mandarinTone(syllable.tone, group.length, base, phraseFinal, spread, riseScale, lowDepth, prevTone, nextTone, lift);
+    // downstep 偏移:三声把寄存器压满、自身不被压;非三声拍取当前寄存器值下移、再让寄存器向基线回升一档。
+    let dsOffset = 0;
+    if (downstep) {
+      if (syllable.tone === 3) {
+        downReg = -dsStep;
+      } else {
+        dsOffset = downReg;
+        downReg *= dsRecovery;
+      }
+    }
     for (let i = 0; i < group.length; i += 1) {
       if (group[i].pitch > 0 && contour[i] !== undefined) {
-        // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀。
-        const blended = group[i].pitch * (1 - toneStrength) + contour[i] * toneStrength;
+        // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀;downstep 偏移叠在声调目标上。
+        const blended = group[i].pitch * (1 - toneStrength) + (contour[i] + dsOffset) * toneStrength;
         group[i].pitch = Math.max(4.8, Math.min(6.6, blended));
       }
     }

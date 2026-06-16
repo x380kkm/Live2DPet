@@ -291,6 +291,26 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   assert.ok(dm[3].pitch < dm[2].pitch && dm[2].pitch < 5.5, '默认就加速降');
 });
 
+//// downstep:三声触发,其后高调拍被整体下压一档、首拍压最多、向基线指数回升,三声自身不压 [@x380kkm 2026-06-16] ////
+test('applyMandarinTones downstep 三声后高调被压', () => {
+  const mk = () => ({ accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.5, vowel_length: 0.1 },
+    { text: 'ア', pitch: 5.5, vowel_length: 0.1 },
+    { text: 'ア', pitch: 5.5, vowel_length: 0.1 },
+  ] }] });
+  const plan = [
+    { kana: 'ア', tone: 3, groupStart: true },
+    { kana: 'ア', tone: 1 },
+    { kana: 'ア', tone: 1 },
+  ];
+  const off = mk(); applyMandarinTones(off, plan);
+  const on = mk(); applyMandarinTones(on, plan, { downstep: {} });
+  const offM = off.accent_phrases[0].moras; const onM = on.accent_phrases[0].moras;
+  assert.ok(Math.abs(offM[0].pitch - onM[0].pitch) < 1e-9, '三声自身不被 downstep 压');
+  assert.ok(onM[1].pitch < offM[1].pitch, 'downstep 把三声后的一声压低');
+  assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
+});
+
 //// 整句下倾:首拍不动、末拍压最多、中间按位置线性插值,短句压得少 [@x380kkm 2026-06-16] ////
 test('applyDeclination 整句线性下压', () => {
   const fresh = (n) => ({ accent_phrases: [{ moras: Array.from({ length: n }, () => ({ text: 'ア', pitch: 5.5 })) }] });
