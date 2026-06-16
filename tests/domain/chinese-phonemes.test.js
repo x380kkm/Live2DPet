@@ -20,6 +20,7 @@ const {
   extendPrePausal,
   sustainFinalNeutral,
   tightenGlideMedial,
+  fitSyllableDuration,
   drawToneContours,
   applyDeclination,
   applySentenceIntonation,
@@ -296,6 +297,30 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   applySentenceIntonation(t2end, t2plan);
   const tm = t2end.accent_phrases[0].moras;
   assert.strictEqual(tm[3].pitch, 5.5, '末字是二声时不被句末压低');
+});
+
+//// 单字时长收进区间:超上限的字压短、低于下限的字抬长、区间内的不动 [@x380kkm 2026-06-16] ////
+test('fitSyllableDuration 夹进时长区间', () => {
+  // speedScale 1,三个一声字(轻位 ×1.05、重位 ×1.25 交替);辅音 0、元音直接是有效时长(秒)。
+  // 字一(轻 ×1.05)元音 0.6 → 有效 630ms 超上限;字二(重 ×1.25)元音 0.1 → 有效 125ms 低于下限;字三(轻 ×1.05)元音 0.3 → 有效 315ms 在区间内。
+  const q = { speedScale: 1, accent_phrases: [{ moras: [
+    { text: 'ア', vowel: 'a', vowel_length: 0.6 },
+    { text: 'イ', vowel: 'i', vowel_length: 0.1 },
+    { text: 'ウ', vowel: 'u', vowel_length: 0.3 },
+  ] }] };
+  const plan = [
+    { kana: 'ア', tone: 1, groupStart: true },
+    { kana: 'イ', tone: 1 },
+    { kana: 'ウ', tone: 1 },
+  ];
+  fitSyllableDuration(q, plan, { minDurMs: 240, maxDurMs: 390 });
+  const m = q.accent_phrases[0].moras;
+  // 字一压到上限 390:有效 = 元音 × 1.05 = 390ms → 元音 0.3714。
+  assert.ok(Math.abs(m[0].vowel_length * 1.05 * 1000 - 390) < 1, '超上限的字压到 390');
+  // 字二抬到下限 240:有效 = 元音 × 1.25 = 240ms → 元音 0.192。
+  assert.ok(Math.abs(m[1].vowel_length * 1.25 * 1000 - 240) < 1, '低于下限的字抬到 240');
+  // 字三在区间内不动。
+  assert.ok(Math.abs(m[2].vowel_length - 0.3) < 1e-9, '区间内的字不动');
 });
 
 //// 滑音介音压短:イエ 的介音 イ 压到四成、省下的并给韵腹 エ,总长不变;ユイ(ü)不动 [@x380kkm 2026-06-16] ////

@@ -781,6 +781,45 @@ function tightenGlideMedial(query, plan, config = {}) {
 }
 //// /把滑音字的介音那一拍压短 ////
 
+//// 把每个字的有效时长收进区间:超上限的压短元音、低于下限的抬长元音,区间内不动 [@x380kkm 2026-06-16] ////
+// 实测各字时长忽长忽短(烟 609 毫秒拖、张 220 毫秒赶),听着不匀。这里给单字有效时长设上下限,只夹出界的、不动均衡的。
+// 须在 drawToneContours 之前调用:那步把元音乘声调拉长系数(只乘元音、辅音不动),故有效时长=辅音+元音×系数;这里按同一套系数(读同一份 config.t1/t2/t3)反推,夹完再交给它画。
+// 系数:一声重位 lenStrong、轻位 lenWeak、二声 len、句末三声 lenFinal、句中三声 lenLow,与 drawToneContours 一致。speedScale 把 mora 时长整体压缩,故区间按它折算。
+function fitSyllableDuration(query, plan, config = {}) {
+  const minMs = config.minDurMs != null ? config.minDurMs : 240;
+  const maxMs = config.maxDurMs != null ? config.maxDurMs : 390;
+  const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05 }, config.t1 || {});
+  const t2 = Object.assign({ len: 1.2 }, config.t2 || {});
+  const t3 = Object.assign({ lenFinal: 2.2, lenLow: 1.5 }, config.t3 || {});
+  const speed = query.speedScale || 1;
+  const groups = groupMorasByPlan(query, plan);
+  let posInGroup = -1;
+  for (let si = 0; si < plan.length; si += 1) {
+    const group = groups[si] || [];
+    const tone = plan[si].tone;
+    const phraseFinal = (si === plan.length - 1) || (plan[si + 1] && plan[si + 1].groupStart);
+    posInGroup = plan[si].groupStart ? 0 : posInGroup + 1;
+    const strong = (posInGroup % 2) === 1;
+    let factor = 1;
+    if (tone === 1) factor = strong ? t1.lenStrong : t1.lenWeak;
+    else if (tone === 2) factor = t2.len;
+    else if (tone === 3 && phraseFinal) factor = t3.lenFinal;
+    else if (tone === 3) factor = t3.lenLow;
+    const cons = group.reduce((sum, m) => sum + (m.consonant_length || 0), 0);
+    const vow = group.reduce((sum, m) => sum + (m.vowel_length || 0), 0);
+    if (vow <= 0) continue;
+    const effMs = (cons + vow * factor) / speed * 1000;
+    const tgtMs = effMs > maxMs ? maxMs : (effMs < minMs ? minMs : 0);
+    if (!tgtMs) continue;
+    // 调元音让有效时长落到目标:cons + newVow×factor = tgtMs×speed,解出 newVow。
+    const newVow = Math.max(0.01, (tgtMs * speed / 1000 - cons) / factor);
+    const scale = newVow / vow;
+    for (const m of group) { if (m.vowel_length > 0) m.vowel_length *= scale; }
+  }
+  return query;
+}
+//// /把每个字的有效时长收进区间 ////
+
 //// 把单元音补拍那一拍按 factor 缩短:补拍是无声母、且元音与前一 mora 相同的那个 mora [@x380kkm 2026-06-15] ////
 // 单元音补拍补出的第二拍整拍太长,会拖慢整句、字间显空;这里只把那一拍压短,不动正常元音与复韵母。
 function shortenElongationPad(query, config = {}) {
@@ -916,6 +955,7 @@ function applyChineseProsody(query, plan, config = {}) {
   sustainFinalNeutral(query, plan, config);
   splitFinalAspiratedStop(query, plan);
   tightenGlideMedial(query, plan, config);
+  fitSyllableDuration(query, plan, config);
   drawToneContours(query, plan, config);
   // downstep 开时不叠线性下倾(避免重复计提);关时走线性下倾兜底。
   if (!useDownstep) applyDeclination(query, plan, config);
@@ -940,6 +980,7 @@ module.exports = {
   extendPrePausal,
   sustainFinalNeutral,
   tightenGlideMedial,
+  fitSyllableDuration,
   drawToneContours,
   applyDeclination,
   applySentenceIntonation,
