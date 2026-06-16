@@ -857,6 +857,7 @@ function applyDeclination(query, plan, config = {}) {
 // 陈述与特指问:句末最后一小段(约 fallMoras 个有声拍)再压低一档(final lowering),与疑问句末上扬成对比。感叹句暂不特殊处理。
 // 末段降幅由 fallExp 控制走向:0 是整段同压一档(平降);大于 0 时降幅随位置幂次加速,末字降最多(文献说陈述句最大降幅落在最后一个音节)。
 // 默认 fallExp 取 1.5 走加速降、末段取最后 3 个有声拍、末字压满 0.12,经主观试听确认比平降收得更利落。
+// 例外:句末是上升的二声时,末字本该往上扬,压低会把升调抹平(忙、来、谁念成平的);此时跳过末段压低,让二声的升保住。
 // 须在 drawToneContours 之后调用(它重排 mora);这里直接在扁平化的句末有声拍上加偏移,不依赖逐音节分组。
 function applySentenceIntonation(query, plan, config = {}) {
   const ynRise = config.ynRise != null ? config.ynRise : 0.22;
@@ -865,6 +866,9 @@ function applySentenceIntonation(query, plan, config = {}) {
   const fallMoras = config.fallMoras != null ? config.fallMoras : 3;
   const fallExp = config.fallExp != null ? config.fallExp : 1.5;
   const type = (plan && plan.length) ? (plan[plan.length - 1].sentenceType || 'statement') : 'statement';
+  // 末字(末个非轻声音节)的声调:二声是上升调,陈述句末压低对它要跳过,免得抹平升调。
+  let finalTone = null;
+  for (let i = plan.length - 1; i >= 0; i -= 1) { if (plan[i].tone !== 5) { finalTone = plan[i].tone; break; } }
   const voiced = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -879,7 +883,7 @@ function applySentenceIntonation(query, plan, config = {}) {
       const pos = span > 1 ? (i - start) / (span - 1) : 1;
       voiced[i].pitch = clamp(voiced[i].pitch + ynRise * Math.pow(pos, 1.5));
     }
-  } else if (type === 'statement' || type === 'whQuestion') {
+  } else if ((type === 'statement' || type === 'whQuestion') && finalTone !== 2) {
     const start = Math.max(0, voiced.length - fallMoras);
     const span = voiced.length - start;
     for (let i = start; i < voiced.length; i += 1) {

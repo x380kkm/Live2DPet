@@ -290,6 +290,12 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   const dm = def.accent_phrases[0].moras;
   assert.ok(Math.abs(dm[3].pitch - (5.5 - 0.12)) < 1e-9, '默认末字压满 0.12');
   assert.ok(dm[3].pitch < dm[2].pitch && dm[2].pitch < 5.5, '默认就加速降');
+  // 句末是上升的二声(忙、来):陈述句末压低跳过,末字不被压、保住升调。
+  const t2end = fresh();
+  const t2plan = [0, 1, 2, 3].map((i) => ({ kana: 'ア', sentenceType: 'statement', tone: i === 3 ? 2 : 1 }));
+  applySentenceIntonation(t2end, t2plan);
+  const tm = t2end.accent_phrases[0].moras;
+  assert.strictEqual(tm[3].pitch, 5.5, '末字是二声时不被句末压低');
 });
 
 //// 滑音介音压短:イエ 的介音 イ 压到四成、省下的并给韵腹 エ,总长不变;ユイ(ü)不动 [@x380kkm 2026-06-16] ////
