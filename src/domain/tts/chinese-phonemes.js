@@ -755,6 +755,31 @@ function groupMorasByPlan(query, plan) {
 }
 //// /按 plan 把 query 里的所有 mora 切回各音节 ////
 
+//// 把滑音字的介音那一拍压短,韵腹那一拍补回:介音是过渡性滑音、不该和韵腹等长,压短后两拍连成一个滑音而非两个分离元音 [@x380kkm 2026-06-16] ////
+// 零声母带介音的字(爷 イエ、烟 イエン、约 ユエ)介音 イ/ウ/ユ 写成整拍,与韵腹等长,听着是两个分离的元音、不连贯。
+// 这里把介音那拍的时长压到 glideMedialRatio(默认留四成),省下的并给韵腹,总长不变;实听比写成单拍小写假名(イェ)更像普通话——普通话 ye 是饱满双元音,单拍太短。
+// 只认「首拍是 イ/ウ/ユ、次拍是完整元音韵腹」的结构,排除 ユイ(那是 ü[y] 单韵腹的近似、不是介音加韵腹);ウォ/ウェ 这类小写假名本就单拍滑音、不在此列。
+// 二声、三声音节随后会被 drawToneContours 的 contourBeats 重切成等长多拍(介音自然落到约三分之一),故这步主要对一声、四声、轻声的滑音字生效;对二三声做了也不冲突(总长不变)。须在 drawToneContours 之前调用。
+function tightenGlideMedial(query, plan, config = {}) {
+  const ratio = config.glideMedialRatio != null ? config.glideMedialRatio : 0.4;
+  const VOWEL = new Set(['ア', 'イ', 'ウ', 'エ', 'オ']);
+  const MEDIAL_HEAD = new Set(['イ', 'ウ', 'ユ']);
+  for (const group of groupMorasByPlan(query, plan)) {
+    if (group.length < 2) continue;
+    const head = group[0].text || '';
+    const next = group[1].text || '';
+    if (!MEDIAL_HEAD.has(head) || !VOWEL.has(next)) continue;
+    if (head === 'ユ' && next === 'イ') continue; // ü=ユイ 是单韵腹,不压
+    const v = group[0].vowel_length || 0;
+    if (v <= 0) continue;
+    const cut = v * (1 - ratio);
+    group[0].vowel_length = v - cut;
+    if (group[1].vowel_length > 0) group[1].vowel_length += cut;
+  }
+  return query;
+}
+//// /把滑音字的介音那一拍压短 ////
+
 //// 把单元音补拍那一拍按 factor 缩短:补拍是无声母、且元音与前一 mora 相同的那个 mora [@x380kkm 2026-06-15] ////
 // 单元音补拍补出的第二拍整拍太长,会拖慢整句、字间显空;这里只把那一拍压短,不动正常元音与复韵母。
 function shortenElongationPad(query, config = {}) {
@@ -882,6 +907,7 @@ function applyChineseProsody(query, plan, config = {}) {
   extendPrePausal(query, plan, config);
   sustainFinalNeutral(query, plan, config);
   splitFinalAspiratedStop(query, plan);
+  tightenGlideMedial(query, plan, config);
   drawToneContours(query, plan, config);
   applyDeclination(query, plan, config);
   applySentenceIntonation(query, plan, config);
@@ -904,6 +930,7 @@ module.exports = {
   shortenElongationPad,
   extendPrePausal,
   sustainFinalNeutral,
+  tightenGlideMedial,
   drawToneContours,
   applyDeclination,
   applySentenceIntonation,

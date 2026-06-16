@@ -19,6 +19,7 @@ const {
   shortenElongationPad,
   extendPrePausal,
   sustainFinalNeutral,
+  tightenGlideMedial,
   drawToneContours,
   applyDeclination,
   applySentenceIntonation,
@@ -289,6 +290,28 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   const dm = def.accent_phrases[0].moras;
   assert.ok(Math.abs(dm[3].pitch - (5.5 - 0.12)) < 1e-9, '默认末字压满 0.12');
   assert.ok(dm[3].pitch < dm[2].pitch && dm[2].pitch < 5.5, '默认就加速降');
+});
+
+//// 滑音介音压短:イエ 的介音 イ 压到四成、省下的并给韵腹 エ,总长不变;ユイ(ü)不动 [@x380kkm 2026-06-16] ////
+test('tightenGlideMedial 介音压短、韵腹补回', () => {
+  // 爷 イエ:首拍 イ 是介音,次拍 エ 是韵腹,各 0.1。
+  const ye = { accent_phrases: [{ moras: [
+    { text: 'イ', vowel: 'i', vowel_length: 0.1 },
+    { text: 'エ', vowel: 'e', vowel_length: 0.1 },
+  ] }] };
+  tightenGlideMedial(ye, [{ kana: 'イエ' }], { glideMedialRatio: 0.4 });
+  const m = ye.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[0].vowel_length - 0.04) < 1e-9, '介音压到四成');
+  assert.ok(Math.abs(m[1].vowel_length - 0.16) < 1e-9, '省下的并给韵腹');
+  assert.ok(Math.abs((m[0].vowel_length + m[1].vowel_length) - 0.2) < 1e-9, '总长不变');
+  // ü=ユイ 是单韵腹近似,不是介音加韵腹,不压。
+  const yu = { accent_phrases: [{ moras: [
+    { text: 'ユ', vowel: 'u', vowel_length: 0.1 },
+    { text: 'イ', vowel: 'i', vowel_length: 0.1 },
+  ] }] };
+  tightenGlideMedial(yu, [{ kana: 'ユイ' }], {});
+  const ym = yu.accent_phrases[0].moras;
+  assert.ok(Math.abs(ym[0].vowel_length - 0.1) < 1e-9, 'ü 的 ユ 不压');
 });
 
 //// downstep:三声触发,其后高调拍被整体下压一档、首拍压最多、向基线指数回升,三声自身不压 [@x380kkm 2026-06-16] ////
