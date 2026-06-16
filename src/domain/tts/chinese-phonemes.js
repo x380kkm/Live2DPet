@@ -946,6 +946,39 @@ function applySentenceIntonation(query, plan, config = {}) {
 }
 //// /按句类型铺句调 ////
 
+//// 句首话题抬升与边界后顶线部分重置:句首与每个停顿后的短语开头把音高抬一点、随后指数回落,叠在四声之上 [@x380kkm 2026-06-17] ////
+// 普通话整句下行是多机制叠加的副产品:downstep(已做)把句内逐级压低,而每到停顿处说话人会把顶线抬回来一点(部分重置),句首/话题处抬得更多。
+// 缺这一步时,长句经 downstep 一路压到底、过停顿也不回抬,听着越说越闷。这里按短语开头加一个随拍指数衰减的正偏移:句首最大、全停后次之、半停后最小。
+// 在合成出的 accent_phrases 上做(每个 phrase 是一个连读组,其 pause_mora 长度区分全停 fullPause 与半停 minorPause);叠在画好的四声之上,clamp 不越界。须在 drawToneContours 之后调用。
+function applyBaselineContour(query, config = {}) {
+  const topicBoost = config.topicBoost != null ? config.topicBoost : 0.05; // 句首抬升(对数 Hz,约 0.9 个半音)
+  const ipReset = config.ipReset != null ? config.ipReset : 0.18;          // 全停后顶线重置(约 3 个半音)
+  const pphReset = config.pphReset != null ? config.pphReset : 0.08;       // 半停后顶线重置(约 1.4 个半音)
+  const tau = config.resetTau != null ? config.resetTau : 2;               // 衰减时间常数(以有声拍计)
+  const fullThresh = config.fullPauseThresh != null ? config.fullPauseThresh : 0.07; // 区分全停与半停的停顿时长门槛
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  const phrases = query.accent_phrases || [];
+  let prevPause = undefined; // undefined 表示句首(无前驱短语)
+  for (let pi = 0; pi < phrases.length; pi += 1) {
+    const voiced = (phrases[pi].moras || []).filter((m) => m.pitch > 0);
+    let boost = 0;
+    if (prevPause === undefined) boost = topicBoost;       // 句首
+    else if (prevPause === null) boost = 0;                // 与前一短语无停顿衔接,不重置
+    else boost = prevPause >= fullThresh ? ipReset : pphReset;
+    if (boost > 0) {
+      for (let k = 0; k < voiced.length; k += 1) {
+        const add = boost * Math.exp(-k / tau);
+        if (add < 0.005) break;
+        voiced[k].pitch = clamp(voiced[k].pitch + add);
+      }
+    }
+    const pm = phrases[pi].pause_mora;
+    prevPause = (pm && pm.vowel_length != null) ? pm.vowel_length : null;
+  }
+  return query;
+}
+//// /句首话题抬升与边界后顶线部分重置 ////
+
 //// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平时长、缩补拍、停顿前延长、句末轻声撑住、句末送气字落到短语首、二三声画调型、整句下倾、按句类型铺句调 [@x380kkm 2026-06-15] ////
 // 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高(默认带 downstep:三声把其后高调压一级再回升),再合并组内短语收停顿,
 // 再拉平各音节时长匀节奏,再把单元音补拍压短,再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,
@@ -968,6 +1001,7 @@ function applyChineseProsody(query, plan, config = {}) {
   drawToneContours(query, plan, config);
   // downstep 开时不叠线性下倾(避免重复计提);关时走线性下倾兜底。
   if (!useDownstep) applyDeclination(query, plan, config);
+  applyBaselineContour(query, config);
   applySentenceIntonation(query, plan, config);
   return query;
 }
@@ -992,6 +1026,7 @@ module.exports = {
   fitSyllableDuration,
   drawToneContours,
   applyDeclination,
+  applyBaselineContour,
   applySentenceIntonation,
   applyChineseProsody,
   moraCount,

@@ -23,6 +23,7 @@ const {
   fitSyllableDuration,
   drawToneContours,
   applyDeclination,
+  applyBaselineContour,
   applySentenceIntonation,
   chineseVoicePitch,
   chineseVoiceSpeed
@@ -344,6 +345,30 @@ test('tightenGlideMedial 介音压短、韵腹补回', () => {
   tightenGlideMedial(yu, [{ kana: 'ユイ' }], {});
   const ym = yu.accent_phrases[0].moras;
   assert.ok(Math.abs(ym[0].vowel_length - 0.1) < 1e-9, 'ü 的 ユ 不压');
+});
+
+//// 句首抬升与边界后顶线重置:句首与停顿后短语开头抬高、随拍指数回落,全停比半停抬得多 [@x380kkm 2026-06-17] ////
+test('applyBaselineContour 句首抬升与边界重置', () => {
+  const mk = () => ({ accent_phrases: [
+    { moras: [{ text: 'ア', pitch: 5.5 }, { text: 'イ', pitch: 5.5 }], pause_mora: { vowel_length: 0.10 } },
+    { moras: [{ text: 'ウ', pitch: 5.5 }, { text: 'エ', pitch: 5.5 }], pause_mora: null },
+  ] });
+  const q = mk();
+  applyBaselineContour(q, { topicBoost: 0.05, ipReset: 0.18, resetTau: 2 });
+  const p0 = q.accent_phrases[0].moras; const p1 = q.accent_phrases[1].moras;
+  // 句首首拍抬 topicBoost、次拍按 exp(-1/2) 回落但仍高于原值。
+  assert.ok(Math.abs(p0[0].pitch - (5.5 + 0.05)) < 1e-9, '句首首拍抬 topicBoost');
+  assert.ok(p0[1].pitch > 5.5 && p0[1].pitch < p0[0].pitch, '句首次拍回落但仍偏高');
+  // 全停(0.10≥门槛)后短语首拍抬 ipReset,比句首抬得多。
+  assert.ok(Math.abs(p1[0].pitch - (5.5 + 0.18)) < 1e-9, '全停后首拍抬 ipReset');
+  assert.ok(p1[0].pitch > p0[0].pitch, '全停重置比句首抬升大');
+  // 半停只抬 pphReset,小于全停。
+  const q2 = { accent_phrases: [
+    { moras: [{ text: 'ア', pitch: 5.5 }], pause_mora: { vowel_length: 0.03 } },
+    { moras: [{ text: 'ウ', pitch: 5.5 }], pause_mora: null },
+  ] };
+  applyBaselineContour(q2, { ipReset: 0.18, pphReset: 0.08 });
+  assert.ok(Math.abs(q2.accent_phrases[1].moras[0].pitch - (5.5 + 0.08)) < 1e-9, '半停后首拍抬 pphReset');
 });
 
 //// downstep:三声触发,其后高调拍被整体下压一档、首拍压最多、向基线指数回升,三声自身不压 [@x380kkm 2026-06-16] ////
