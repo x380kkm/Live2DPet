@@ -802,7 +802,8 @@ function tightenGlideMedial(query, plan, config = {}) {
 // 须在 drawToneContours 之前调用:那步把元音乘声调拉长系数(只乘元音、辅音不动),故有效时长=辅音+元音×系数;这里按同一套系数(读同一份 config.t1/t2/t3)反推,夹完再交给它画。
 // 系数:一声重位 lenStrong、轻位 lenWeak、二声 len、句末三声 lenFinal、句中三声 lenLow,与 drawToneContours 一致。speedScale 把 mora 时长整体压缩,故区间按它折算。
 function fitSyllableDuration(query, plan, config = {}) {
-  const minMs = config.minDurMs != null ? config.minDurMs : 180;
+  // 下限 240:实听 180 太短、字会粘连(你吃饭了吗 听成 你知道吗),撑回 240。
+  const minMs = config.minDurMs != null ? config.minDurMs : 240;
   const maxMs = config.maxDurMs != null ? config.maxDurMs : 390;
   const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05 }, config.t1 || {});
   const t2 = Object.assign({ len: 1.2 }, config.t2 || {});
