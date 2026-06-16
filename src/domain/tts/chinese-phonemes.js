@@ -380,7 +380,8 @@ function applyMandarinTones(query, plan, config = {}) {
   // 经核验的研究认定这才是普通话句内下行的主因:一个低调把其后的高调拍整体压低一档(首个高调拍压满 step、其后按 recovery 指数回升),
   // 低调自身不被压、作为新的触发点,边界不清零。step 默认 0.144(约 2.5 个半音),recovery 默认 0.535(即 exp(-1/1.6))。
   const downstep = config.downstep || null;
-  const dsStep = (downstep && downstep.step != null) ? downstep.step : 0.144;
+  // step 默认 0.24(约 4 个半音):经主观试听确认这一加大档比 0.144 更听得出三声后高调被压一级再回升。
+  const dsStep = (downstep && downstep.step != null) ? downstep.step : 0.24;
   const dsRecovery = (downstep && downstep.recovery != null) ? downstep.recovery : 0.535;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
@@ -898,12 +899,15 @@ function applySentenceIntonation(query, plan, config = {}) {
 //// /按句类型铺句调 ////
 
 //// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平时长、缩补拍、停顿前延长、句末轻声撑住、句末送气字落到短语首、二三声画调型、整句下倾、按句类型铺句调 [@x380kkm 2026-06-15] ////
-// 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高,再合并组内短语收停顿,再拉平各音节时长匀节奏,再把单元音补拍压短,
-// 再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,再给二声画升、三声画曲折(这步重排 mora)。
-// 最后两步只动 pitch、骑在已铺好的四声之上:先整句下倾让全句缓慢走低,再按句类型铺句调收住句末(是非问上扬、陈述与特指问压低)。
+// 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高(默认带 downstep:三声把其后高调压一级再回升),再合并组内短语收停顿,
+// 再拉平各音节时长匀节奏,再把单元音补拍压短,再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,
+// 再压短滑音介音,再给二声画升、三声画曲折(这步重排 mora),最后按句类型铺句调收住句末(是非问上扬、陈述与特指问压低)。
+// 句内下行用 downstep(默认开),它替代整句线性下倾——两者一起会重复压、压过头;显式传 config.downstep 为 null 可关 downstep、回退线性下倾。
 // query 需已铺好 CHINESE_QUERY_DEFAULTS;config 透传给各步。音量回拉是合成后的 PCM 处理,不在这条流水线里。
 function applyChineseProsody(query, plan, config = {}) {
-  applyMandarinTones(query, plan, config);
+  const useDownstep = config.downstep !== null && config.downstep !== false;
+  const toneConfig = useDownstep ? { ...config, downstep: config.downstep || {} } : { ...config, downstep: undefined };
+  applyMandarinTones(query, plan, toneConfig);
   shapeChineseRhythm(query, config);
   sizePhrasePauses(query, plan, config);
   normalizeSyllableDurations(query, plan, config);
@@ -913,7 +917,8 @@ function applyChineseProsody(query, plan, config = {}) {
   splitFinalAspiratedStop(query, plan);
   tightenGlideMedial(query, plan, config);
   drawToneContours(query, plan, config);
-  applyDeclination(query, plan, config);
+  // downstep 开时不叠线性下倾(避免重复计提);关时走线性下倾兜底。
+  if (!useDownstep) applyDeclination(query, plan, config);
   applySentenceIntonation(query, plan, config);
   return query;
 }
