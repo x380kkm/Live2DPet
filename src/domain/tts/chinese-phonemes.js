@@ -305,7 +305,9 @@ function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1, riseSca
   const RISE = MID + riseScale * (HI - MID);
   // 轻声的高低随前一个字的调尾定(标准五度:前一声→2、前二声→3、前三声→4 高、前四声→1 低):
   // 反直觉的是前三声时轻声读高(你的、好的的「的」),不补这条「的」会被压低听不清。无前字信息时落中低位。
-  const NEUTRAL_AFTER = { 1: base - 0.15 * spread, 2: base - 0.05 * spread, 3: base + 0.20 * spread, 4: base - 0.36 * spread };
+  // 系数(乘 spread,相对基准的偏移)可经 lift.neutralAfter 覆盖,供 A/B 试听与用户配置;默认是按五度听感约定的表。
+  const naCoef = lift.neutralAfter || { 1: -0.15, 2: -0.05, 3: 0.20, 4: -0.36 };
+  const NEUTRAL_AFTER = { 1: base + naCoef[1] * spread, 2: base + naCoef[2] * spread, 3: base + naCoef[3] * spread, 4: base + naCoef[4] * spread };
   const NEUTRAL = (prevTone != null && NEUTRAL_AFTER[prevTone] != null) ? NEUTRAL_AFTER[prevTone] : base - 0.20 * spread;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   const out = [];
@@ -362,6 +364,7 @@ function applyMandarinTones(query, plan, config = {}) {
     t2LiftPeak: config.t2LiftPeak != null ? config.t2LiftPeak : 0,
     t4DropStart: config.t4DropStart != null ? config.t4DropStart : 0.14,
     t4Compress: config.t4Compress != null ? config.t4Compress : 0,
+    neutralAfter: config.neutralAfter,
   };
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
