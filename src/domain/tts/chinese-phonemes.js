@@ -946,16 +946,22 @@ function applySentenceIntonation(query, plan, config = {}) {
       groups[i].push(mora);
     }
   }
+  const followRaise = config.ynParticleFollow != null ? config.ynParticleFollow : 0.05;
   // 对一句的句末区域铺句调:是非问按位置幂次渐强上扬;陈述与特指问加速压低,但末字是上升二声时跳过、保住升调。
   const applyRegion = (vm, type, finalTone) => {
     if (!vm.length) return;
     if (type === 'ynQuestion') {
-      const start = Math.max(0, vm.length - ynMoras);
-      const span = vm.length - start;
-      for (let i = start; i < vm.length; i += 1) {
-        const pos = span > 1 ? (i - start) / (span - 1) : 1;
+      // 句末若是轻声语气词(吗/呢/吧,tone 5),上扬峰落在它前面的末实词上;语气词本应高平,只轻微跟随、不被强行抬到峰顶(否则吗听着怪)。
+      let peakEnd = vm.length - 1;
+      while (peakEnd > 0 && vm[peakEnd].syl != null && plan[vm[peakEnd].syl] && plan[vm[peakEnd].syl].tone === 5) peakEnd -= 1;
+      const start = Math.max(0, peakEnd + 1 - ynMoras);
+      const span = peakEnd - start;
+      for (let i = start; i <= peakEnd; i += 1) {
+        const pos = span > 0 ? (i - start) / span : 1;
         vm[i].pitch = clamp(vm[i].pitch + ynRise * Math.pow(pos, 1.5));
       }
+      // 末尾轻声语气词只轻微跟随上扬,保住其高平、不上冲。
+      for (let i = peakEnd + 1; i < vm.length; i += 1) vm[i].pitch = clamp(vm[i].pitch + followRaise);
     } else if ((type === 'statement' || type === 'whQuestion') && finalTone !== 2) {
       const start = Math.max(0, vm.length - fallMoras);
       const span = vm.length - start;

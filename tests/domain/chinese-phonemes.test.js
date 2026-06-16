@@ -384,6 +384,26 @@ test('applyFocus 焦点调域扩张与焦点后压缩', () => {
   assert.strictEqual(q3.accent_phrases[0].moras[0].pitch, 6.0, '无焦点不动');
 });
 
+//// 是非问句末轻声语气词(吗)不被抬到峰顶:上扬峰落在前一末实词,语气词只轻微跟随 [@x380kkm 2026-06-17] ////
+test('applySentenceIntonation 句末语气词轻跟随', () => {
+  // 四音节:前三实词(一声)+ 末轻声语气词「吗」(tone 5);mora.syl 标音节。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.5, syl: 0 }, { text: 'イ', pitch: 5.5, syl: 1 },
+    { text: 'ウ', pitch: 5.5, syl: 2 }, { text: 'マ', pitch: 5.5, syl: 3 },
+  ] }] };
+  const plan = [
+    { kana: 'ア', tone: 1, sentenceType: 'ynQuestion' }, { kana: 'イ', tone: 1, sentenceType: 'ynQuestion' },
+    { kana: 'ウ', tone: 1, sentenceType: 'ynQuestion' }, { kana: 'マ', tone: 5, sentenceType: 'ynQuestion', sentenceEnd: true },
+  ];
+  applySentenceIntonation(q, plan, { ynRise: 0.22, ynParticleFollow: 0.05 });
+  const m = q.accent_phrases[0].moras;
+  // 峰落在末实词(syl 2),高于语气词「吗」(syl 3)。
+  assert.ok(m[2].pitch > m[3].pitch, '上扬峰在末实词,不在语气词');
+  assert.ok(m[2].pitch > m[1].pitch, '末实词是峰');
+  // 语气词只轻微跟随 +0.05,不被抬到峰。
+  assert.ok(Math.abs(m[3].pitch - (5.5 + 0.05)) < 1e-9, '语气词轻微跟随');
+});
+
 //// 句首抬升与边界后顶线重置:句首与停顿后短语开头抬高、随拍指数回落,全停比半停抬得多 [@x380kkm 2026-06-17] ////
 test('applyBaselineContour 句首抬升与边界重置', () => {
   const mk = () => ({ accent_phrases: [
