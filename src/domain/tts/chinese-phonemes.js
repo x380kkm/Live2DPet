@@ -436,6 +436,8 @@ function applyMandarinTones(query, plan, config = {}) {
       }
     }
     for (let i = 0; i < group.length; i += 1) {
+      // 给每个 mora 打上所属音节下标:画调型会重排、复制 mora,标签随之带过去,供焦点这步在重排后仍按音节定位。
+      group[i].syl = s;
       if (group[i].pitch > 0 && contour[i] !== undefined) {
         // 与引擎自然音高混合:四声做出来,但保留自然的平滑过渡,不那么突兀;downstep 偏移叠在声调目标上。
         const blended = group[i].pitch * (1 - toneStrength) + (contour[i] + dsOffset) * toneStrength;
@@ -946,6 +948,42 @@ function applySentenceIntonation(query, plan, config = {}) {
 }
 //// /按句类型铺句调 ////
 
+//// 焦点(句重音):焦点词调域扩张、焦点后压缩下移、焦点前不变,叠在已画的四声之上 [@x380kkm 2026-06-17] ////
+// 普通话用焦点标记信息重点:焦点词调域扩张(高调更高、低调更低,故 T3 受焦是更低而非更高)、焦点后整段调域压窄且下移(post-focus compression)、焦点前几乎不变。
+// 焦点音节由 plan[s].focus 标(上游标重点词时置真);无标记则中性焦点、此步不动。按 mora.syl 标签(applyMandarinTones 打、画调型后仍在)定位音节区位。
+// 调域扩张/压缩都是相对全句基准 base 缩放偏离量:on 把 (pitch-base) 乘 onScale(高调离 base 更远、低调更低);post 下移 base 再乘 postScale 收窄;须在 drawToneContours 之后调用。
+function applyFocus(query, plan, config = {}) {
+  const onScale = config.focusOnScale != null ? config.focusOnScale : 1.4;
+  const postScale = config.focusPostScale != null ? config.focusPostScale : 0.7;
+  const postDrop = config.focusPostDrop != null ? config.focusPostDrop : 0.12;
+  let focusStart = -1; let focusEnd = -1;
+  for (let s = 0; s < plan.length; s += 1) {
+    if (plan[s] && plan[s].focus) { if (focusStart < 0) focusStart = s; focusEnd = s; }
+  }
+  if (focusStart < 0) return query; // 无焦点标记,中性焦点不动
+  // 焦点后压缩到下一个全停(语调短语边界)为止,跨不过标点。
+  let postEnd = plan.length - 1;
+  for (let s = focusEnd + 1; s < plan.length; s += 1) {
+    if (plan[s - 1] && plan[s - 1].breakAfter === 'full') { postEnd = s - 1; break; }
+  }
+  const moras = [];
+  for (const phrase of (query.accent_phrases || [])) for (const m of (phrase.moras || [])) if (m.pitch > 0) moras.push(m);
+  if (!moras.length) return query;
+  const base = moras.reduce((sum, m) => sum + m.pitch, 0) / moras.length;
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  for (const m of moras) {
+    const s = m.syl;
+    if (s == null) continue;
+    if (s >= focusStart && s <= focusEnd) {
+      m.pitch = clamp(base + (m.pitch - base) * onScale);
+    } else if (s > focusEnd && s <= postEnd) {
+      m.pitch = clamp((base - postDrop) + (m.pitch - base) * postScale);
+    }
+  }
+  return query;
+}
+//// /焦点(句重音) ////
+
 //// 句首话题抬升与边界后顶线部分重置:句首与每个停顿后的短语开头把音高抬一点、随后指数回落,叠在四声之上 [@x380kkm 2026-06-17] ////
 // 普通话整句下行是多机制叠加的副产品:downstep(已做)把句内逐级压低,而每到停顿处说话人会把顶线抬回来一点(部分重置),句首/话题处抬得更多。
 // 缺这一步时,长句经 downstep 一路压到底、过停顿也不回抬,听着越说越闷。这里按短语开头加一个随拍指数衰减的正偏移:句首最大、全停后次之、半停后最小。
@@ -1002,6 +1040,7 @@ function applyChineseProsody(query, plan, config = {}) {
   // downstep 开时不叠线性下倾(避免重复计提);关时走线性下倾兜底。
   if (!useDownstep) applyDeclination(query, plan, config);
   applyBaselineContour(query, config);
+  applyFocus(query, plan, config);
   applySentenceIntonation(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
@@ -1034,6 +1073,7 @@ module.exports = {
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
+  applyFocus,
   applySentenceIntonation,
   applyChineseProsody,
   moraCount,

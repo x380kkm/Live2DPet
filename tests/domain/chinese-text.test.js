@@ -57,6 +57,18 @@ test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   assert.deepStrictEqual(textToAccentKana('你好', { sandhi: false }).plan.map((p) => p.tone), [3, 3]);
 });
 
+//// 焦点标记:文本里 *词* 标的焦点词在计划对应音节上标 focus,星号不进发音 [@x380kkm 2026-06-17] ////
+test('textToAccentKana 焦点标记', () => {
+  // 「我要*这个*」:这个是焦点,对应第 2、3 个音节(下标 2、3)。
+  const { plan } = textToAccentKana('我要*这个*');
+  assert.strictEqual(plan.length, 4, '四个音节,星号不计入');
+  assert.ok(!plan[0].focus && !plan[1].focus, '焦点前不标');
+  assert.ok(plan[2].focus && plan[3].focus, '焦点词两个音节都标 focus');
+  // 无标记则都不标。
+  const { plan: p2 } = textToAccentKana('我要这个');
+  assert.ok(p2.every((p) => !p.focus), '无星号则无焦点');
+});
+
 //// 韵律边界预测:标点定语调短语、顿号半停、后附虚词连读、按音节数软切韵律短语、领头虚词不切 [@x380kkm 2026-06-17] ////
 test('predictProsodicBreaks 确定性定边界', () => {
   // 标点:句号定语调短语(全停),其前在长度内不另切。

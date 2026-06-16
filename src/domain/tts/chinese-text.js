@@ -99,17 +99,37 @@ function autoMarkPhrasing(text) {
 }
 //// /用 jieba 分词与确定性韵律分句自动插「/」 ////
 
+// 焦点(句重音)标记:文本里用 *词* 包住重点词(上游生成台词时可像标情绪一样标出),返回去掉星号的干净文本与焦点词的汉字起始下标、汉字长度。
+// 计划里每个音节恰对应一个汉字、按序排列(标点与 `/` 不计入音节),故焦点的汉字下标即计划音节下标。
+function extractFocus(text) {
+  const s = String(text || '');
+  const m = s.match(/\*([^*]+)\*/);
+  const han = (str) => (String(str).match(/[一-鿿]/g) || []).length;
+  if (!m) return { clean: s, focusStart: -1, focusLen: 0 };
+  const clean = s.slice(0, m.index) + m[1] + s.slice(m.index + m[0].length);
+  return { clean, focusStart: han(s.slice(0, m.index)), focusLen: han(m[1]) };
+}
+
 //// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@x380kkm 2026-06-15] ////
 // 默认开三声连读变调:两个三声相连,前一个变二声(你好念 ní hǎo)。pinyin-pro 已处理一、不的变调,这里只补三声。
 // 句内停顿默认走确定性韵律分句(autoMarkPhrasing 自动插 `/`);文本已带 `/`(上游覆盖)则尊重原标记、不再自动插;显式传 options.autoPhrasing 为 false 也跳过。
-// 句类型默认按文本自动判,显式传 options.sentenceType 可覆盖(供试听对比不同句调)。
+// 句类型默认按文本自动判,显式传 options.sentenceType 可覆盖。文本里 *词* 标的焦点词在计划上标 focus,供凑音素层做焦点调域扩张与焦点后压缩。
 function textToAccentKana(text, options = {}) {
-  const auto = options.autoPhrasing !== false && !String(text || '').includes('/');
-  const phrased = auto ? autoMarkPhrasing(text) : text;
+  const { clean, focusStart, focusLen } = extractFocus(text);
+  const auto = options.autoPhrasing !== false && !clean.includes('/');
+  const phrased = auto ? autoMarkPhrasing(clean) : clean;
   const { tokens, wordStart } = textToTokens(phrased);
   const sandhi = options.sandhi != null ? options.sandhi : true;
-  const sentenceType = options.sentenceType || classifySentenceType(text);
-  return sentenceToAccentKana(tokens, { ...options, wordStart, sandhi, sentenceType });
+  const sentenceType = options.sentenceType || classifySentenceType(clean);
+  const result = sentenceToAccentKana(tokens, { ...options, wordStart, sandhi, sentenceType });
+  // 焦点词的汉字下标即计划音节下标,逐个标 focus。
+  if (focusStart >= 0) {
+    for (let k = 0; k < focusLen; k += 1) {
+      const p = result.plan[focusStart + k];
+      if (p) p.focus = true;
+    }
+  }
+  return result;
 }
 //// /把任意中文文本直接转成带重音片假名与声调计划 ////
 

@@ -24,6 +24,7 @@ const {
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
+  applyFocus,
   applySentenceIntonation,
   chineseVoicePitch,
   chineseVoiceSpeed
@@ -345,6 +346,42 @@ test('tightenGlideMedial 介音压短、韵腹补回', () => {
   tightenGlideMedial(yu, [{ kana: 'ユイ' }], {});
   const ym = yu.accent_phrases[0].moras;
   assert.ok(Math.abs(ym[0].vowel_length - 0.1) < 1e-9, 'ü 的 ユ 不压');
+});
+
+//// 焦点:焦点词调域扩张(高调更高、低调更低)、焦点后压缩下移、焦点前不变 [@x380kkm 2026-06-17] ////
+test('applyFocus 焦点调域扩张与焦点后压缩', () => {
+  // 三个音节:0 焦点前、1 焦点、2 焦点后;mora.syl 标音节,pitch 高于/低于基准用来看扩张方向。
+  const base = 5.5;
+  const mk = () => ({ accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.9, syl: 0 }, // 焦点前高调
+    { text: 'イ', pitch: 5.9, syl: 1 }, // 焦点高调
+    { text: 'ウ', pitch: 5.9, syl: 2 }, // 焦点后高调
+  ] }] });
+  const plan = [{ kana: 'ア', tone: 1 }, { kana: 'イ', tone: 1, focus: true }, { kana: 'ウ', tone: 1 }];
+  const q = mk();
+  applyFocus(q, plan, { focusOnScale: 1.4, focusPostScale: 0.7, focusPostDrop: 0.12 });
+  const m = q.accent_phrases[0].moras;
+  // base = 三个 5.9 的均值 = 5.9。偏离量为 0,故纯高平测不出扩张;改用偏离基准的值另测。
+  // 焦点前不变。
+  assert.strictEqual(m[0].pitch, 5.9, '焦点前不变');
+  // 用一个偏离 base 的场景验证扩张与压缩方向。
+  const q2 = { accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.5, syl: 0 }, { text: 'イ', pitch: 6.0, syl: 1 }, { text: 'ウ', pitch: 6.0, syl: 2 },
+  ] }] };
+  // base = (5.5+6.0+6.0)/3 = 5.8333。
+  applyFocus(q2, plan, { focusOnScale: 1.4, focusPostScale: 0.7, focusPostDrop: 0.12 });
+  const m2 = q2.accent_phrases[0].moras;
+  const b2 = (5.5 + 6.0 + 6.0) / 3;
+  // 焦点音节高于 base,扩张后应更高。
+  assert.ok(m2[1].pitch > 6.0, '焦点高调扩张后更高');
+  assert.ok(Math.abs(m2[1].pitch - (b2 + (6.0 - b2) * 1.4)) < 1e-9, '焦点按 onScale 扩张');
+  // 焦点后下移并压窄:基准降 postDrop、偏离量乘 postScale。
+  assert.ok(Math.abs(m2[2].pitch - ((b2 - 0.12) + (6.0 - b2) * 0.7)) < 1e-9, '焦点后压缩下移');
+  assert.ok(m2[2].pitch < 6.0, '焦点后比原值低');
+  // 无焦点标记则不动。
+  const q3 = { accent_phrases: [{ moras: [{ text: 'ア', pitch: 6.0, syl: 0 }] }] };
+  applyFocus(q3, [{ kana: 'ア', tone: 1 }], {});
+  assert.strictEqual(q3.accent_phrases[0].moras[0].pitch, 6.0, '无焦点不动');
 });
 
 //// 句首抬升与边界后顶线重置:句首与停顿后短语开头抬高、随拍指数回落,全停比半停抬得多 [@x380kkm 2026-06-17] ////
