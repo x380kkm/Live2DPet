@@ -65,6 +65,9 @@ const ELONGATE_FINALS = new Set(['a', 'o', 'ê', 'i', 'u']);
 const ELONGATE_VOWEL = { a: 'ア', o: 'オ', ê: 'エ', i: 'イ', u: 'ウ' };
 // 带 u 介音的韵母(花、欢、火、会):声母 h 在这些韵母上单独走 フ 行融合拼法,见 syllableToKana。
 const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
+// 零声母 y 后补 i 介音还原的韵母:ya→ia、ye→ie、yao→iao、you→iou、yan→ian、yang→iang、yong→iong。
+// yu 系列另走 ü;yi/yin/ying 本就 i 起头,去 y 即可,不在此列。
+const Y_MEDIAL = new Set(['a', 'e', 'ao', 'ou', 'an', 'ang', 'ong']);
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 // 普通话送气声母:这些字的塞音/塞擦音要送气([pʰ tʰ kʰ tɕʰ tsʰ tʂʰ]),日语只在短语首才给清塞音送气,见 splitFinalAspiratedStop。
@@ -110,8 +113,16 @@ function parsePinyin(raw) {
     }
   }
   let final = body.slice(initial.length);
-  if (['j', 'q', 'x', 'y'].includes(initial) && final.startsWith('u')) {
+  // j/q/x 后的 u 实为 ü(去 qü、需 xü、句 jü)。
+  if (['j', 'q', 'x'].includes(initial) && final.startsWith('u')) {
     final = 'ü' + final.slice(1);
+  }
+  // y 是零声母拼写,不是真声母:还原回带 i 介音的韵母(爷 ye→ie、烟 yan→ian),声母清空(介音已编码进韵母片假名)。
+  // yu 系列还原成 ü(鱼 yu→ü、约 yue→üe);yi/yin/ying 本就 i 起头,清掉声母即可。w 行靠 INITIAL_CV 的 w 列拼介音(我 ウォ、为 ウェ),拼得更准,不在此还原。
+  if (initial === 'y') {
+    initial = '';
+    if (final.startsWith('u')) final = 'ü' + final.slice(1);
+    else if (Y_MEDIAL.has(final)) final = 'i' + final;
   }
   return { initial, final, tone, body };
 }
@@ -303,10 +314,9 @@ function mandarinTone(tone, moras, base, phraseFinal = true, spread = 1, riseSca
   // 上扬封顶:二声的升、三声的回升只升到 MID 与 HI 之间的 RISE(riseScale<1 即不完全的回升)。
   // 连读里二声升到顶、三声回升不及就接下个字,听着诡异;升一个不完全的量更自然。riseScale=1 即升满到 HI。
   const RISE = MID + riseScale * (HI - MID);
-  // 轻声的高低随前一个字的调尾定(标准五度:前一声→2、前二声→3、前三声→4 高、前四声→1 低):
-  // 反直觉的是前三声时轻声读高(你的、好的的「的」),不补这条「的」会被压低听不清。无前字信息时落中低位。
-  // 系数(乘 spread,相对基准的偏移)可经 lift.neutralAfter 覆盖,供 A/B 试听与用户配置;默认是按五度听感约定的表。
-  const naCoef = lift.neutralAfter || { 1: -0.15, 2: -0.05, 3: 0.20, 4: -0.36 };
+  // 轻声的高低随前一个字的调尾定。默认表按声学实测排序:前二声后略高、前一声与前三声居中、前四声最低。
+  // 经 A/B 试听确认这版比旧的五度听感约定表(前三声后读高)更自然。系数乘 spread、相对基准偏移,可经 lift.neutralAfter 覆盖供配置。无前字信息时落中低位。
+  const naCoef = lift.neutralAfter || { 1: -0.10, 2: 0.08, 3: 0.00, 4: -0.30 };
   const NEUTRAL_AFTER = { 1: base + naCoef[1] * spread, 2: base + naCoef[2] * spread, 3: base + naCoef[3] * spread, 4: base + naCoef[4] * spread };
   const NEUTRAL = (prevTone != null && NEUTRAL_AFTER[prevTone] != null) ? NEUTRAL_AFTER[prevTone] : base - 0.20 * spread;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));

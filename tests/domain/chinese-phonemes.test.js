@@ -307,15 +307,15 @@ test('applyDeclination 整句线性下压', () => {
   assert.strictEqual(one.accent_phrases[0].moras[0].pitch, 5.5, '单拍不下倾');
 });
 
-//// 轻声音高表可经 lift.neutralAfter 覆盖:前三声轻声从默认读高改到落基准 [@x380kkm 2026-06-16] ////
-test('mandarinTone 轻声表可覆盖', () => {
+//// 轻声音高表默认走实测表(前三声后落基准),可经 lift.neutralAfter 覆盖回旧表 [@x380kkm 2026-06-16] ////
+test('mandarinTone 轻声表默认与覆盖', () => {
   const base = 5.5;
-  // 默认前三声轻声系数 +0.20,读高。
+  // 默认新表:前三声后的轻声落基准。
   const def = mandarinTone(5, 1, base, false, 1, 1, 0.36, 3, null, {});
-  assert.ok(Math.abs(def[0] - (base + 0.20)) < 1e-9, '默认前三声轻声读高');
-  // 覆盖成 0:前三声轻声落到基准。
-  const ov = mandarinTone(5, 1, base, false, 1, 1, 0.36, 3, null, { neutralAfter: { 1: -0.10, 2: 0.08, 3: 0.00, 4: -0.30 } });
-  assert.ok(Math.abs(ov[0] - base) < 1e-9, '覆盖后前三声轻声落到基准');
+  assert.ok(Math.abs(def[0] - base) < 1e-9, '默认前三声轻声落基准');
+  // 覆盖回旧表:前三声后的轻声读高 +0.20。
+  const ov = mandarinTone(5, 1, base, false, 1, 1, 0.36, 3, null, { neutralAfter: { 1: -0.15, 2: -0.05, 3: 0.20, 4: -0.36 } });
+  assert.ok(Math.abs(ov[0] - (base + 0.20)) < 1e-9, '覆盖回旧表则前三声轻声读高');
 });
 
 //// 三声变调按词边界:双音节词+单音节词读 2-2-3,单音节词+双音节词读 3-2-3 [@x380kkm 2026-06-16] ////
