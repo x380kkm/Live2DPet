@@ -57,6 +57,20 @@ test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   assert.deepStrictEqual(textToAccentKana('你好', { sandhi: false }).plan.map((p) => p.tone), [3, 3]);
 });
 
+//// 多句逐段标句类型:按句末终止标点切句,每句的音节标各自的句类型,句末音节标 sentenceEnd [@x380kkm 2026-06-17] ////
+test('textToAccentKana 多句逐段标句类型', () => {
+  // 「你好吗？我很好。」:前三音节(你好吗)是是非问,后三(我很好)是陈述。
+  const { plan } = textToAccentKana('你好吗？我很好。');
+  assert.strictEqual(plan.length, 6, '六个音节,标点不计');
+  assert.strictEqual(plan[0].sentenceType, 'ynQuestion', '第一句是非问');
+  assert.strictEqual(plan[2].sentenceType, 'ynQuestion', '吗 属第一句');
+  assert.ok(plan[2].sentenceEnd, '第一句末音节标 sentenceEnd');
+  assert.strictEqual(plan[3].sentenceType, 'statement', '第二句陈述');
+  assert.strictEqual(plan[5].sentenceType, 'statement', '好 属第二句');
+  assert.ok(plan[5].sentenceEnd, '第二句末音节标 sentenceEnd');
+  assert.ok(!plan[0].sentenceEnd && !plan[3].sentenceEnd, '非句末不标 sentenceEnd');
+});
+
 //// 焦点标记:文本里 *词* 标的焦点词在计划对应音节上标 focus,星号不进发音 [@x380kkm 2026-06-17] ////
 test('textToAccentKana 焦点标记', () => {
   // 「我要*这个*」:这个是焦点,对应第 2、3 个音节(下标 2、3)。

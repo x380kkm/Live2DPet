@@ -129,9 +129,28 @@ function textToAccentKana(text, options = {}) {
       if (p) p.focus = true;
     }
   }
+  // 未显式指定句类型时,按句末终止标点逐句标类型与句末,供多句逐段铺句调(真的吗?太好了!各按自己的类型收尾)。
+  if (!options.sentenceType) tagSentenceTypes(result.plan, clean);
   return result;
 }
 //// /把任意中文文本直接转成带重音片假名与声调计划 ////
+
+//// 按句末终止标点(。!?)切句,给每句对应的计划音节标句类型,并把每句最后一个音节标 sentenceEnd [@x380kkm 2026-06-17] ////
+// 计划音节按汉字顺序排列(标点与 `/` 不计入),逗号、顿号不终止句子;故按 。!? 切句、数汉字即可把每句对齐到计划音节区间。
+function tagSentenceTypes(plan, text) {
+  const han = (s) => (String(s).match(/[一-鿿]/g) || []).length;
+  const sentences = String(text || '').match(/[^。！？!?]+[。！？!?]*/g) || [];
+  let hi = 0;
+  for (const sent of sentences) {
+    const n = han(sent);
+    if (n === 0) continue;
+    const type = classifySentenceType(sent);
+    for (let k = 0; k < n; k += 1) { if (plan[hi + k]) plan[hi + k].sentenceType = type; }
+    if (plan[hi + n - 1]) plan[hi + n - 1].sentenceEnd = true;
+    hi += n;
+  }
+}
+//// /按句末终止标点切句标句类型与句末 ////
 
 // 后附虚词(轻声助词、语气词):它们贴着前一个字念、其前不断,合进左侧韵律词。
 const PROSODY_ENCLITIC = new Set(['的', '地', '得', '了', '着', '过', '们', '吗', '呢', '吧', '啊', '呀', '嘛', '啦']);

@@ -914,41 +914,58 @@ function applyDeclination(query, plan, config = {}) {
 // 末段降幅由 fallExp 控制走向:0 是整段同压一档(平降);大于 0 时降幅随位置幂次加速,末字降最多(文献说陈述句最大降幅落在最后一个音节)。
 // 默认 fallExp 取 1.5 走加速降、末段取最后 3 个有声拍、末字压满 0.12,经主观试听确认比平降收得更利落。
 // 例外:句末是上升的二声时,末字本该往上扬,压低会把升调抹平(忙、来、谁念成平的);此时跳过末段压低,让二声的升保住。
-// 须在 drawToneContours 之后调用(它重排 mora);这里直接在扁平化的句末有声拍上加偏移,不依赖逐音节分组。
+// 多句:一次合成里有多句(真的吗?太好了!)时,按 plan[s].sentenceEnd 切句,每句各按自己的类型与末声调收尾,而不是整段只按最后一句。
+// 须在 drawToneContours 之后调用(它重排 mora);用 mora.syl 标签把有声拍按句分组,故不依赖 mora 与音节一一对应。
 function applySentenceIntonation(query, plan, config = {}) {
   const ynRise = config.ynRise != null ? config.ynRise : 0.22;
   const ynMoras = config.ynMoras != null ? config.ynMoras : 6;
   const finalFall = config.finalFall != null ? config.finalFall : 0.12;
   const fallMoras = config.fallMoras != null ? config.fallMoras : 3;
   const fallExp = config.fallExp != null ? config.fallExp : 1.5;
-  const type = (plan && plan.length) ? (plan[plan.length - 1].sentenceType || 'statement') : 'statement';
-  // 末字(末个非轻声音节)的声调:二声是上升调,陈述句末压低对它要跳过,免得抹平升调。
-  let finalTone = null;
-  for (let i = plan.length - 1; i >= 0; i -= 1) { if (plan[i].tone !== 5) { finalTone = plan[i].tone; break; } }
-  const voiced = [];
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  if (!plan || !plan.length) return query;
+  // 逐音节算句序号(遇 sentenceEnd 后递增),并记每句的类型与末个非轻声声调。无 sentenceEnd 标记时整段为一句,行为同旧。
+  const sentIdx = new Array(plan.length).fill(0);
+  let cur = 0;
+  for (let s = 0; s < plan.length; s += 1) { sentIdx[s] = cur; if (plan[s] && plan[s].sentenceEnd) cur += 1; }
+  const sentCount = cur + 1;
+  const sentType = new Array(sentCount).fill('statement');
+  const sentFinalTone = new Array(sentCount).fill(null);
+  for (let s = 0; s < plan.length; s += 1) {
+    const i = sentIdx[s];
+    if (plan[s].sentenceType) sentType[i] = plan[s].sentenceType;
+    if (plan[s].tone !== 5) sentFinalTone[i] = plan[s].tone; // 升序覆盖,留该句最后一个非轻声声调
+  }
+  // 按句把有声拍分组(用 mora.syl 标签查句序号;无标签的归末句)。
+  const groups = Array.from({ length: sentCount }, () => []);
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
-      if (mora.pitch > 0) voiced.push(mora);
+      if (mora.pitch <= 0) continue;
+      const i = (mora.syl != null && sentIdx[mora.syl] != null) ? sentIdx[mora.syl] : sentCount - 1;
+      groups[i].push(mora);
     }
   }
-  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
-  if (type === 'ynQuestion') {
-    const start = Math.max(0, voiced.length - ynMoras);
-    const span = voiced.length - start;
-    for (let i = start; i < voiced.length; i += 1) {
-      const pos = span > 1 ? (i - start) / (span - 1) : 1;
-      voiced[i].pitch = clamp(voiced[i].pitch + ynRise * Math.pow(pos, 1.5));
+  // 对一句的句末区域铺句调:是非问按位置幂次渐强上扬;陈述与特指问加速压低,但末字是上升二声时跳过、保住升调。
+  const applyRegion = (vm, type, finalTone) => {
+    if (!vm.length) return;
+    if (type === 'ynQuestion') {
+      const start = Math.max(0, vm.length - ynMoras);
+      const span = vm.length - start;
+      for (let i = start; i < vm.length; i += 1) {
+        const pos = span > 1 ? (i - start) / (span - 1) : 1;
+        vm[i].pitch = clamp(vm[i].pitch + ynRise * Math.pow(pos, 1.5));
+      }
+    } else if ((type === 'statement' || type === 'whQuestion') && finalTone !== 2) {
+      const start = Math.max(0, vm.length - fallMoras);
+      const span = vm.length - start;
+      for (let i = start; i < vm.length; i += 1) {
+        const pos = span > 1 ? (i - start) / (span - 1) : 1;
+        const drop = fallExp > 0 ? finalFall * Math.pow(pos, fallExp) : finalFall;
+        vm[i].pitch = clamp(vm[i].pitch - drop);
+      }
     }
-  } else if ((type === 'statement' || type === 'whQuestion') && finalTone !== 2) {
-    const start = Math.max(0, voiced.length - fallMoras);
-    const span = voiced.length - start;
-    for (let i = start; i < voiced.length; i += 1) {
-      // fallExp 为 0 时整段同压 finalFall;大于 0 时按位置幂次加速,末字(pos=1)压满 finalFall、之前的压得少。
-      const pos = span > 1 ? (i - start) / (span - 1) : 1;
-      const drop = fallExp > 0 ? finalFall * Math.pow(pos, fallExp) : finalFall;
-      voiced[i].pitch = clamp(voiced[i].pitch - drop);
-    }
-  }
+  };
+  for (let i = 0; i < sentCount; i += 1) applyRegion(groups[i], sentType[i], sentFinalTone[i]);
   return query;
 }
 //// /按句类型铺句调 ////
