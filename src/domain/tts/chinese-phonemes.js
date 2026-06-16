@@ -1003,6 +1003,13 @@ function applyChineseProsody(query, plan, config = {}) {
   if (!useDownstep) applyDeclination(query, plan, config);
   applyBaselineContour(query, config);
   applySentenceIntonation(query, plan, config);
+  // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
+  // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
+  for (const phrase of (query.accent_phrases || [])) {
+    const moraN = (phrase.moras || []).length;
+    if (phrase.accent > moraN) phrase.accent = moraN;
+    if (phrase.accent < 0) phrase.accent = 0;
+  }
   return query;
 }
 //// /把一份 audio_query 按中文韵律整形 ////
