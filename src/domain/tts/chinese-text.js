@@ -1,13 +1,14 @@
 // audience: internal
 // # chinese-text
 // 把任意中文文本转成带声调拼音 token 序列(并标出词边界),交 chinese-phonemes 的 sentenceToAccentKana 拼日文音素合成。
-// 汉字转拼音用 pinyin-pro,自带按词消歧的多音字处理(银行 hang、行走 xing、重要 zhong、重复 chong);
-// 分词也用 pinyin-pro,给出词边界,让凑音素层按词切子短语、不从词中间断开(银行、图书馆不被拆)。
-// 标点保留(在凑音素层驱动停顿),拉丁字母、数字等不发音的字符跳过。
-// 不变量:第三方 pinyin-pro 只在本文件出现;轻声记声调 5;纯函数无副作用。
+// 汉字转拼音用 pinyin-pro,自带按词消歧的多音字处理(银行 hang、行走 xing、重要 zhong、重复 chong);它的逐字符分词给词边界,供凑音素层按词切子短语、不从词中间断开。
+// 句内停顿默认走确定性韵律分句:autoMarkPhrasing 用 word-segmenter(jieba 词典分词,专名成语整体保留)加 predictProsodicBreaks 自动插「/」半停,替掉大模型凭感觉标的记号;文本已带「/」则尊重原标记。
+// 标点保留(在凑音素层驱动全停),拉丁字母、数字等不发音的字符跳过。
+// 不变量:第三方 pinyin-pro 只在本文件出现、jieba 只在 word-segmenter 出现;轻声记声调 5;除 autoMarkPhrasing 经 jieba 单例外纯函数无副作用。
 
 const { pinyin, segment } = require('pinyin-pro');
 const { isPunctuation, sentenceToAccentKana } = require('./chinese-phonemes');
+const { segmentWords } = require('./word-segmenter');
 
 // 一个 token 是不是汉字转出的带声调拼音:字母串后必带一位声调数字(0 到 5),据此与残留的拉丁字母、符号区分。
 const TONED_PINYIN = /^([a-zü]+)([0-5])$/i;
@@ -84,11 +85,28 @@ function classifySentenceType(text) {
 }
 //// /据疑问词与句末标点判句类型 ////
 
+//// 用 jieba 分词与确定性韵律分句,在韵律短语边界自动插「/」,替掉大模型凭感觉标的记号 [@x380kkm 2026-06-17] ////
+// jieba 词典分词把专名成语整体保留(罗生门、触目惊心),predictProsodicBreaks 据真词边界与音节数定韵律短语停顿;标点的全停由标点本身驱动,故只补 `/` 半停。
+function autoMarkPhrasing(text) {
+  const units = segmentWords(text);
+  const breaks = predictProsodicBreaks(units);
+  let out = '';
+  for (let i = 0; i < units.length; i += 1) {
+    out += units[i].punct != null ? units[i].punct : units[i].word;
+    if (breaks[i] === 'PPh') out += '/';
+  }
+  return out;
+}
+//// /用 jieba 分词与确定性韵律分句自动插「/」 ////
+
 //// 把任意中文文本直接转成带重音片假名与声调计划,按词边界切子短语,供后端取 audio_query 合成 [@x380kkm 2026-06-15] ////
 // 默认开三声连读变调:两个三声相连,前一个变二声(你好念 ní hǎo)。pinyin-pro 已处理一、不的变调,这里只补三声。
+// 句内停顿默认走确定性韵律分句(autoMarkPhrasing 自动插 `/`);文本已带 `/`(上游覆盖)则尊重原标记、不再自动插;显式传 options.autoPhrasing 为 false 也跳过。
 // 句类型默认按文本自动判,显式传 options.sentenceType 可覆盖(供试听对比不同句调)。
 function textToAccentKana(text, options = {}) {
-  const { tokens, wordStart } = textToTokens(text);
+  const auto = options.autoPhrasing !== false && !String(text || '').includes('/');
+  const phrased = auto ? autoMarkPhrasing(text) : text;
+  const { tokens, wordStart } = textToTokens(phrased);
   const sandhi = options.sandhi != null ? options.sandhi : true;
   const sentenceType = options.sentenceType || classifySentenceType(text);
   return sentenceToAccentKana(tokens, { ...options, wordStart, sandhi, sentenceType });
@@ -165,4 +183,4 @@ function predictProsodicBreaks(units) {
 }
 //// /从词单元与标点确定性预测韵律边界层级 ////
 
-module.exports = { textToTokens, textToPinyinTokens, textToAccentKana, classifySentenceType, predictProsodicBreaks };
+module.exports = { textToTokens, textToPinyinTokens, textToAccentKana, classifySentenceType, predictProsodicBreaks, autoMarkPhrasing };
