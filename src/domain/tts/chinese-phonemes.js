@@ -799,12 +799,14 @@ function applyDeclination(query, plan, config = {}) {
 // 语调只改整体音高(这里是句末尾段的 pitch 偏移),不重画四声曲线——四声目标已铺好,句调叠在上面。
 // 是非问:句末尾段(约 ynMoras 个有声拍)按位置幂次渐强抬高,越到末抬越多(全局抬升,非单点边界调)。
 // 陈述与特指问:句末最后一小段(约 fallMoras 个有声拍)再压低一档(final lowering),与疑问句末上扬成对比。感叹句暂不特殊处理。
+// 末段降幅由 fallExp 控制走向:0 是整段同压一档(平降);大于 0 时降幅随位置幂次加速,末字降最多(文献说陈述句最大降幅落在最后一个音节)。
 // 须在 drawToneContours 之后调用(它重排 mora);这里直接在扁平化的句末有声拍上加偏移,不依赖逐音节分组。
 function applySentenceIntonation(query, plan, config = {}) {
   const ynRise = config.ynRise != null ? config.ynRise : 0.22;
   const ynMoras = config.ynMoras != null ? config.ynMoras : 6;
   const finalFall = config.finalFall != null ? config.finalFall : 0.07;
   const fallMoras = config.fallMoras != null ? config.fallMoras : 2;
+  const fallExp = config.fallExp != null ? config.fallExp : 0;
   const type = (plan && plan.length) ? (plan[plan.length - 1].sentenceType || 'statement') : 'statement';
   const voiced = [];
   for (const phrase of (query.accent_phrases || [])) {
@@ -822,8 +824,12 @@ function applySentenceIntonation(query, plan, config = {}) {
     }
   } else if (type === 'statement' || type === 'whQuestion') {
     const start = Math.max(0, voiced.length - fallMoras);
+    const span = voiced.length - start;
     for (let i = start; i < voiced.length; i += 1) {
-      voiced[i].pitch = clamp(voiced[i].pitch - finalFall);
+      // fallExp 为 0 时整段同压 finalFall;大于 0 时按位置幂次加速,末字(pos=1)压满 finalFall、之前的压得少。
+      const pos = span > 1 ? (i - start) / (span - 1) : 1;
+      const drop = fallExp > 0 ? finalFall * Math.pow(pos, fallExp) : finalFall;
+      voiced[i].pitch = clamp(voiced[i].pitch - drop);
     }
   }
   return query;

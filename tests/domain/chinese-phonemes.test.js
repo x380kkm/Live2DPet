@@ -276,6 +276,13 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   const sm = st.accent_phrases[0].moras;
   assert.ok(Math.abs(sm[3].pitch - 5.43) < 1e-9, '陈述末拍压低一档');
   assert.strictEqual(sm[2].pitch, 5.5, '陈述非末拍不动');
+  // fallExp 大于 0:末段加速降,末字压满 finalFall、其前压得少、末段首拍不降。
+  const accel = fresh();
+  applySentenceIntonation(accel, planOf('statement'), { fallMoras: 3, finalFall: 0.12, fallExp: 1.5 });
+  const am = accel.accent_phrases[0].moras;
+  assert.ok(Math.abs(am[1].pitch - 5.5) < 1e-9, '加速降:末段首拍不降');
+  assert.ok(am[3].pitch < am[2].pitch && am[2].pitch < 5.5, '加速降:越到末降得越多');
+  assert.ok(Math.abs(am[3].pitch - (5.5 - 0.12)) < 1e-9, '加速降:末字压满 finalFall');
 });
 
 //// 整句下倾:首拍不动、末拍压最多、中间按位置线性插值,短句压得少 [@x380kkm 2026-06-16] ////
