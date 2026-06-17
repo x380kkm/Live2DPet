@@ -47,6 +47,8 @@ const FINAL_KANA = {
   // -an 用 アエン:a 在 -n 前本是前移的 [a̟](偏「爱/欸」),加 エ 前滑尾让「安」更清。-ang 用 アオン:a 在 -ng 前是后移的 [ɑ],加 オ 后滑尾把后元音做出来,与 -an 前后对称。
   // 两者的滑尾(エ/オ)都由 adjustNasalCoda 压短、给主元音 a,保持平滑不分裂;-eng 用 オン 与 -en 的 エン 区分。
   an: 'アエン', en: 'エン', ang: 'アオン', eng: 'オン', ong: 'オン',
+  // 纯鼻音叹词(嗯/呣):成音节鼻音,用 ウン 给一个有声的鼻音 hum(单 ン 太轻),由 parsePinyin 把 ng/n/m 都归到这里。
+  ng: 'ウン',
   er: 'アル',
   i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イウ', iou: 'イウ',
   ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
@@ -123,6 +125,10 @@ function parsePinyin(raw) {
   const toneMatch = text.match(/([1-5])$/);
   const tone = toneMatch ? parseInt(toneMatch[1], 10) : 5;
   const body = text.replace(/[1-5]$/, '');
+  // 纯鼻音叹词(嗯 ng、n;呣 m):整体是成音节鼻音,须在按声母前缀匹配之前拦下,否则 ng 被当成声母 n + 韵母 g、g 不是合法韵母而拼空、整字没声。统一记 final 为 ng(由 FINAL_KANA 拼成 ウン)。
+  if (/^(ng|n|m)$/.test(body)) {
+    return { initial: '', final: 'ng', tone, body };
+  }
   let initial = '';
   for (const candidate of INITIALS) {
     if (body.startsWith(candidate)) {
