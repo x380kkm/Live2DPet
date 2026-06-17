@@ -23,6 +23,7 @@ const {
   fitSyllableDuration,
   adjustNasalCoda,
   apicalizeEmptyRhyme,
+  tightenErhuaTail,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -501,6 +502,27 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(Math.abs(offM[0].pitch - onM[0].pitch) < 1e-9, '三声自身不被 downstep 压');
   assert.ok(onM[1].pitch < offM[1].pitch, 'downstep 把三声后的一声压低');
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
+});
+
+//// er 韵收尾:er 字(アル)的 ル 那一拍压短成卷舌尾;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
+test('tightenErhuaTail 压短 er 字的 ル 尾', () => {
+  // 二(er):ア + ル,ル 压短。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'ア', vowel_length: 0.1, syl: 0 },
+    { text: 'ル', vowel_length: 0.1, syl: 0 },
+  ] }] };
+  tightenErhuaTail(q, [{ erFinal: true }], { erTailShorten: 0.3 });
+  const m = q.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[1].vowel_length - 0.03) < 1e-9, 'er 的 ル 压到 ×0.3');
+  assert.strictEqual(m[0].vowel_length, 0.1, '元音 ア 不动');
+  // 非 er 的 ル(如 ru、鲁 lu 的那一拍)不压。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
+  tightenErhuaTail(q2, [{ erFinal: false }]);
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.1, '非 er 的 ル 不动');
+  // config.erhua 为 false 关闭。
+  const q3 = { accent_phrases: [{ moras: [{ text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
+  tightenErhuaTail(q3, [{ erFinal: true }], { erhua: false });
+  assert.strictEqual(q3.accent_phrases[0].moras[0].vowel_length, 0.1, '关闭时不动');
 });
 
 //// 句末高调缓解 downstep:三声后紧跟的句末一声(远方的方)只承受部分 downstep,免得叠句末下降塌底 [@x380kkm 2026-06-17] ////

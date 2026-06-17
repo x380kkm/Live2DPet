@@ -303,7 +303,9 @@ function sentenceToAccentKana(tokens, options = {}) {
       ? (DENTAL_EMPTY_RHYME.has(item.parsed.initial) ? 'dental'
         : (RETROFLEX_EMPTY_RHYME.has(item.parsed.initial) ? 'retroflex' : null))
       : null;
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme });
+    // er 韵标记:儿/二/而 的韵母是 er(片假名 アル),供 tightenErhuaTail 压短 ル 尾、不让它成独立的「鲁」音节;同时收好儿化。
+    const erFinal = fin === 'er';
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal });
     groupStart = false;
   }
   if (current.length) {
@@ -950,6 +952,25 @@ function apicalizeEmptyRhyme(query, plan, config = {}) {
 }
 //// /空韵(舌尖元音)近似 ////
 
+//// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
+// er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
+// 这里只把 er 字的 ル 那一拍 vowel_length 压短(默认 ×0.3),成贴在 ア 上的卷舌尾音;元音 ア 不动。同时收好儿化(花儿、玩儿)。
+// 按 mora.syl 标签只压 plan[s].erFinal 为真的字的 ル,绝不碰 如/鲁/路(也是 ル、但非 er)的那一拍。须在画调型之后调用(标签仍在)。config.erhua 为 false 可关闭。
+function tightenErhuaTail(query, plan, config = {}) {
+  if (config.erhua === false) return query;
+  const ruScale = config.erTailShorten != null ? config.erTailShorten : 0.3;
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.text !== 'ル') continue;
+      const s = m.syl;
+      if (s == null || !(plan[s] && plan[s].erFinal)) continue;
+      if (m.vowel_length > 0) m.vowel_length *= ruScale;
+    }
+  }
+  return query;
+}
+//// /er 韵收尾 ////
+
 //// 把单元音补拍那一拍按 factor 缩短:补拍是无声母、且元音与前一 mora 相同的那个 mora [@x380kkm 2026-06-15] ////
 // 单元音补拍补出的第二拍整拍太长,会拖慢整句、字间显空;这里只把那一拍压短,不动正常元音与复韵母。
 function shortenElongationPad(query, config = {}) {
@@ -1186,6 +1207,7 @@ function applyChineseProsody(query, plan, config = {}) {
   applyFocus(query, plan, config);
   applySentenceIntonation(query, plan, config);
   apicalizeEmptyRhyme(query, plan, config);
+  tightenErhuaTail(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1216,6 +1238,7 @@ module.exports = {
   fitSyllableDuration,
   adjustNasalCoda,
   apicalizeEmptyRhyme,
+  tightenErhuaTail,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,

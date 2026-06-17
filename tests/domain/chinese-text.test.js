@@ -83,6 +83,16 @@ test('textToAccentKana 标空韵', () => {
   assert.ok(!textToAccentKana('日').plan[0].emptyRhyme, '日是 ri 卷舌空韵、已放弃、不标');
 });
 
+//// er 韵标记:儿/二/而(韵母 er)标 erFinal,供压短 ル 尾;非 er(如/鲁)不标 [@x380kkm 2026-06-17] ////
+test('textToAccentKana 标 er 韵', () => {
+  assert.strictEqual(textToAccentKana('二').plan[0].erFinal, true, '二是 er 韵');
+  assert.strictEqual(textToAccentKana('而').plan[0].erFinal, true, '而是 er 韵');
+  assert.strictEqual(textToAccentKana('儿').plan[0].erFinal, true, '儿是 er 韵');
+  // 如(ru)、鲁(lu)的片假名也含 ル,但韵母不是 er,不标。
+  assert.ok(!textToAccentKana('如').plan[0].erFinal, '如不是 er 韵');
+  assert.ok(!textToAccentKana('鲁').plan[0].erFinal, '鲁不是 er 韵');
+});
+
 //// 多句逐段标句类型:按句末终止标点切句,每句的音节标各自的句类型,句末音节标 sentenceEnd [@x380kkm 2026-06-17] ////
 test('textToAccentKana 多句逐段标句类型', () => {
   // 「你好吗？我很好。」:前三音节(你好吗)是是非问,后三(我很好)是陈述。
