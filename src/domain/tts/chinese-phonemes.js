@@ -85,10 +85,10 @@ const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
 const DENTAL_EMPTY_RHYME = new Set(['z', 'c', 's']);
 const RETROFLEX_EMPTY_RHYME = new Set(['zh', 'ch', 'sh']);
 
-// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.3 抵消单元音补拍带来的整体变长,音节与停顿一起压紧、不拖不留长间隔;
+// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.5——单字独立片假名块加单元音补拍本就一顿一顿,提速把音节与停顿一起压紧、连读更流畅(实听确认 1.5 比 1.3 连贯、又不糊);
 // 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
 // 调用方取 query 后铺上这组值,再调 applyChineseProsody 整条韵律流水线。
-const CHINESE_QUERY_DEFAULTS = { speedScale: 1.3, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
+const CHINESE_QUERY_DEFAULTS = { speedScale: 1.5, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
 
 // 个别声线偏高,按 styleId 单独压低全局音高(pitchScale);只列需要调的,其余按 0 不动。
 // 26 = WhiteCUL びえーん:实听偏高,压 -0.08。28 = 後鬼 ぬいぐるみ:实听偏高,压 -0.03。
