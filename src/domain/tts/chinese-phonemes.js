@@ -848,9 +848,9 @@ function fitSyllableDuration(query, plan, config = {}) {
 // 须在 fitSyllableDuration 之后、drawToneContours 之前调用。画调型会重排二、三声的 mora,故此步主要对一声、四声、轻声的鼻韵母生效(安是一声,正合)。
 function adjustNasalCoda(query, plan, config = {}) {
   if (config.nasalCoda === false) return query;
-  const nShorten = config.nCodaShorten != null ? config.nCodaShorten : 0.45;   // -n 鼻音压短比例
-  const offShorten = config.offGlideShorten != null ? config.offGlideShorten : 0.5; // -n 滑尾压短比例
-  const ngLengthen = config.ngCodaLengthen != null ? config.ngCodaLengthen : 0.35; // -ng 鼻音拖长(从前一元音取)
+  const nShorten = config.nCodaShorten != null ? config.nCodaShorten : 0.6;    // -n 鼻音压短比例(in 的鼻音偏长,压更多)
+  const offShorten = config.offGlideShorten != null ? config.offGlideShorten : 0.7; // -n 滑尾压短比例(安的 エ 滑尾压更短、连下去不分裂)
+  const ngLengthen = config.ngCodaLengthen != null ? config.ngCodaLengthen : 0.5;  // -ng 鼻音拖长比例(ang 的鼻音偏短,拖更长)
   const groups = groupMorasByPlan(query, plan);
   for (let s = 0; s < plan.length; s += 1) {
     const coda = plan[s] && plan[s].nasalCoda;
