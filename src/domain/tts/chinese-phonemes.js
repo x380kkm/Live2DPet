@@ -676,15 +676,18 @@ function normalizeSyllableDurations(query, plan, config = {}) {
 }
 //// /把各音节时长向全句平均拉平、句末轻微拉长 ////
 
-//// 把鼻韵尾 ン 从音节 mora 组里摘出来:变调只画在元音上、鼻音不参与,鼻音另接住调型的结尾音高 [@x380kkm 2026-06-17] ////
-// 二声的升、三声的曲折该在元音上完成;若让鼻音也参与重排,升的高点会落到鼻音上、元音反而低(羊听着被压住)。故末拍是 ン 时摘出,元音单独画调,鼻音收尾。
-function splitNasalCoda(group) {
-  if (group.length >= 2 && group[group.length - 1].text === 'ン') {
-    return { vowels: group.slice(0, -1), coda: group[group.length - 1] };
+//// 把韵尾(鼻韵尾 ン 或 er 的卷舌 ル)从音节 mora 组里摘出来:变调只画在元音上、韵尾不参与,韵尾另接住调型的结尾音高 [@x380kkm 2026-06-17] ////
+// 二声的升、三声的曲折该在元音上完成;若让韵尾也参与 contourBeats 重排,升的高点会落到韵尾上、元音反而低(羊被压住);
+// 且 contourBeats 会把 ル 的辅音剥成裸元音、整字几乎不发声(而、儿二声听着没声)。故末拍是 ン 或 er 的 ル 时摘出,元音单独画调,韵尾收尾。
+function splitToneCoda(group, syllable) {
+  const last = group[group.length - 1];
+  const isCoda = group.length >= 2 && last && (last.text === 'ン' || (syllable && syllable.erFinal && last.text === 'ル'));
+  if (isCoda) {
+    return { vowels: group.slice(0, -1), coda: last };
   }
   return { vowels: group, coda: null };
 }
-//// /把鼻韵尾 ン 从音节 mora 组里摘出来 ////
+//// /把韵尾从音节 mora 组里摘出来 ////
 
 //// 把一个音节的 mora 组重切成按 pitches 画出的多拍:前几拍用原 mora 元音(单拍音节复制凑够)、末拍复制最后元音作尾,元音总长按 len 拉伸 [@x380kkm 2026-06-15] ////
 // 复韵母(好 ハオ=ha-o)各拍沿用原元音、不被抹成单元音;辅音只留在第一拍。供 drawToneContours 画升调、曲折。
@@ -760,14 +763,14 @@ function drawToneContours(query, plan, config = {}) {
           // 二声升高:前接一/二声时抬高起点(趋平近一声);后接二/三声时再抬一点峰值。否则维持原"先低后抬"。
           const lo = (prevTone === 1 || prevTone === 2) ? t2.low + t2.liftStart : t2.low;
           const hi = t2.rise + ((nextTone === 2 || nextTone === 3) ? t2.liftPeak : 0);
-          // 升只画在元音上,鼻韵尾摘出、接住升到的高点(不参与变调,免得升堆到鼻音、元音被压低)。
-          const { vowels, coda } = splitNasalCoda(group);
+          // 升只画在元音上,韵尾(鼻音 ン 或 er 的 ル)摘出、接住升到的高点(不参与变调,免得升堆到韵尾、元音被压低或 ル 被剥成裸元音哑掉)。
+          const { vowels, coda } = splitToneCoda(group, plan[index]);
           for (const beat of contourBeats(vowels, [base + lo, base + lo, base + hi], t2.len)) out.push(beat);
           if (coda) { coda.pitch = base + hi; out.push(coda); }
         } else if (tone === 3 && phraseFinal) {
           // 只有短语末/句末的三声画完整 214 曲折;句中三声保持半三声(低、不回升,留给 applyMandarinTones 铺的低平),否则回升会听成二声「尼」。
-          // 曲折只画在元音上,鼻韵尾摘出、接住回升到的高点。
-          const { vowels, coda } = splitNasalCoda(group);
+          // 曲折只画在元音上,韵尾(鼻音 ン 或 er 的 ル)摘出、接住回升到的高点。
+          const { vowels, coda } = splitToneCoda(group, plan[index]);
           for (const beat of contourBeats(vowels, [base + t3.mid, base + t3.bottom, base + t3.top], t3.lenFinal)) out.push(beat);
           if (coda) { coda.pitch = base + t3.top; out.push(coda); }
         } else if (tone === 3) {
