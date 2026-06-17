@@ -504,25 +504,27 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
 });
 
-//// er 韵收尾:er 字(アル)的 ル 那一拍压短成卷舌尾;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
-test('tightenErhuaTail 压短 er 字的 ル 尾', () => {
-  // 二(er):ア + ル,ル 压短。
+//// er 韵收尾:er 字(アル)略增总长后比例分配——ル 收成短卷舌尾、时间还给元音 ア;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
+test('tightenErhuaTail 收 er 字的 ル 尾、时间还给 ア', () => {
+  // 二(er):ア + ル。总长 (0.1+0.1)×1.12=0.224;ル 留 0.18 占比、余下归 ア。
   const q = { accent_phrases: [{ moras: [
     { text: 'ア', vowel_length: 0.1, syl: 0 },
     { text: 'ル', vowel_length: 0.1, syl: 0 },
   ] }] };
-  tightenErhuaTail(q, [{ erFinal: true }], { erTailShorten: 0.3 });
+  tightenErhuaTail(q, [{ erFinal: true }], { erTailShare: 0.18, erTotalBoost: 1.12 });
   const m = q.accent_phrases[0].moras;
-  assert.ok(Math.abs(m[1].vowel_length - 0.03) < 1e-9, 'er 的 ル 压到 ×0.3');
-  assert.strictEqual(m[0].vowel_length, 0.1, '元音 ア 不动');
-  // 非 er 的 ル(如 ru、鲁 lu 的那一拍)不压。
-  const q2 = { accent_phrases: [{ moras: [{ text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
+  const total = m[0].vowel_length + m[1].vowel_length;
+  assert.ok(Math.abs(total - 0.224) < 1e-9, '总长略增到 ×1.12、不压缩');
+  assert.ok(Math.abs(m[1].vowel_length - 0.224 * 0.18) < 1e-9, 'ル 收成短卷舌尾(占比 0.18)');
+  assert.ok(m[0].vowel_length > 0.1 && m[0].vowel_length > m[1].vowel_length, '时间还给元音 ア、ア 主导');
+  // 非 er 的 ル(如 ru、鲁 lu 的那一拍)不动。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ア', vowel_length: 0.1, syl: 0 }, { text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
   tightenErhuaTail(q2, [{ erFinal: false }]);
-  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.1, '非 er 的 ル 不动');
+  assert.strictEqual(q2.accent_phrases[0].moras[1].vowel_length, 0.1, '非 er 的 ル 不动');
   // config.erhua 为 false 关闭。
-  const q3 = { accent_phrases: [{ moras: [{ text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
+  const q3 = { accent_phrases: [{ moras: [{ text: 'ア', vowel_length: 0.1, syl: 0 }, { text: 'ル', vowel_length: 0.1, syl: 0 }] }] };
   tightenErhuaTail(q3, [{ erFinal: true }], { erhua: false });
-  assert.strictEqual(q3.accent_phrases[0].moras[0].vowel_length, 0.1, '关闭时不动');
+  assert.strictEqual(q3.accent_phrases[0].moras[1].vowel_length, 0.1, '关闭时不动');
 });
 
 //// 句末高调缓解 downstep:三声后紧跟的句末一声(远方的方)只承受部分 downstep,免得叠句末下降塌底 [@x380kkm 2026-06-17] ////
