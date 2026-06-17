@@ -21,6 +21,7 @@ const {
   sustainFinalNeutral,
   tightenGlideMedial,
   fitSyllableDuration,
+  adjustNasalCoda,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -300,6 +301,29 @@ test('applySentenceIntonation 按句类型铺句调', () => {
   applySentenceIntonation(t2end, t2plan);
   const tm = t2end.accent_phrases[0].moras;
   assert.strictEqual(tm[3].pitch, 5.5, '末字是二声时不被句末压低');
+});
+
+//// 按韵尾调鼻音占比:-n 压短鼻音与滑尾、给主元音;-ng 拖长鼻音;整字总长不变 [@x380kkm 2026-06-17] ////
+test('adjustNasalCoda 前后鼻音占比', () => {
+  // -n 字 アエン:鼻音 ン 与滑尾 エ 压短,时间给主元音 ア。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'ア', vowel_length: 0.1 }, { text: 'エ', vowel_length: 0.1 }, { text: 'ン', vowel_length: 0.1 },
+  ] }] };
+  adjustNasalCoda(q, [{ kana: 'アエン', tone: 1, nasalCoda: 'n' }], { nCodaShorten: 0.45, offGlideShorten: 0.5 });
+  const m = q.accent_phrases[0].moras;
+  assert.ok(m[0].vowel_length > m[1].vowel_length && m[0].vowel_length > m[2].vowel_length, '主元音 ア 最长');
+  assert.ok(Math.abs((m[0].vowel_length + m[1].vowel_length + m[2].vowel_length) - 0.3) < 1e-9, '整字总长不变');
+  assert.ok(Math.abs(m[2].vowel_length - 0.055) < 1e-9, '鼻音压到 0.55 倍');
+  // -ng 字 イン:鼻音从前一元音取时长、拖长。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'イ', vowel_length: 0.1 }, { text: 'ン', vowel_length: 0.1 }] }] };
+  adjustNasalCoda(q2, [{ kana: 'イン', tone: 1, nasalCoda: 'ng' }], { ngCodaLengthen: 0.35 });
+  const m2 = q2.accent_phrases[0].moras;
+  assert.ok(m2[1].vowel_length > m2[0].vowel_length, '后鼻音拖长、超过元音');
+  assert.ok(Math.abs((m2[0].vowel_length + m2[1].vowel_length) - 0.2) < 1e-9, '总长不变');
+  // 关掉则不动。
+  const q3 = { accent_phrases: [{ moras: [{ text: 'イ', vowel_length: 0.1 }, { text: 'ン', vowel_length: 0.1 }] }] };
+  adjustNasalCoda(q3, [{ kana: 'イン', tone: 1, nasalCoda: 'ng' }], { nasalCoda: false });
+  assert.strictEqual(q3.accent_phrases[0].moras[1].vowel_length, 0.1, '关掉不动');
 });
 
 //// 单字时长收进区间:超上限的字压短、低于下限的字抬长、区间内的不动 [@x380kkm 2026-06-16] ////

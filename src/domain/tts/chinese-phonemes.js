@@ -43,7 +43,9 @@ const FINAL_KANA = {
   // e[ɤ] 用 ウア 滑音近似:单用 ウ 会把恶/课/了发成 u(实听确认);ウ 起、滑向 ア,比单元音更像 ㄜ。本就两拍,不在补拍名单。
   a: 'ア', o: 'オ', e: 'ウア', ê: 'エ',
   ai: 'アイ', ei: 'エイ', ao: 'アオ', ou: 'オウ',
-  an: 'アン', en: 'エン', ang: 'アン', eng: 'エン', ong: 'オン',
+  // -an 用 アエン:a 在 -n 前本是前移的 [a̟](偏「爱/欸」),加 エ 前滑尾让「安」更清,又与后元音的 -ang 自然分开(实听 a 为主、エ 短滑尾,见 adjustNasalCoda 调时长)。
+  // -eng 用 オン(后元音)与 -en 的 エン 区分;-ang 维持后元音 アン。
+  an: 'アエン', en: 'エン', ang: 'アン', eng: 'オン', ong: 'オン',
   er: 'アル',
   i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イウ', iou: 'イウ',
   ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
@@ -284,7 +286,10 @@ function sentenceToAccentKana(tokens, options = {}) {
     }
     current.push(syllable.kana);
     currentWordStart.push(wordStart ? Boolean(wordStart[i]) : true);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType });
+    // 韵尾标记:后鼻韵尾(-ng)记 'ng'、前鼻韵尾(-n)记 'n',供 adjustNasalCoda 按韵尾调鼻音占比、区分 -n/-ng。
+    const fin = item.parsed.final || '';
+    const nasalCoda = /ng$/.test(fin) ? 'ng' : (/n$/.test(fin) ? 'n' : null);
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda });
     groupStart = false;
   }
   if (current.length) {
@@ -837,6 +842,40 @@ function fitSyllableDuration(query, plan, config = {}) {
 }
 //// /把每个字的有效时长收进区间 ////
 
+//// 按韵尾调鼻音占比区分 -n/-ng:前鼻韵尾压短鼻音与滑尾、时间给主元音(字更清);后鼻韵尾拖长鼻音(in/ing 靠此分),整字总长不变 [@x380kkm 2026-06-17] ////
+// 经核验研究:日语 ン 是单一音位、词末无法编码 [n]/[ŋ] 部位区别,真正线索在元音音质与鼻音时长。
+// 据此:-n 字(安 アエン、奔 エン)把鼻音 ン 与滑尾(アエン 的 エ)压短,时间挪给主元音(第一个元音,安里是 ア),元音更出、字更清;-ng 字(英 イン)把鼻音拖长、与 -n 拉开。总长不变、只改占比。
+// 须在 fitSyllableDuration 之后、drawToneContours 之前调用。画调型会重排二、三声的 mora,故此步主要对一声、四声、轻声的鼻韵母生效(安是一声,正合)。
+function adjustNasalCoda(query, plan, config = {}) {
+  if (config.nasalCoda === false) return query;
+  const nShorten = config.nCodaShorten != null ? config.nCodaShorten : 0.45;   // -n 鼻音压短比例
+  const offShorten = config.offGlideShorten != null ? config.offGlideShorten : 0.5; // -n 滑尾压短比例
+  const ngLengthen = config.ngCodaLengthen != null ? config.ngCodaLengthen : 0.35; // -ng 鼻音拖长(从前一元音取)
+  const groups = groupMorasByPlan(query, plan);
+  for (let s = 0; s < plan.length; s += 1) {
+    const coda = plan[s] && plan[s].nasalCoda;
+    if (!coda) continue;
+    const g = groups[s] || [];
+    let nasalIdx = -1;
+    for (let i = g.length - 1; i >= 0; i -= 1) { if (g[i].text === 'ン') { nasalIdx = i; break; } }
+    if (nasalIdx <= 0) continue; // 没鼻音 mora 或鼻音在首位,跳过
+    const nucleus = g[0];
+    if (coda === 'n') {
+      const nm = g[nasalIdx];
+      if (nm.vowel_length > 0) { const cut = nm.vowel_length * nShorten; nm.vowel_length -= cut; nucleus.vowel_length = (nucleus.vowel_length || 0) + cut; }
+      for (let i = 1; i < nasalIdx; i += 1) { // 主元音与鼻音之间的滑尾(アエン 的 エ)压短、给主元音
+        const om = g[i];
+        if (om.vowel_length > 0) { const cut = om.vowel_length * offShorten; om.vowel_length -= cut; nucleus.vowel_length = (nucleus.vowel_length || 0) + cut; }
+      }
+    } else if (coda === 'ng') {
+      const pv = g[nasalIdx - 1];
+      if (pv && pv.vowel_length > 0) { const cut = pv.vowel_length * ngLengthen; pv.vowel_length -= cut; g[nasalIdx].vowel_length = (g[nasalIdx].vowel_length || 0) + cut; }
+    }
+  }
+  return query;
+}
+//// /按韵尾调鼻音占比区分 -n/-ng ////
+
 //// 把单元音补拍那一拍按 factor 缩短:补拍是无声母、且元音与前一 mora 相同的那个 mora [@x380kkm 2026-06-15] ////
 // 单元音补拍补出的第二拍整拍太长,会拖慢整句、字间显空;这里只把那一拍压短,不动正常元音与复韵母。
 function shortenElongationPad(query, config = {}) {
@@ -1065,6 +1104,7 @@ function applyChineseProsody(query, plan, config = {}) {
   splitFinalAspiratedStop(query, plan);
   tightenGlideMedial(query, plan, config);
   fitSyllableDuration(query, plan, config);
+  adjustNasalCoda(query, plan, config);
   drawToneContours(query, plan, config);
   // downstep 开时不叠线性下倾(避免重复计提);关时走线性下倾兜底。
   if (!useDownstep) applyDeclination(query, plan, config);
@@ -1099,6 +1139,7 @@ module.exports = {
   sustainFinalNeutral,
   tightenGlideMedial,
   fitSyllableDuration,
+  adjustNasalCoda,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,

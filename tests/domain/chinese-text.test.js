@@ -57,6 +57,16 @@ test('textToAccentKana 贯通到片假名,默认应用三声变调', () => {
   assert.deepStrictEqual(textToAccentKana('你好', { sandhi: false }).plan.map((p) => p.tone), [3, 3]);
 });
 
+//// 鼻韵尾标记:-ng 记 ng、-n 记 n,供按韵尾调鼻音占比区分前后鼻音 [@x380kkm 2026-06-17] ////
+test('textToAccentKana 标鼻韵尾', () => {
+  // 安(an)是前鼻、肮(ang)是后鼻;烟(ian)前鼻、羊(iang)后鼻。
+  assert.strictEqual(textToAccentKana('安').plan[0].nasalCoda, 'n', '安是前鼻韵尾');
+  assert.strictEqual(textToAccentKana('肮').plan[0].nasalCoda, 'ng', '肮是后鼻韵尾');
+  assert.strictEqual(textToAccentKana('英').plan[0].nasalCoda, 'ng', '英是后鼻韵尾');
+  // 非鼻韵母不标。
+  assert.strictEqual(textToAccentKana('好').plan[0].nasalCoda, null, '好无鼻韵尾');
+});
+
 //// 多句逐段标句类型:按句末终止标点切句,每句的音节标各自的句类型,句末音节标 sentenceEnd [@x380kkm 2026-06-17] ////
 test('textToAccentKana 多句逐段标句类型', () => {
   // 「你好吗？我很好。」:前三音节(你好吗)是是非问,后三(我很好)是陈述。
