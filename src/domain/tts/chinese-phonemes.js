@@ -864,9 +864,10 @@ function fitSyllableDuration(query, plan, config = {}) {
 // 须在 fitSyllableDuration 之后、drawToneContours 之前调用。画调型会重排二、三声的 mora,故此步主要对一声、四声、轻声的鼻韵母生效(安是一声,正合)。
 function adjustNasalCoda(query, plan, config = {}) {
   if (config.nasalCoda === false) return query;
-  const nShorten = config.nCodaShorten != null ? config.nCodaShorten : 0.6;    // -n 鼻音压短比例(in 的鼻音偏长,压更多)
-  const offShorten = config.offGlideShorten != null ? config.offGlideShorten : 0.7; // -n 滑尾压短比例(安的 エ 滑尾压更短、连下去不分裂)
-  const ngLengthen = config.ngCodaLengthen != null ? config.ngCodaLengthen : 0.5;  // -ng 鼻音拖长比例(ang 的鼻音偏短,拖更长)
+  const offShorten = config.offGlideShorten != null ? config.offGlideShorten : 0.7; // 滑尾压短比例(安的 エ、肮的 オ 压短、连下去不分裂)
+  // 鼻音都从主元音取时间、变长(让带鼻音的字与不带鼻音的「啊」拉开对比、a 短 n 长);-ng 取得更多、比 -n 更长,以此再区分 in/ing。
+  const nNasalLen = config.nCodaLengthen != null ? config.nCodaLengthen : 0.25;  // -n 鼻音取主元音的比例(中等、可闻,安≠啊)
+  const ngNasalLen = config.ngCodaLengthen != null ? config.ngCodaLengthen : 0.5; // -ng 鼻音取主元音的比例(更长、与 -n 拉开)
   const groups = groupMorasByPlan(query, plan);
   for (let s = 0; s < plan.length; s += 1) {
     const coda = plan[s] && plan[s].nasalCoda;
@@ -886,13 +887,12 @@ function adjustNasalCoda(query, plan, config = {}) {
         if (om.vowel_length > 0) { const cut = om.vowel_length * offShorten; om.vowel_length -= cut; mainVowel.vowel_length = (mainVowel.vowel_length || 0) + cut; }
       }
     }
-    if (coda === 'n') {
-      // 前鼻音:鼻音压短、时间给主元音(字更清)。
-      const nm = g[nasalIdx];
-      if (nm.vowel_length > 0) { const cut = nm.vowel_length * nShorten; nm.vowel_length -= cut; mainVowel.vowel_length = (mainVowel.vowel_length || 0) + cut; }
-    } else if (coda === 'ng') {
-      // 后鼻音:鼻音拖长、从主元音取(in/ing、an/ang 靠此分);滑尾已压短,故从主元音取不影响平滑。
-      if (mainVowel.vowel_length > 0) { const cut = mainVowel.vowel_length * ngLengthen; mainVowel.vowel_length -= cut; g[nasalIdx].vowel_length = (g[nasalIdx].vowel_length || 0) + cut; }
+    // 鼻音从主元音取时间、变长:主元音短一点、鼻音长一点(a 短 n 长,带鼻音的字不再像「啊」);-ng 取得更多、比 -n 更长。
+    const lenFrac = coda === 'ng' ? ngNasalLen : nNasalLen;
+    if (mainVowel.vowel_length > 0) {
+      const cut = mainVowel.vowel_length * lenFrac;
+      mainVowel.vowel_length -= cut;
+      g[nasalIdx].vowel_length = (g[nasalIdx].vowel_length || 0) + cut;
     }
   }
   return query;
