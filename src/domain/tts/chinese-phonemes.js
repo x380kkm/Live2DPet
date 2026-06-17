@@ -25,12 +25,13 @@ const INITIAL_CV = {
   ch: { a: 'チャ', i: 'チ', u: 'チュ', e: 'チェ', o: 'チョ' },
   sh: { a: 'シャ', i: 'シ', u: 'シュ', e: 'シェ', o: 'ショ' },
   r: { a: 'ラ', i: 'リ', u: 'ル', e: 'レ', o: 'ロ' },
-  // z/c/s 的 i 列是普通话舌尖元音(资、次、四),日语サ/ザ/タ行无 [si/tsi/dzi]:
-  // 用拗音 ズィ/ツィ/スィ([zi/tsi/si],不圆唇)比 ズ/ツ/ス([zu/tsu/su],圆唇)更近普通话,
-  // 也把「是」(シ shi)与「四」(スィ si)分成两个清楚的 mora、不黏成一个字。u 列仍是ズ/ツ/ス(苏、粗、租 本就读 [u])。
-  z: { a: 'ザ', i: 'ズィ', u: 'ズ', e: 'ゼ', o: 'ゾ' },
-  c: { a: 'ツァ', i: 'ツィ', u: 'ツ', e: 'ツェ', o: 'ツォ' },
-  s: { a: 'サ', i: 'スィ', u: 'ス', e: 'セ', o: 'ソ' },
+  // z/c/s + 韵母 i 是普通话舌尖前空韵(资 [z̩]、词、思),本质是把 [dz]/[ts]/[s] 擦音拖成成音节核。
+  // 旧用拗音 ズィ/ツィ/スィ:小 ィ 被引擎拽向腭化的 ジ/チ/シ([dʑi/tɕi/ɕi]),把「四」听成「西」、「资」听成「机」(实听确认)。
+  // 改用 ス/ズ/ツ([u] 基、非腭化),补拍随基用 ウ(见 syllableToKana),再由 apicalizeEmptyRhyme 拉长声母擦音、做出成音节舌尖音;
+  // 与 苏/租/粗(本读 [u])靠擦音时长区分:空韵的擦音被拉长、[u] 淡出,实词 [u] 不拉长。
+  z: { a: 'ザ', i: 'ズ', u: 'ズ', e: 'ゼ', o: 'ゾ' },
+  c: { a: 'ツァ', i: 'ツ', u: 'ツ', e: 'ツェ', o: 'ツォ' },
+  s: { a: 'サ', i: 'ス', u: 'ス', e: 'セ', o: 'ソ' },
   y: { a: 'ヤ', i: 'イ', u: 'ユ', e: 'イェ', o: 'ヨ', v: 'ユ' },
   // wu(物、五、无)的 u 列用 ヴ 不用 ウ:纯元音 ウ 没有起音、会黏进前一字的鼻音(宠物听成葱),
   // ヴ 给一个清楚的浊起音把这个字分出来。听感是 [vu] 偏 [wu],带点口音但是个独立的字、不会丢。
@@ -74,9 +75,12 @@ const Y_MEDIAL = new Set(['a', 'e', 'ao', 'ou', 'an', 'ang', 'ong']);
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 // 普通话送气声母:这些字的塞音/塞擦音要送气([pʰ tʰ kʰ tɕʰ tsʰ tʂʰ]),日语只在短语首才给清塞音送气,见 splitFinalAspiratedStop。
 const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
-// 空韵声母:这些声母 + 韵母 i 的「i」不是前高 [i](鸡 ji、西 xi 的韵母),而是舌尖元音——舌尖前的 [z̩](资 zi、词 ci、思 si)或舌尖后的 [ʐ̩](知 zhi、吃 chi、师 shi)。
-// 由 apicalizeEmptyRhyme 把声母擦音段按比例拉长、音高小抬,使其听感离开前 [i]。r 的卷舌空韵(日 ri)近似难度大,暂不在此列、留待后续。
-const EMPTY_RHYME_INITIALS = new Set(['z', 'c', 's', 'zh', 'ch', 'sh']);
+// 空韵声母:这些声母 + 韵母 i 的「i」不是前高 [i](鸡 ji、西 xi 的韵母),而是舌尖元音。
+// 舌尖前 [z̩](资 zi、词 ci、思 si):用 ス/ズ/ツ 基([u]、非腭化),补拍随基用 ウ,避开拗音 ィ 带来的 シ 腭化。
+// 舌尖后 [ʐ̩](知 zhi、吃 chi、师 shi):仍用 ジ/チ/シ 基。两类都由 apicalizeEmptyRhyme 拉长声母擦音、使其离开前 [i],但拉长比例不同(前空韵更需拉成成音节擦音)。
+// r 的卷舌空韵(日 ri)近似难度大,暂不在此列、留待后续。
+const DENTAL_EMPTY_RHYME = new Set(['z', 'c', 's']);
+const RETROFLEX_EMPTY_RHYME = new Set(['zh', 'ch', 'sh']);
 
 // 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.3 抵消单元音补拍带来的整体变长,音节与停顿一起压紧、不拖不留长间隔;
 // 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
@@ -172,7 +176,9 @@ function syllableToKana(parsed, options = {}) {
   const elongate = options.elongate !== false;
   if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
     // 重音核路线传 kanaSafe:不收长音ー,改用重复基元音补一拍;否则用长音ー。
-    kana += options.kanaSafe ? (ELONGATE_VOWEL[parsed.final] || '') : 'ー';
+    // 舌尖前空韵(z/c/s + i)用 ス/ズ/ツ 基([u]),补拍随基用 ウ、不用 イ——イ 会把音色拽回腭化的 シ([ɕi])、听成 xi。
+    const padVowel = (parsed.final === 'i' && DENTAL_EMPTY_RHYME.has(parsed.initial)) ? 'ウ' : (ELONGATE_VOWEL[parsed.final] || '');
+    kana += options.kanaSafe ? padVowel : 'ー';
   }
   return { kana, moras: moraCount(kana), ok: true };
 }
@@ -292,8 +298,11 @@ function sentenceToAccentKana(tokens, options = {}) {
     // 韵尾标记:后鼻韵尾(-ng)记 'ng'、前鼻韵尾(-n)记 'n',供 adjustNasalCoda 按韵尾调鼻音占比、区分 -n/-ng。
     const fin = item.parsed.final || '';
     const nasalCoda = /ng$/.test(fin) ? 'ng' : (/n$/.test(fin) ? 'n' : null);
-    // 空韵标记:声母在 EMPTY_RHYME_INITIALS、韵母是 i 时,这个 i 是舌尖元音(资/知/师),供 apicalizeEmptyRhyme 拉长声母擦音。
-    const emptyRhyme = fin === 'i' && EMPTY_RHYME_INITIALS.has(item.parsed.initial);
+    // 空韵标记:韵母是 i、声母在舌尖前/后空韵集合时,这个 i 是舌尖元音(资/知/师),供 apicalizeEmptyRhyme 按类拉长声母擦音。
+    const emptyRhyme = fin === 'i'
+      ? (DENTAL_EMPTY_RHYME.has(item.parsed.initial) ? 'dental'
+        : (RETROFLEX_EMPTY_RHYME.has(item.parsed.initial) ? 'retroflex' : null))
+      : null;
     plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme });
     groupStart = false;
   }
@@ -913,20 +922,25 @@ function adjustNasalCoda(query, plan, config = {}) {
 //// /按韵尾调鼻音占比区分 -n/-ng ////
 
 //// 空韵(舌尖元音)近似:把声母擦音段按比例拉长、元音随之轻微拉长(不压)、音高小抬,让 zi/zhi/shi 等离开前 [i]、不像 ji/xi [@x380kkm 2026-06-17] ////
-// 空韵的 i 是成音节的舌尖擦音(资 [z̩]、知 [ʐ̩]),本质是「把声母擦音拖成韵核」。日语片假名只能拼出带前 [i] 的 ジ/ズィ/シ,故靠时长与音高近似:
+// 空韵的 i 是成音节的舌尖擦音(资 [z̩]、知 [ʐ̩]),本质是「把声母擦音拖成韵核」。日语片假名只能拼出带前 [i] 的 ジ/シ 或 [u] 的 ス/ズ/ツ,故靠时长与音高近似:
 // 声母辅音段按比例拉长(占比抬上去、擦音更出),整字只轻微变长——靠比例不靠给声母硬加绝对时长;元音随轻微放慢拉长一点、绝不压短;音高小幅抬升。
-// 经主观试听:拉长比例过大(声母×2 以上)会把塞擦/送气成分顶出来、zhi 滑向 chi/qi,故默认取最轻的一档。r 的卷舌空韵(日)不在 plan[s].emptyRhyme 内、此步不动。
-// 须在画调型之后调用:按 mora.syl 标签定位空韵音节(画调型重排二三声 mora 后标签仍在),音高抬升叠在画好的调型之上。config.emptyRhyme 为 false 可整体关闭。
+// 两类拉长比例不同:舌尖后(知/师,ジ/シ 基)温和 ×1.3——过大会把塞擦/送气顶出来、zhi 滑向 chi/qi;舌尖前(资/词/思,ス/ズ/ツ 基)更大 ×2.5——把 [s]/[ts] 拖成成音节核、与 苏/租/粗 靠擦音时长区分。
+// r 的卷舌空韵(日)不在 plan[s].emptyRhyme 内、此步不动。须在画调型之后调用:按 mora.syl 标签定位空韵音节(画调型重排二三声 mora 后标签仍在),音高抬升叠在画好的调型之上。config.emptyRhyme 为 false 可整体关闭。
 function apicalizeEmptyRhyme(query, plan, config = {}) {
   if (config.emptyRhyme === false) return query;
-  const cMul = config.apicalConsonant != null ? config.apicalConsonant : 1.3; // 声母擦音段拉长比例(温和、不绝对硬加)
-  const vMul = config.apicalVowel != null ? config.apicalVowel : 1.05;         // 元音随轻微放慢拉长的比例(>1,不压)
-  const pAdd = config.apicalRaise != null ? config.apicalRaise : 0.10;         // 音高抬升量(对数 Hz)
+  // 舌尖后空韵(知/师,用 ジ/シ 基)拉长温和(主观确认 ×1.3,过大会把塞擦顶出来、滑向 chi/qi)。
+  const cMulRetro = config.apicalConsonant != null ? config.apicalConsonant : 1.3;
+  // 舌尖前空韵(资/词/思,用 ス/ズ/ツ 基)需拉得更多,把 [s]/[ts] 擦音拖成成音节核、[u] 淡出,与 苏/租/粗 拉开(主观确认 ×2.5)。
+  const cMulDental = config.apicalConsonantDental != null ? config.apicalConsonantDental : 2.5;
+  const vMul = config.apicalVowel != null ? config.apicalVowel : 1.05; // 元音随轻微放慢拉长的比例(>1,不压)
+  const pAdd = config.apicalRaise != null ? config.apicalRaise : 0.10; // 音高抬升量(对数 Hz)
   const clamp = (v) => Math.max(4.8, Math.min(6.6, v));
   for (const phrase of (query.accent_phrases || [])) {
     for (const m of (phrase.moras || [])) {
       const s = m.syl;
-      if (s == null || !(plan[s] && plan[s].emptyRhyme)) continue;
+      const row = (s != null && plan[s]) ? plan[s].emptyRhyme : null;
+      if (!row) continue;
+      const cMul = row === 'dental' ? cMulDental : cMulRetro;
       if (m.consonant_length != null) m.consonant_length *= cMul; // 只放大有声母那一拍的辅音段
       if (m.vowel_length > 0) m.vowel_length *= vMul;
       if (m.pitch > 0) m.pitch = clamp(m.pitch + pAdd);

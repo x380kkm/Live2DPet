@@ -57,11 +57,11 @@ test('syllableToKana 拼出近似片假名并补长音', () => {
   // -ng 与 -n 都收到 ン(补长音会拖慢连读):xing→シン、chong→チョン
   assert.strictEqual(k('xing4'), 'シン');
   assert.strictEqual(k('chong3'), 'チョン');
-  // 卷舌 zh 与平舌 z/c/s 区别在 i:zhi 类用 ジ([shi/ji]),平舌舌尖元音用拗音 ズィ/ツィ/スィ([zi/tsi/si]不圆唇)
+  // 卷舌 zh 用 ジ([shi/ji]);平舌 z/c/s 的舌尖前空韵改用 ス/ズ/ツ 基([u]、非腭化),靠 apicalizeEmptyRhyme 拉长擦音近似,避开拗音 ィ 的 シ 腭化。
   assert.strictEqual(k('zhi1'), 'ジー');
-  assert.strictEqual(k('zi4'), 'ズィー');
-  assert.strictEqual(k('ci4'), 'ツィー');
-  assert.strictEqual(k('si4'), 'スィー');
+  assert.strictEqual(k('zi4'), 'ズー');
+  assert.strictEqual(k('ci4'), 'ツー');
+  assert.strictEqual(k('si4'), 'スー');
   // ü 韵母拼成 ユイ(ュ 后补前元音 イ 把音色前移、免得听成 chu),本就两拍、不再另补;去 qù→チュイ、学 xué→シュエ、女 nǚ→ニュイ、月 yuè→ユエ
   assert.strictEqual(k('qu4'), 'チュイ');
   assert.strictEqual(k('xue2'), 'シュエ');
@@ -331,25 +331,29 @@ test('adjustNasalCoda 前后鼻音占比', () => {
   assert.strictEqual(q3.accent_phrases[0].moras[1].vowel_length, 0.1, '关掉不动');
 });
 
-//// 空韵近似:空韵音节的声母擦音段按比例拉长、元音随之拉长不压、音高小抬;非空韵与关闭时不动 [@x380kkm 2026-06-17] ////
-test('apicalizeEmptyRhyme 拉长空韵声母', () => {
-  // 知(zhi)空韵:ジ 带声母擦音段、イ 补拍。
+//// 空韵近似:舌尖后(retroflex)温和拉长、舌尖前(dental)拉得更多;元音随之拉长不压、音高小抬;非空韵与关闭时不动 [@x380kkm 2026-06-17] ////
+test('apicalizeEmptyRhyme 按类拉长空韵声母', () => {
+  // 知(zhi,retroflex):ジ 带声母擦音段、イ 补拍。
   const q = { accent_phrases: [{ moras: [
     { text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 },
     { text: 'イ', consonant_length: null, vowel_length: 0.1, pitch: 5.5, syl: 0 },
   ] }] };
-  apicalizeEmptyRhyme(q, [{ emptyRhyme: true }], { apicalConsonant: 1.3, apicalVowel: 1.05, apicalRaise: 0.10 });
+  apicalizeEmptyRhyme(q, [{ emptyRhyme: 'retroflex' }], { apicalConsonant: 1.3, apicalConsonantDental: 2.5, apicalVowel: 1.05, apicalRaise: 0.10 });
   const m = q.accent_phrases[0].moras;
-  assert.ok(Math.abs(m[0].consonant_length - 0.13) < 1e-9, '声母擦音段按比例拉长 ×1.3');
+  assert.ok(Math.abs(m[0].consonant_length - 0.13) < 1e-9, '舌尖后按 ×1.3 拉长');
   assert.ok(m[0].vowel_length > 0.1 && m[1].vowel_length > 0.1, '元音随之拉长、不压短');
   assert.ok(Math.abs(m[0].pitch - 5.6) < 1e-9, '音高小幅抬升 +0.10');
+  // 资(zi,dental):用更大的比例拉长。
+  const qd = { accent_phrases: [{ moras: [{ text: 'ズ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
+  apicalizeEmptyRhyme(qd, [{ emptyRhyme: 'dental' }], { apicalConsonant: 1.3, apicalConsonantDental: 2.5 });
+  assert.ok(Math.abs(qd.accent_phrases[0].moras[0].consonant_length - 0.25) < 1e-9, '舌尖前按 ×2.5 拉长、比舌尖后更多');
   // 非空韵音节(如 ji/xi、或放弃的 ri)不动。
   const q2 = { accent_phrases: [{ moras: [{ text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
-  apicalizeEmptyRhyme(q2, [{ emptyRhyme: false }]);
+  apicalizeEmptyRhyme(q2, [{ emptyRhyme: null }]);
   assert.strictEqual(q2.accent_phrases[0].moras[0].consonant_length, 0.1, '非空韵不动');
   // config.emptyRhyme 为 false 整体关闭。
   const q3 = { accent_phrases: [{ moras: [{ text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
-  apicalizeEmptyRhyme(q3, [{ emptyRhyme: true }], { emptyRhyme: false });
+  apicalizeEmptyRhyme(q3, [{ emptyRhyme: 'retroflex' }], { emptyRhyme: false });
   assert.strictEqual(q3.accent_phrases[0].moras[0].consonant_length, 0.1, '关闭时不动');
 });
 

@@ -67,12 +67,16 @@ test('textToAccentKana 标鼻韵尾', () => {
   assert.strictEqual(textToAccentKana('好').plan[0].nasalCoda, null, '好无鼻韵尾');
 });
 
-//// 空韵标记:z/c/s/zh/ch/sh + i 的空韵音节标 emptyRhyme;真 [i](ji/xi)与放弃的 ri 不标 [@x380kkm 2026-06-17] ////
+//// 空韵标记:z/c/s + i 标 dental、zh/ch/sh + i 标 retroflex;真 [i](ji/xi)与放弃的 ri 不标 [@x380kkm 2026-06-17] ////
 test('textToAccentKana 标空韵', () => {
-  // 资(zi)、思(si)是舌尖前空韵,知(zhi)、师(shi)是舌尖后空韵。
-  assert.strictEqual(textToAccentKana('资').plan[0].emptyRhyme, true, '资是空韵');
-  assert.strictEqual(textToAccentKana('知').plan[0].emptyRhyme, true, '知是空韵');
-  assert.strictEqual(textToAccentKana('师').plan[0].emptyRhyme, true, '师是空韵');
+  // 资(zi)、思(si)是舌尖前空韵(dental);知(zhi)、师(shi)是舌尖后空韵(retroflex)。
+  assert.strictEqual(textToAccentKana('资').plan[0].emptyRhyme, 'dental', '资是舌尖前空韵');
+  assert.strictEqual(textToAccentKana('思').plan[0].emptyRhyme, 'dental', '思是舌尖前空韵');
+  assert.strictEqual(textToAccentKana('知').plan[0].emptyRhyme, 'retroflex', '知是舌尖后空韵');
+  assert.strictEqual(textToAccentKana('师').plan[0].emptyRhyme, 'retroflex', '师是舌尖后空韵');
+  // 舌尖前空韵改用 ス/ズ/ツ 基 + ウ 补拍(避开拗音 ィ 的 シ 腭化):四 si→スウ、资 zi→ズウ。
+  assert.strictEqual(textToAccentKana('四').kana, "スウ'", '四用 ス 基、ウ 补拍、不带 ィ');
+  assert.strictEqual(textToAccentKana('资').kana, "ズウ'", '资用 ズ 基、ウ 补拍');
   // 鸡(ji)、西(xi)的 i 是真前高元音,不标;日(ri)卷舌空韵已放弃,不标。
   assert.ok(!textToAccentKana('鸡').plan[0].emptyRhyme, '鸡的 i 是真 [i]、不标');
   assert.ok(!textToAccentKana('西').plan[0].emptyRhyme, '西的 i 是真 [i]、不标');
