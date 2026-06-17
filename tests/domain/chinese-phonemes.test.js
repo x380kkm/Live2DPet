@@ -25,6 +25,7 @@ const {
   apicalizeEmptyRhyme,
   tightenErhuaTail,
   bolsterNgVowel,
+  balanceUoGlide,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -503,6 +504,25 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(Math.abs(offM[0].pitch - onM[0].pitch) < 1e-9, '三声自身不被 downstep 压');
   assert.ok(onM[1].pitch < offM[1].pitch, 'downstep 把三声后的一声压低');
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
+});
+
+//// uo 介音字按比例分配:u 介音拍占总长固定比例、o 韵腹占其余、整字总长按倍率;非 uo 字不动 [@x380kkm 2026-06-17] ////
+test('balanceUoGlide 分配 uo 的 u 与 o', () => {
+  // 国(uo):グ(u) + オ(o)。总长 (0.1+0.1)×1.3=0.26;u 占 0.37、o 占其余。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'グ', vowel: 'u', vowel_length: 0.1, syl: 0 },
+    { text: 'オ', vowel: 'o', vowel_length: 0.1, syl: 0 },
+  ] }] };
+  balanceUoGlide(q, [{ final: 'uo' }], { uoGlideShare: 0.37, uoTotal: 1.3 });
+  const m = q.accent_phrases[0].moras;
+  const total = m[0].vowel_length + m[1].vowel_length;
+  assert.ok(Math.abs(total - 0.26) < 1e-9, '总长按 ×1.3');
+  assert.ok(Math.abs(m[0].vowel_length - 0.26 * 0.37) < 1e-9, 'u 介音占总长 0.37');
+  assert.ok(Math.abs(m[1].vowel_length - 0.26 * 0.63) < 1e-9, 'o 韵腹占其余');
+  // 非 uo 字不动。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ア', vowel: 'a', vowel_length: 0.1, syl: 0 }] }] };
+  balanceUoGlide(q2, [{ final: 'a' }]);
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.1, '非 uo 不动');
 });
 
 //// 后鼻韵尾 -ng 拉长元音拍:-ng 字非 ン 的有声拍按比例拉长;-n 字与鼻音 ン 不动 [@x380kkm 2026-06-17] ////

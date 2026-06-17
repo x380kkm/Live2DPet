@@ -313,7 +313,7 @@ function sentenceToAccentKana(tokens, options = {}) {
       : null;
     // er 韵标记:儿/二/而 的韵母是 er(片假名 アル),供 tightenErhuaTail 压短 ル 尾、不让它成独立的「鲁」音节;同时收好儿化。
     const erFinal = fin === 'er';
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal, final: fin });
     groupStart = false;
   }
   if (current.length) {
@@ -980,6 +980,36 @@ function bolsterNgVowel(query, plan, config = {}) {
 }
 //// /后鼻韵尾 -ng 把元音撑出身子 ////
 
+//// uo 介音字(国/锅/果)按比例分配 u 介音与 o 韵腹:画调型常把 [u] 介音压没、整字听成「go」又太短;按总长重分,u 占固定比例、o 占其余、整字略增 [@x380kkm 2026-06-17] ////
+// 国 guo=グ(u)+オ(o):主观确认 u 介音占整字时长 0.37、整字总长 ×1.3 时,既清楚是「guo」又不过长。
+// 按 mora.syl 定位 plan[s].final 为 uo 的字,取其有声拍:首拍是 [u] 介音、其余是 [o] 韵腹,按总长重新分配。须在画调型之后调用(标签仍在)。config.uoGlide 为 false 可关闭。
+function balanceUoGlide(query, plan, config = {}) {
+  if (config.uoGlide === false) return query;
+  const uShare = config.uoGlideShare != null ? config.uoGlideShare : 0.37;
+  const total = config.uoTotal != null ? config.uoTotal : 1.3;
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.syl == null || !(plan[m.syl] && plan[m.syl].final === 'uo') || !(m.vowel_length > 0)) continue;
+      (groups[m.syl] = groups[m.syl] || []).push(m);
+    }
+  }
+  for (const s in groups) {
+    const g = groups[s];
+    if (g.length < 2 || g[0].vowel !== 'u') continue; // 需有独立的 [u] 介音拍与其后的 [o] 韵腹
+    const nuc = g.slice(1);
+    const t0 = g.reduce((a, m) => a + m.vowel_length, 0);
+    const n0 = nuc.reduce((a, m) => a + m.vowel_length, 0);
+    if (!(n0 > 0)) continue;
+    const target = t0 * total;
+    g[0].vowel_length = target * uShare;
+    const rest = target * (1 - uShare);
+    for (const m of nuc) m.vowel_length = rest * (m.vowel_length / n0); // o 韵腹按原占比分掉其余
+  }
+  return query;
+}
+//// /uo 介音字按比例分配 u 介音与 o 韵腹 ////
+
 //// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
 // er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
 // 只把 ル 那一拍 vowel_length 压短(主观确认 ×0.3:既不再是「鲁」、又仍听得见卷舌),元音 ア 不动——还给 ア 时间会把元音撑太长、反吞掉卷舌(实听确认)。
@@ -1238,6 +1268,7 @@ function applyChineseProsody(query, plan, config = {}) {
   apicalizeEmptyRhyme(query, plan, config);
   tightenErhuaTail(query, plan, config);
   bolsterNgVowel(query, plan, config);
+  balanceUoGlide(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1270,6 +1301,7 @@ module.exports = {
   apicalizeEmptyRhyme,
   tightenErhuaTail,
   bolsterNgVowel,
+  balanceUoGlide,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
