@@ -952,26 +952,20 @@ function apicalizeEmptyRhyme(query, plan, config = {}) {
 }
 //// /空韵(舌尖元音)近似 ////
 
-//// er 韵收尾:把儿/二/而(アル)的 ル 压短成 r 色尾音、时间还给前面的元音 ア,整字略增总长,不让 ル 念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
+//// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
 // er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
-// 直接砍 ル 会压缩整字(花儿听成 fur、一会儿的会被挤短);照「略增总长 + 比例分配」原则:把 ア+ル 总长略增(×erTotal),再把绝大部分给元音 ア、ル 只留短卷舌尾(ruShare)。
-// 按 mora.syl 标签只动 plan[s].erFinal 为真的字,绝不碰 如/鲁/路(也是 ル、但非 er)。须在画调型之后调用(标签仍在)。config.erhua 为 false 可关闭。
+// 只把 ル 那一拍 vowel_length 压短(主观确认 ×0.3:既不再是「鲁」、又仍听得见卷舌),元音 ア 不动——还给 ア 时间会把元音撑太长、反吞掉卷舌(实听确认)。
+// 按 mora.syl 标签只压 plan[s].erFinal 为真的字的 ル,绝不碰 如/鲁/路(也是 ル、但非 er)。须在画调型之后调用(标签仍在)。config.erhua 为 false 可关闭。
+// 多音节儿化(花儿、一会儿)的「儿」会与前字连读成 fur 类,根因是 アル 多出一个 ア 元音、需结构性并字,不在本步;本步只管单字 er 与儿尾不成「鲁」。
 function tightenErhuaTail(query, plan, config = {}) {
   if (config.erhua === false) return query;
-  const ruShare = config.erTailShare != null ? config.erTailShare : 0.18; // ル 留占 er 韵总长的比例(短卷舌尾)
-  const erTotal = config.erTotalBoost != null ? config.erTotalBoost : 1.12; // er 韵总长略增的倍率(不压缩、略延长)
+  const ruScale = config.erTailShorten != null ? config.erTailShorten : 0.3;
   for (const phrase of (query.accent_phrases || [])) {
-    const moras = phrase.moras || [];
-    for (let i = 1; i < moras.length; i += 1) {
-      const m = moras[i]; const prev = moras[i - 1];
+    for (const m of (phrase.moras || [])) {
       if (m.text !== 'ル') continue;
       const s = m.syl;
       if (s == null || !(plan[s] && plan[s].erFinal)) continue;
-      if (prev.syl !== s || !(m.vowel_length > 0) || !(prev.vowel_length > 0)) continue; // 前一拍须是同字的元音 ア
-      // 略增总长后按比例分配:ル 收成短尾,余下时间归元音 ア(ア 变长、字不被压缩)。
-      const total = (prev.vowel_length + m.vowel_length) * erTotal;
-      m.vowel_length = total * ruShare;
-      prev.vowel_length = total - m.vowel_length;
+      if (m.vowel_length > 0) m.vowel_length *= ruScale;
     }
   }
   return query;
