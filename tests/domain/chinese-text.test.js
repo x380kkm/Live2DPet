@@ -67,6 +67,18 @@ test('textToAccentKana 标鼻韵尾', () => {
   assert.strictEqual(textToAccentKana('好').plan[0].nasalCoda, null, '好无鼻韵尾');
 });
 
+//// 空韵标记:z/c/s/zh/ch/sh + i 的空韵音节标 emptyRhyme;真 [i](ji/xi)与放弃的 ri 不标 [@x380kkm 2026-06-17] ////
+test('textToAccentKana 标空韵', () => {
+  // 资(zi)、思(si)是舌尖前空韵,知(zhi)、师(shi)是舌尖后空韵。
+  assert.strictEqual(textToAccentKana('资').plan[0].emptyRhyme, true, '资是空韵');
+  assert.strictEqual(textToAccentKana('知').plan[0].emptyRhyme, true, '知是空韵');
+  assert.strictEqual(textToAccentKana('师').plan[0].emptyRhyme, true, '师是空韵');
+  // 鸡(ji)、西(xi)的 i 是真前高元音,不标;日(ri)卷舌空韵已放弃,不标。
+  assert.ok(!textToAccentKana('鸡').plan[0].emptyRhyme, '鸡的 i 是真 [i]、不标');
+  assert.ok(!textToAccentKana('西').plan[0].emptyRhyme, '西的 i 是真 [i]、不标');
+  assert.ok(!textToAccentKana('日').plan[0].emptyRhyme, '日是 ri 卷舌空韵、已放弃、不标');
+});
+
 //// 多句逐段标句类型:按句末终止标点切句,每句的音节标各自的句类型,句末音节标 sentenceEnd [@x380kkm 2026-06-17] ////
 test('textToAccentKana 多句逐段标句类型', () => {
   // 「你好吗？我很好。」:前三音节(你好吗)是是非问,后三(我很好)是陈述。

@@ -22,6 +22,7 @@ const {
   tightenGlideMedial,
   fitSyllableDuration,
   adjustNasalCoda,
+  apicalizeEmptyRhyme,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -328,6 +329,28 @@ test('adjustNasalCoda 前后鼻音占比', () => {
   const q3 = { accent_phrases: [{ moras: [{ text: 'イ', vowel_length: 0.1 }, { text: 'ン', vowel_length: 0.1 }] }] };
   adjustNasalCoda(q3, [{ kana: 'イン', tone: 1, nasalCoda: 'ng' }], { nasalCoda: false });
   assert.strictEqual(q3.accent_phrases[0].moras[1].vowel_length, 0.1, '关掉不动');
+});
+
+//// 空韵近似:空韵音节的声母擦音段按比例拉长、元音随之拉长不压、音高小抬;非空韵与关闭时不动 [@x380kkm 2026-06-17] ////
+test('apicalizeEmptyRhyme 拉长空韵声母', () => {
+  // 知(zhi)空韵:ジ 带声母擦音段、イ 补拍。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 },
+    { text: 'イ', consonant_length: null, vowel_length: 0.1, pitch: 5.5, syl: 0 },
+  ] }] };
+  apicalizeEmptyRhyme(q, [{ emptyRhyme: true }], { apicalConsonant: 1.3, apicalVowel: 1.05, apicalRaise: 0.10 });
+  const m = q.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[0].consonant_length - 0.13) < 1e-9, '声母擦音段按比例拉长 ×1.3');
+  assert.ok(m[0].vowel_length > 0.1 && m[1].vowel_length > 0.1, '元音随之拉长、不压短');
+  assert.ok(Math.abs(m[0].pitch - 5.6) < 1e-9, '音高小幅抬升 +0.10');
+  // 非空韵音节(如 ji/xi、或放弃的 ri)不动。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
+  apicalizeEmptyRhyme(q2, [{ emptyRhyme: false }]);
+  assert.strictEqual(q2.accent_phrases[0].moras[0].consonant_length, 0.1, '非空韵不动');
+  // config.emptyRhyme 为 false 整体关闭。
+  const q3 = { accent_phrases: [{ moras: [{ text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
+  apicalizeEmptyRhyme(q3, [{ emptyRhyme: true }], { emptyRhyme: false });
+  assert.strictEqual(q3.accent_phrases[0].moras[0].consonant_length, 0.1, '关闭时不动');
 });
 
 //// 单字时长收进区间:超上限的字压短、低于下限的字抬长、区间内的不动 [@x380kkm 2026-06-16] ////

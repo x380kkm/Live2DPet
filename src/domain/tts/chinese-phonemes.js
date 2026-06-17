@@ -74,6 +74,9 @@ const Y_MEDIAL = new Set(['a', 'e', 'ao', 'ou', 'an', 'ang', 'ong']);
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 // 普通话送气声母:这些字的塞音/塞擦音要送气([pʰ tʰ kʰ tɕʰ tsʰ tʂʰ]),日语只在短语首才给清塞音送气,见 splitFinalAspiratedStop。
 const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
+// 空韵声母:这些声母 + 韵母 i 的「i」不是前高 [i](鸡 ji、西 xi 的韵母),而是舌尖元音——舌尖前的 [z̩](资 zi、词 ci、思 si)或舌尖后的 [ʐ̩](知 zhi、吃 chi、师 shi)。
+// 由 apicalizeEmptyRhyme 把声母擦音段按比例拉长、音高小抬,使其听感离开前 [i]。r 的卷舌空韵(日 ri)近似难度大,暂不在此列、留待后续。
+const EMPTY_RHYME_INITIALS = new Set(['z', 'c', 's', 'zh', 'ch', 'sh']);
 
 // 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.3 抵消单元音补拍带来的整体变长,音节与停顿一起压紧、不拖不留长间隔;
 // 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
@@ -289,7 +292,9 @@ function sentenceToAccentKana(tokens, options = {}) {
     // 韵尾标记:后鼻韵尾(-ng)记 'ng'、前鼻韵尾(-n)记 'n',供 adjustNasalCoda 按韵尾调鼻音占比、区分 -n/-ng。
     const fin = item.parsed.final || '';
     const nasalCoda = /ng$/.test(fin) ? 'ng' : (/n$/.test(fin) ? 'n' : null);
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda });
+    // 空韵标记:声母在 EMPTY_RHYME_INITIALS、韵母是 i 时,这个 i 是舌尖元音(资/知/师),供 apicalizeEmptyRhyme 拉长声母擦音。
+    const emptyRhyme = fin === 'i' && EMPTY_RHYME_INITIALS.has(item.parsed.initial);
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme });
     groupStart = false;
   }
   if (current.length) {
@@ -907,6 +912,30 @@ function adjustNasalCoda(query, plan, config = {}) {
 }
 //// /按韵尾调鼻音占比区分 -n/-ng ////
 
+//// 空韵(舌尖元音)近似:把声母擦音段按比例拉长、元音随之轻微拉长(不压)、音高小抬,让 zi/zhi/shi 等离开前 [i]、不像 ji/xi [@x380kkm 2026-06-17] ////
+// 空韵的 i 是成音节的舌尖擦音(资 [z̩]、知 [ʐ̩]),本质是「把声母擦音拖成韵核」。日语片假名只能拼出带前 [i] 的 ジ/ズィ/シ,故靠时长与音高近似:
+// 声母辅音段按比例拉长(占比抬上去、擦音更出),整字只轻微变长——靠比例不靠给声母硬加绝对时长;元音随轻微放慢拉长一点、绝不压短;音高小幅抬升。
+// 经主观试听:拉长比例过大(声母×2 以上)会把塞擦/送气成分顶出来、zhi 滑向 chi/qi,故默认取最轻的一档。r 的卷舌空韵(日)不在 plan[s].emptyRhyme 内、此步不动。
+// 须在画调型之后调用:按 mora.syl 标签定位空韵音节(画调型重排二三声 mora 后标签仍在),音高抬升叠在画好的调型之上。config.emptyRhyme 为 false 可整体关闭。
+function apicalizeEmptyRhyme(query, plan, config = {}) {
+  if (config.emptyRhyme === false) return query;
+  const cMul = config.apicalConsonant != null ? config.apicalConsonant : 1.3; // 声母擦音段拉长比例(温和、不绝对硬加)
+  const vMul = config.apicalVowel != null ? config.apicalVowel : 1.05;         // 元音随轻微放慢拉长的比例(>1,不压)
+  const pAdd = config.apicalRaise != null ? config.apicalRaise : 0.10;         // 音高抬升量(对数 Hz)
+  const clamp = (v) => Math.max(4.8, Math.min(6.6, v));
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      const s = m.syl;
+      if (s == null || !(plan[s] && plan[s].emptyRhyme)) continue;
+      if (m.consonant_length != null) m.consonant_length *= cMul; // 只放大有声母那一拍的辅音段
+      if (m.vowel_length > 0) m.vowel_length *= vMul;
+      if (m.pitch > 0) m.pitch = clamp(m.pitch + pAdd);
+    }
+  }
+  return query;
+}
+//// /空韵(舌尖元音)近似 ////
+
 //// 把单元音补拍那一拍按 factor 缩短:补拍是无声母、且元音与前一 mora 相同的那个 mora [@x380kkm 2026-06-15] ////
 // 单元音补拍补出的第二拍整拍太长,会拖慢整句、字间显空;这里只把那一拍压短,不动正常元音与复韵母。
 function shortenElongationPad(query, config = {}) {
@@ -1142,6 +1171,7 @@ function applyChineseProsody(query, plan, config = {}) {
   applyBaselineContour(query, config);
   applyFocus(query, plan, config);
   applySentenceIntonation(query, plan, config);
+  apicalizeEmptyRhyme(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1171,6 +1201,7 @@ module.exports = {
   tightenGlideMedial,
   fitSyllableDuration,
   adjustNasalCoda,
+  apicalizeEmptyRhyme,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
