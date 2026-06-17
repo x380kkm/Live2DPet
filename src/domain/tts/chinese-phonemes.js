@@ -43,9 +43,9 @@ const FINAL_KANA = {
   // e[ɤ] 用 ウア 滑音近似:单用 ウ 会把恶/课/了发成 u(实听确认);ウ 起、滑向 ア,比单元音更像 ㄜ。本就两拍,不在补拍名单。
   a: 'ア', o: 'オ', e: 'ウア', ê: 'エ',
   ai: 'アイ', ei: 'エイ', ao: 'アオ', ou: 'オウ',
-  // -an 用 アエン:a 在 -n 前本是前移的 [a̟](偏「爱/欸」),加 エ 前滑尾让「安」更清,又与后元音的 -ang 自然分开(实听 a 为主、エ 短滑尾,见 adjustNasalCoda 调时长)。
-  // -eng 用 オン(后元音)与 -en 的 エン 区分;-ang 维持后元音 アン。
-  an: 'アエン', en: 'エン', ang: 'アン', eng: 'オン', ong: 'オン',
+  // -an 用 アエン:a 在 -n 前本是前移的 [a̟](偏「爱/欸」),加 エ 前滑尾让「安」更清。-ang 用 アオン:a 在 -ng 前是后移的 [ɑ],加 オ 后滑尾把后元音做出来,与 -an 前后对称。
+  // 两者的滑尾(エ/オ)都由 adjustNasalCoda 压短、给主元音 a,保持平滑不分裂;-eng 用 オン 与 -en 的 エン 区分。
+  an: 'アエン', en: 'エン', ang: 'アオン', eng: 'オン', ong: 'オン',
   er: 'アル',
   i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イウ', iou: 'イウ',
   ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
@@ -875,17 +875,24 @@ function adjustNasalCoda(query, plan, config = {}) {
     let nasalIdx = -1;
     for (let i = g.length - 1; i >= 0; i -= 1) { if (g[i].text === 'ン') { nasalIdx = i; break; } }
     if (nasalIdx <= 0) continue; // 没鼻音 mora 或鼻音在首位,跳过
-    const nucleus = g[0];
-    if (coda === 'n') {
-      const nm = g[nasalIdx];
-      if (nm.vowel_length > 0) { const cut = nm.vowel_length * nShorten; nm.vowel_length -= cut; nucleus.vowel_length = (nucleus.vowel_length || 0) + cut; }
-      for (let i = 1; i < nasalIdx; i += 1) { // 主元音与鼻音之间的滑尾(アエン 的 エ)压短、给主元音
+    // 主元音定位:一般是紧挨鼻音的元音;但 アエン/アオン 的紧挨元音是滑尾 エ/オ,主元音是开头的 ア。
+    // 靠「首拍是 ア 且鼻音前还有别的元音」识别这种「主元音 + 滑尾 + 鼻音」结构;否则主元音取紧挨鼻音那拍(イアン 的 ア、エン 的 エ、烟 イエン 的 エ)。
+    const hasOffglide = nasalIdx >= 2 && g[0].text === 'ア';
+    const mainVowel = hasOffglide ? g[0] : g[nasalIdx - 1];
+    // 滑尾压短(アエン 的 エ、アオン 的 オ)、给主元音 ア,让 a 连下去、不分裂、平滑;只在「主元音 + 滑尾」结构上做,不动 イアン 这类介音字。
+    if (hasOffglide) {
+      for (let i = 1; i < nasalIdx; i += 1) {
         const om = g[i];
-        if (om.vowel_length > 0) { const cut = om.vowel_length * offShorten; om.vowel_length -= cut; nucleus.vowel_length = (nucleus.vowel_length || 0) + cut; }
+        if (om.vowel_length > 0) { const cut = om.vowel_length * offShorten; om.vowel_length -= cut; mainVowel.vowel_length = (mainVowel.vowel_length || 0) + cut; }
       }
+    }
+    if (coda === 'n') {
+      // 前鼻音:鼻音压短、时间给主元音(字更清)。
+      const nm = g[nasalIdx];
+      if (nm.vowel_length > 0) { const cut = nm.vowel_length * nShorten; nm.vowel_length -= cut; mainVowel.vowel_length = (mainVowel.vowel_length || 0) + cut; }
     } else if (coda === 'ng') {
-      const pv = g[nasalIdx - 1];
-      if (pv && pv.vowel_length > 0) { const cut = pv.vowel_length * ngLengthen; pv.vowel_length -= cut; g[nasalIdx].vowel_length = (g[nasalIdx].vowel_length || 0) + cut; }
+      // 后鼻音:鼻音拖长、从主元音取(in/ing、an/ang 靠此分);滑尾已压短,故从主元音取不影响平滑。
+      if (mainVowel.vowel_length > 0) { const cut = mainVowel.vowel_length * ngLengthen; mainVowel.vowel_length -= cut; g[nasalIdx].vowel_length = (g[nasalIdx].vowel_length || 0) + cut; }
     }
   }
   return query;
