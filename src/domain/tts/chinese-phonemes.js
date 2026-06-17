@@ -958,6 +958,22 @@ function apicalizeEmptyRhyme(query, plan, config = {}) {
 }
 //// /空韵(舌尖元音)近似 ////
 
+//// 后鼻韵尾 -ng 把元音撑出身子:画调型把单韵腹(城 チョ)切成几拍、每拍过短,长鼻音又盖住元音,听着没劲;按比例拉长 -ng 字的元音拍(非 ン),元音不压、整字略长 [@x380kkm 2026-06-17] ////
+// 只对 -ng(plan[s].nasalCoda 为 ng)做:-n 字要保持「a 短 n 长」(安不像啊),不在此列。按 mora.syl 定位,拉长该字非 ン 的有声拍。须在画调型之后调用(标签仍在)。
+function bolsterNgVowel(query, plan, config = {}) {
+  const vMul = config.ngVowelBody != null ? config.ngVowelBody : 1.5;
+  if (vMul === 1) return query;
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      const s = m.syl;
+      if (s == null || !(plan[s] && plan[s].nasalCoda === 'ng')) continue;
+      if (m.text !== 'ン' && m.vowel_length > 0) m.vowel_length *= vMul;
+    }
+  }
+  return query;
+}
+//// /后鼻韵尾 -ng 把元音撑出身子 ////
+
 //// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
 // er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
 // 只把 ル 那一拍 vowel_length 压短(主观确认 ×0.3:既不再是「鲁」、又仍听得见卷舌),元音 ア 不动——还给 ア 时间会把元音撑太长、反吞掉卷舌(实听确认)。
@@ -1215,6 +1231,7 @@ function applyChineseProsody(query, plan, config = {}) {
   applySentenceIntonation(query, plan, config);
   apicalizeEmptyRhyme(query, plan, config);
   tightenErhuaTail(query, plan, config);
+  bolsterNgVowel(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1246,6 +1263,7 @@ module.exports = {
   adjustNasalCoda,
   apicalizeEmptyRhyme,
   tightenErhuaTail,
+  bolsterNgVowel,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,

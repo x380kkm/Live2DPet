@@ -24,6 +24,7 @@ const {
   adjustNasalCoda,
   apicalizeEmptyRhyme,
   tightenErhuaTail,
+  bolsterNgVowel,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -502,6 +503,23 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(Math.abs(offM[0].pitch - onM[0].pitch) < 1e-9, '三声自身不被 downstep 压');
   assert.ok(onM[1].pitch < offM[1].pitch, 'downstep 把三声后的一声压低');
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
+});
+
+//// 后鼻韵尾 -ng 拉长元音拍:-ng 字非 ン 的有声拍按比例拉长;-n 字与鼻音 ン 不动 [@x380kkm 2026-06-17] ////
+test('bolsterNgVowel 拉长 -ng 元音', () => {
+  // 城(eng,-ng):オ 拍拉长,ン 不动。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'チョ', vowel_length: 0.05, syl: 0 },
+    { text: 'ン', vowel_length: 0.25, syl: 0 },
+  ] }] };
+  bolsterNgVowel(q, [{ nasalCoda: 'ng' }], { ngVowelBody: 1.5 });
+  const m = q.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[0].vowel_length - 0.075) < 1e-9, '-ng 元音拍拉长 ×1.5');
+  assert.strictEqual(m[1].vowel_length, 0.25, '鼻音 ン 不动');
+  // -n 字(安)不动:要保持 a 短 n 长。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ア', vowel_length: 0.05, syl: 0 }, { text: 'ン', vowel_length: 0.25, syl: 0 }] }] };
+  bolsterNgVowel(q2, [{ nasalCoda: 'n' }], { ngVowelBody: 1.5 });
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.05, '-n 元音不动');
 });
 
 //// er 韵收尾:er 字(アル)的 ル 那一拍压短成卷舌尾、元音 ア 不动;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
