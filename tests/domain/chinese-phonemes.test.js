@@ -476,6 +476,25 @@ test('applyMandarinTones downstep 三声后高调被压', () => {
   assert.ok(onM[2].pitch < offM[2].pitch && onM[2].pitch > onM[1].pitch, '次拍压得少、向基线回升');
 });
 
+//// 句末高调缓解 downstep:三声后紧跟的句末一声(远方的方)只承受部分 downstep,免得叠句末下降塌底 [@x380kkm 2026-06-17] ////
+test('applyMandarinTones 句末高调缓解 downstep', () => {
+  const mk = () => ({ accent_phrases: [{ moras: [
+    { text: 'ア', pitch: 5.5, vowel_length: 0.1 },
+    { text: 'ア', pitch: 5.5, vowel_length: 0.1 },
+  ] }] });
+  // 三声「远」+ 句末一声「方」:方被远触发的 downstep 压,且方是整段末音节(标 sentenceEnd)。
+  const plan = [
+    { kana: 'ア', tone: 3, groupStart: true },
+    { kana: 'ア', tone: 1, sentenceEnd: true },
+  ];
+  // 不缓解(relief=1):句末一声承受满档 downstep。缓解(默认 0.5):只承受半档,故句末一声更高。
+  const full = mk(); applyMandarinTones(full, plan, { downstep: {}, finalDownstepRelief: 1 });
+  const half = mk(); applyMandarinTones(half, plan, { downstep: {} });
+  const fullM = full.accent_phrases[0].moras; const halfM = half.accent_phrases[0].moras;
+  assert.ok(halfM[1].pitch > fullM[1].pitch, '句末高调缓解后比满档 downstep 更高');
+  assert.strictEqual(fullM[0].pitch, halfM[0].pitch, '前面的三声不受缓解影响');
+});
+
 //// 前瞻抬升:三声前的高调(一声)被略抬,后邻非三声则不抬 [@x380kkm 2026-06-17] ////
 test('applyMandarinTones 前瞻抬升', () => {
   const mk = () => ({ accent_phrases: [{ moras: [

@@ -399,6 +399,10 @@ function applyMandarinTones(query, plan, config = {}) {
   // 前瞻抬升(anticipatory raising):三声(低调)之前的高调(一/二/四声)峰值略抬,是 downstep 的逆向异化一半(另一半是 downstep 压后字)。
   // 默认 0.04 对数 Hz(约 0.7 个半音),量小;只在句内(有后邻)、后邻是三声时对当前高调音节加。
   const antRaise = config.antRaise != null ? config.antRaise : 0.04;
+  // 句末高调对 downstep 的缓解比例:downstep 把低调之后的高调压低一档,但到句末边界这一档与句末下降叠加,
+  // 会把收尾的高平、高起调压垮(远方的方:既被前字「远」的 downstep 压满,又叠句末下降,听着掉得过狠)。
+  // 句末音节只保留此比例的 downstep,默认 0.5(留半档),边界处不让 downstep 全压在收尾字上。
+  const finalDownstepRelief = config.finalDownstepRelief != null ? config.finalDownstepRelief : 0.5;
   const moras = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -442,6 +446,10 @@ function applyMandarinTones(query, plan, config = {}) {
         dsOffset = downReg;
         downReg *= dsRecovery;
       }
+    }
+    // 句末(标 sentenceEnd 的句末音节,或整段最后一个音节)的高调只承受部分 downstep,免得与句末下降叠成塌底。
+    if (downstep && dsOffset < 0 && (syllable.sentenceEnd || s === plan.length - 1)) {
+      dsOffset *= finalDownstepRelief;
     }
     // 前瞻抬升:后邻是三声、当前是高调(一/二/四声)时,把当前音节略抬;三声本身不抬(无真高点)。
     const antOffset = (antRaise > 0 && nextTone === 3 && (syllable.tone === 1 || syllable.tone === 2 || syllable.tone === 4)) ? antRaise : 0;
