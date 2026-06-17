@@ -54,7 +54,8 @@ const FINAL_KANA = {
   uan: 'ウアン', un: 'ウン', uen: 'ウン', uang: 'ウアン', ueng: 'ウオン',
   // ü[y] 是前高圆唇,日语只有后高的 ウ;单用 ユ 接腭化声母会拼成 チュ[tɕu](去听成 chu)。
   // 改用 ユイ:在 ュ 后补个前元音 イ 把音色前移(去 qü→チュイ、需 xü→シュイ、鱼 yü→ユイ),实听比 チュ 更像 ü。
-  ü: 'ユイ', v: 'ユイ', üe: 'ユエ', ve: 'ユエ', üan: 'ユエン', van: 'ユエン', ün: 'ユン', vn: 'ユン'
+  // ün 同理补 イ 前移成 ユイン(郡 jün→ジュイン、云 yün→ユイン),与 ü、üan 一致;旧记法 ユン 没前移、郡听着偏后 u。
+  ü: 'ユイ', v: 'ユイ', üe: 'ユエ', ve: 'ユエ', üan: 'ユエン', van: 'ユエン', ün: 'ユイン', vn: 'ユイン'
 };
 
 // 基元音片假名到元音字母,供声母按韵母首元音选拼法。
@@ -282,8 +283,9 @@ function sentenceToAccentKana(tokens, options = {}) {
         groupWordStarts.push(currentWordStart);
         current = [];
         currentWordStart = [];
-        // 记下这个组边界的停顿等级:标点全停顿,`/` 记号半半停顿。供 sizePhrasePauses 给 pause_mora 定长。
-        plan[plan.length - 1].breakAfter = item.phrase ? 'minor' : 'full';
+        // 记下这个组边界的停顿等级:`/` 记号最短(minor)、顿号是列举半停(pph)、其余标点(逗号、句号等)是语调短语全停(full)。供 sizePhrasePauses 给 pause_mora 定长。
+        // 顿号比逗号短一档,免得「桂林、象郡，百越」里顿号与逗号同长、逗号听着没停。
+        plan[plan.length - 1].breakAfter = item.phrase ? 'minor' : (item.punct === '、' ? 'pph' : 'full');
       }
       groupStart = true;
       continue;
@@ -561,12 +563,13 @@ function shapeChineseRhythm(query, config = {}) {
 }
 //// /把节奏整成更像中文:合并组内短语、收紧标点停顿 ////
 
-//// 按 plan 的 breakAfter 给各组边界的 pause_mora 定长:标点全停顿、`/` 记号半半停顿 [@x380kkm 2026-06-16] ////
-// plan 上 breakAfter 标了每个组边界的等级(full/minor),顺序与合并后 query 里带 pause_mora 的短语一一对应(停顿只在组边界出现);
-// 按序取等级,把全停顿设为 fullPause、半半停顿设为 minorPause。须在 shapeChineseRhythm 合并之后调用。
+//// 按 plan 的 breakAfter 给各组边界的 pause_mora 定长:逗号句号全停、顿号半停、`/` 记号半半停 [@x380kkm 2026-06-16] ////
+// plan 上 breakAfter 标了每个组边界的等级(full/pph/minor),顺序与合并后 query 里带 pause_mora 的短语一一对应(停顿只在组边界出现);
+// 按序取等级:逗号句号等(full)设 fullPause、顿号(pph)设 pphPause、`/` 记号(minor)设 minorPause。三档拉开,逗号比顿号停得久。须在 shapeChineseRhythm 合并之后调用。
 function sizePhrasePauses(query, plan, config = {}) {
-  // 停顿时长减半(实听更紧凑):全停顿 0.20→0.10、半半停顿 0.06→0.03。
+  // 停顿时长(实听定,紧凑):逗号句号全停 0.10、顿号半停 0.06、`/` 半半停 0.03。
   const fullPause = config.fullPause != null ? config.fullPause : 0.10;
+  const pphPause = config.pphPause != null ? config.pphPause : 0.06;
   const minorPause = config.minorPause != null ? config.minorPause : 0.03;
   const levels = [];
   for (const p of (plan || [])) { if (p.breakAfter) levels.push(p.breakAfter); }
@@ -574,7 +577,7 @@ function sizePhrasePauses(query, plan, config = {}) {
   for (const phrase of (query.accent_phrases || [])) {
     if (phrase.pause_mora && phrase.pause_mora.vowel_length != null) {
       const level = levels[k]; k += 1;
-      phrase.pause_mora.vowel_length = level === 'minor' ? minorPause : fullPause;
+      phrase.pause_mora.vowel_length = level === 'minor' ? minorPause : (level === 'pph' ? pphPause : fullPause);
     }
   }
   return query;

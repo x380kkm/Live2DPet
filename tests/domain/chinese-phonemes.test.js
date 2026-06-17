@@ -616,19 +616,22 @@ test('sentenceToAccentKana 处理 / 断句记号', () => {
   assert.strictEqual(plan[1].groupStart, true, '/ 后一字是新组首');
 });
 
-//// 按 breakAfter 给 pause_mora 定长:minor 半半、full 全,按序对应带停顿的短语 [@x380kkm 2026-06-16] ////
+//// 按 breakAfter 给 pause_mora 定长:minor 半半、pph 顿号半停、full 全停;三档拉开,逗号比顿号久 [@x380kkm 2026-06-16] ////
 test('sizePhrasePauses 按等级定停顿长', () => {
   const query = {
     accent_phrases: [
       { moras: [{ text: 'ア' }], pause_mora: { vowel_length: 0.3 } },
       { moras: [{ text: 'イ' }], pause_mora: { vowel_length: 0.3 } },
-      { moras: [{ text: 'ウ' }], pause_mora: null }
+      { moras: [{ text: 'ウ' }], pause_mora: { vowel_length: 0.3 } },
+      { moras: [{ text: 'エ' }], pause_mora: null }
     ]
   };
-  const plan = [{ breakAfter: 'minor' }, { breakAfter: 'full' }, {}];
-  sizePhrasePauses(query, plan, { fullPause: 0.20, minorPause: 0.06 });
-  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.06, '第一处 minor 设为半半');
-  assert.strictEqual(query.accent_phrases[1].pause_mora.vowel_length, 0.20, '第二处 full 设为全停顿');
+  const plan = [{ breakAfter: 'minor' }, { breakAfter: 'pph' }, { breakAfter: 'full' }, {}];
+  sizePhrasePauses(query, plan, { fullPause: 0.10, pphPause: 0.06, minorPause: 0.03 });
+  assert.strictEqual(query.accent_phrases[0].pause_mora.vowel_length, 0.03, 'minor(/ 记号)设为半半停');
+  assert.strictEqual(query.accent_phrases[1].pause_mora.vowel_length, 0.06, 'pph(顿号)设为半停');
+  assert.strictEqual(query.accent_phrases[2].pause_mora.vowel_length, 0.10, 'full(逗号句号)设为全停');
+  assert.ok(query.accent_phrases[2].pause_mora.vowel_length > query.accent_phrases[1].pause_mora.vowel_length, '逗号比顿号停得久');
 });
 
 //// 二声画"先低后抬"的升、三声画 214 曲折并加长;一声不动 [@x380kkm 2026-06-15] ////
