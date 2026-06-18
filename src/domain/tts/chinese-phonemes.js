@@ -299,6 +299,18 @@ function sentenceToAccentKana(tokens, options = {}) {
   let groupStart = true;
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i];
+    // 把 `/` 韵律短语记号变成促音(切而不打断语气),不切组、不插静音停顿——在前一字尾加 ッ、同组连读。默认开,显式传 sokuonSegment 为 false 退回静音半停。
+    if (item.phrase && options.sokuonSegment !== false) {
+      const lastKana = current[current.length - 1];
+      if (lastKana && !lastKana.endsWith('ッ')) {
+        current[current.length - 1] = lastKana + 'ッ';
+        const last = plan[plan.length - 1];
+        last.kana += 'ッ';
+        last.moras = moraCount(last.kana);
+        last.sokuon = 'minor';
+      }
+      continue;
+    }
     if (item.punct || item.phrase) {
       if (current.length) {
         groups.push(current);
@@ -319,10 +331,13 @@ function sentenceToAccentKana(tokens, options = {}) {
     }
     // 同源连读:当前字收于前高元音 i/ü、下一字声母与之同源时,两字间无辅音界限会黏成一长滑音(继续 ji-xu 黏住)。
     // 在当前字尾加一个促音 ッ,用一个极短的辅音闭合/喉塞掐断滑音(继续→ジイッシュイ),两字仍同处一短语、不插停顿,既断开又不打断口音的连贯。
+    // 促音来源记进 plan[s].sokuon,供 sizeSokuon 按级定闭合时长:连读(liaison)最短、`/` 韵律边界(minor)较长——大小即切分强度。
+    let sokuon = null;
     const nextItem = items[i + 1];
     if (nextItem && nextItem.parsed && isHomorganicLiaison(item.parsed, nextItem.parsed)) {
       syllable.kana += 'ッ';
       syllable.moras = moraCount(syllable.kana);
+      sokuon = 'liaison';
     }
     current.push(syllable.kana);
     currentWordStart.push(wordStart ? Boolean(wordStart[i]) : true);
@@ -336,7 +351,7 @@ function sentenceToAccentKana(tokens, options = {}) {
       : null;
     // er 韵标记:儿/二/而 的韵母是 er(片假名 アル),供 tightenErhuaTail 压短 ル 尾、不让它成独立的「鲁」音节;同时收好儿化。
     const erFinal = fin === 'er';
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal, final: fin });
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal, final: fin, sokuon });
     groupStart = false;
   }
   if (current.length) {
@@ -1052,6 +1067,26 @@ function bolsterUnVowel(query, plan, config = {}) {
 }
 //// /撑长 -un/-uen 的 u 韵腹 ////
 
+//// 给促音 ッ(切分标记)按级定闭合时长:连读促音最短、`/` 韵律边界促音较长——促音大小即句内切分强度 [@x380kkm 2026-06-18] ////
+// 促音在 query 里是一个 vowel='cl' 的闭合 mora,其 vowel_length 即闭合时长。按 mora.syl 找到来源音节 plan[s].sokuon 的等级、定长。
+// 连读(liaison)只为掐断同源滑音、最短;`/` 韵律短语边界(minor)是句内切分、较长但仍非静音(静音只留给真正的标点)。须在画调型之后调用(标签仍在)。config.sizeSokuon 为 false 可关闭。
+function sizeSokuon(query, plan, config = {}) {
+  if (config.sizeSokuon === false) return query;
+  const liaisonLen = config.sokuonLiaison != null ? config.sokuonLiaison : 0.02;
+  const minorLen = config.sokuonMinor != null ? config.sokuonMinor : 0.06;
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.vowel !== 'cl') continue;
+      const s = m.syl;
+      const level = (s != null && plan[s]) ? plan[s].sokuon : null;
+      if (level === 'minor') m.vowel_length = minorLen;
+      else if (level === 'liaison') m.vowel_length = liaisonLen;
+    }
+  }
+  return query;
+}
+//// /给促音 ッ 按级定闭合时长 ////
+
 //// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
 // er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
 // 只把 ル 那一拍 vowel_length 压短(主观确认 ×0.3:既不再是「鲁」、又仍听得见卷舌),元音 ア 不动——还给 ア 时间会把元音撑太长、反吞掉卷舌(实听确认)。
@@ -1312,6 +1347,7 @@ function applyChineseProsody(query, plan, config = {}) {
   bolsterNgVowel(query, plan, config);
   balanceUoGlide(query, plan, config);
   bolsterUnVowel(query, plan, config);
+  sizeSokuon(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1346,6 +1382,7 @@ module.exports = {
   bolsterNgVowel,
   balanceUoGlide,
   bolsterUnVowel,
+  sizeSokuon,
   isHomorganicLiaison,
   drawToneContours,
   applyDeclination,

@@ -27,6 +27,7 @@ const {
   bolsterNgVowel,
   balanceUoGlide,
   bolsterUnVowel,
+  sizeSokuon,
   isHomorganicLiaison,
   drawToneContours,
   applyDeclination,
@@ -582,6 +583,34 @@ test('sentenceToAccentKana 同源连读加促音', () => {
   assert.ok(!hiatus.kana.includes('ッ'), '西安:非同源不加促音');
 });
 
+//// 默认把 `/` 韵律记号转成促音:前字尾加 ッ 标 minor、不切组不插停顿;显式关退回静音半停 [@x380kkm 2026-06-18] ////
+test('sentenceToAccentKana 默认把 / 转促音', () => {
+  const on = sentenceToAccentKana(['wo3', '/', 'hao3']);
+  assert.ok(on.kana.includes('ッ'), '默认 / 转成促音 ッ');
+  assert.ok(!on.kana.includes('、'), '不插静音停顿');
+  assert.strictEqual(on.plan[0].sokuon, 'minor', '前字标 sokuon=minor');
+  // 显式关(sokuonSegment:false)退回静音半停。
+  const off = sentenceToAccentKana(['wo3', '/', 'hao3'], { sokuonSegment: false });
+  assert.ok(off.kana.includes('、'), '关时 / 仍是静音半停');
+  assert.strictEqual(off.plan[0].breakAfter, 'minor', '关时 / 标 breakAfter minor');
+});
+
+//// 促音按级定闭合时长:liaison 促音短、minor(/ 边界)促音长;非 cl mora 不动 [@x380kkm 2026-06-18] ////
+test('sizeSokuon 按级定促音闭合时长', () => {
+  const query = { accent_phrases: [{ moras: [
+    { text: 'イ', vowel: 'i', vowel_length: 0.1, syl: 0 },
+    { text: 'ッ', vowel: 'cl', vowel_length: 0.3, syl: 0 },
+    { text: 'シ', vowel: 'i', vowel_length: 0.1, syl: 1 },
+    { text: 'ッ', vowel: 'cl', vowel_length: 0.3, syl: 1 },
+  ] }] };
+  const plan = [{ sokuon: 'liaison' }, { sokuon: 'minor' }];
+  sizeSokuon(query, plan, { sokuonLiaison: 0.02, sokuonMinor: 0.06 });
+  const m = query.accent_phrases[0].moras;
+  assert.strictEqual(m[1].vowel_length, 0.02, 'liaison 促音定为短闭合');
+  assert.strictEqual(m[3].vowel_length, 0.06, 'minor 促音定为长闭合');
+  assert.strictEqual(m[0].vowel_length, 0.1, '非 cl mora 不动');
+});
+
 //// er 韵收尾:er 字(アル)的 ル 那一拍压短成卷舌尾、元音 ア 不动;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
 test('tightenErhuaTail 压短 er 字的 ル 尾', () => {
   // 二(er):ア + ル,只压 ル,ア 不动。
@@ -685,9 +714,10 @@ test('chineseVoicePitch 与 chineseVoiceSpeed 按 styleId 取值', () => {
   assert.strictEqual(chineseVoiceSpeed(2), 1, '其它声线语速不动');
 });
 
-//// `/` 断句记号断成组并在前一字标 minor,标点标 full [@x380kkm 2026-06-16] ////
+//// `/` 断句记号(关促音时)断成组并在前一字标 minor,标点标 full [@x380kkm 2026-06-16] ////
 test('sentenceToAccentKana 处理 / 断句记号', () => {
-  const { kana, plan } = sentenceToAccentKana(['wo3', '/', 'hao3']);
+  // 显式关促音,测静音半停的分组路径(默认已改走促音,见上一测试)。
+  const { kana, plan } = sentenceToAccentKana(['wo3', '/', 'hao3'], { sokuonSegment: false });
   assert.ok(kana.includes('、'), '/ 处断成组(、停顿)');
   assert.strictEqual(plan.length, 2, '记号本身不计入音节');
   assert.strictEqual(plan[0].breakAfter, 'minor', '/ 前一字标半半停顿');
