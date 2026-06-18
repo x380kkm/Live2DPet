@@ -84,6 +84,8 @@ const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
 // r 的卷舌空韵(日 ri)近似难度大,暂不在此列、留待后续。
 const DENTAL_EMPTY_RHYME = new Set(['z', 'c', 's']);
 const RETROFLEX_EMPTY_RHYME = new Set(['zh', 'ch', 'sh']);
+// 同源连读判定用的腭化声母:j/q/x 与前高元音 i/ü 同为前部腭化,相接易黏成一长滑音。供 isHomorganicLiaison。
+const PALATAL_INITIALS = new Set(['j', 'q', 'x']);
 
 // 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.45——单字独立片假名块加单元音补拍本就一顿一顿,提速把音节与停顿一起压紧、连读更流畅(实听:1.5 略快,回到 1.45 更稳又不松);
 // 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
@@ -252,6 +254,20 @@ function splitBareVowel(sub) {
 }
 //// /把一个子短语再按零声母纯元音切开 ////
 
+//// 判断相邻两字是否构成同源连读:前字收于真前高元音 i/ü,后字声母与之同源(腭化 j/q/x,或零声母 i/ü 起音) [@x380kkm 2026-06-18] ////
+// 同源相接的两字之间无辅音界限,引擎拼成一长滑音(继续 ji-xu、需要 xu-yao 黏住)。判为真时,上游在前字尾加促音 ッ 掐断。
+// 前字须收于真前高 [i]/[y]:空韵的舌尖 i(资/知)非前高,排除;ü/v 都算。
+function isHomorganicLiaison(cur, next) {
+  if (!cur || !next) return false;
+  const curFrontHigh = (cur.final === 'i' && !DENTAL_EMPTY_RHYME.has(cur.initial) && !RETROFLEX_EMPTY_RHYME.has(cur.initial))
+    || cur.final === 'ü' || cur.final === 'v';
+  if (!curFrontHigh) return false;
+  if (PALATAL_INITIALS.has(next.initial)) return true;
+  // 后字零声母且韵母以 i/ü 起头(祎 yi→i、云 yün→ün):y 介音与前字前高元音同源、最易黏连。
+  return next.initial === '' && /^[iüv]/.test(next.final || '');
+}
+//// /判断相邻两字是否构成同源连读 ////
+
 //// 把拼音与标点拼成 AquesTalk 风格带重音的片假名与声调计划:停顿组按词边界切子短语,组内 / 连读、组间 、停顿 [@x380kkm 2026-06-15] ////
 // 长停顿组按词边界切成至多 maxPhrase 个音节的子短语重新锚定(不切会飘、识别率骤降;机械按固定音节切又拆词);
 // 词边界由 options.wordStart(与 tokens 对齐的真值数组)给出,缺省时每音节自成词、退化为等长切。再把零声母纯元音音节各自切出来给独立起音。
@@ -300,6 +316,13 @@ function sentenceToAccentKana(tokens, options = {}) {
     const syllable = syllableToKana(item.parsed, { elongate: options.elongate !== false, kanaSafe: true });
     if (!syllable.ok || syllable.moras === 0) {
       continue;
+    }
+    // 同源连读:当前字收于前高元音 i/ü、下一字声母与之同源时,两字间无辅音界限会黏成一长滑音(继续 ji-xu 黏住)。
+    // 在当前字尾加一个促音 ッ,用一个极短的辅音闭合/喉塞掐断滑音(继续→ジイッシュイ),两字仍同处一短语、不插停顿,既断开又不打断口音的连贯。
+    const nextItem = items[i + 1];
+    if (nextItem && nextItem.parsed && isHomorganicLiaison(item.parsed, nextItem.parsed)) {
+      syllable.kana += 'ッ';
+      syllable.moras = moraCount(syllable.kana);
     }
     current.push(syllable.kana);
     currentWordStart.push(wordStart ? Boolean(wordStart[i]) : true);
@@ -1011,6 +1034,24 @@ function balanceUoGlide(query, plan, config = {}) {
 }
 //// /uo 介音字按比例分配 u 介音与 o 韵腹 ////
 
+//// 撑长 -un/-uen 的 u 韵腹:u 是这俩韵母的韵腹,却被 adjustNasalCoda 当一般 -n 削去四分之一、又无补拍,听着偏短;按 mora.syl 定位、拉长该字非 ン 的有声拍 [@x380kkm 2026-06-18] ////
+// 损 sun=スン、春 chun=チュン:u 单拍在前、ン 在后。-un/-uen 的 u 是主元音不是介音,不该按「a 短 n 长」压短(那是给 安≠啊 用)。
+// 只对 plan[s].final 为 un/uen 的字、拉长其非 ン 有声拍(主观确认 ×1.4,u 站得住又不拖)。须在画调型之后调用(标签仍在)。config.unVowel 为 false 可关闭。
+function bolsterUnVowel(query, plan, config = {}) {
+  if (config.unVowel === false) return query;
+  const vMul = config.unVowelBody != null ? config.unVowelBody : 1.4;
+  if (vMul === 1) return query;
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      const s = m.syl;
+      if (s == null || !(plan[s] && (plan[s].final === 'un' || plan[s].final === 'uen'))) continue;
+      if (m.text !== 'ン' && m.vowel_length > 0) m.vowel_length *= vMul;
+    }
+  }
+  return query;
+}
+//// /撑长 -un/-uen 的 u 韵腹 ////
+
 //// er 韵收尾:把儿/二/而(アル)的 ル 那一拍压短成 r 色尾音,不让它念成独立的「鲁」音节 [@x380kkm 2026-06-17] ////
 // er 韵(儿化的 [aɚ])片假名拼成 アル,其中 ル 是完整音节 [ɾu]、听着像多出一个「鲁」(二听成二鲁)。
 // 只把 ル 那一拍 vowel_length 压短(主观确认 ×0.3:既不再是「鲁」、又仍听得见卷舌),元音 ア 不动——还给 ア 时间会把元音撑太长、反吞掉卷舌(实听确认)。
@@ -1270,6 +1311,7 @@ function applyChineseProsody(query, plan, config = {}) {
   tightenErhuaTail(query, plan, config);
   bolsterNgVowel(query, plan, config);
   balanceUoGlide(query, plan, config);
+  bolsterUnVowel(query, plan, config);
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1303,6 +1345,8 @@ module.exports = {
   tightenErhuaTail,
   bolsterNgVowel,
   balanceUoGlide,
+  bolsterUnVowel,
+  isHomorganicLiaison,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,

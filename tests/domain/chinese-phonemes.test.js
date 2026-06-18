@@ -26,6 +26,8 @@ const {
   tightenErhuaTail,
   bolsterNgVowel,
   balanceUoGlide,
+  bolsterUnVowel,
+  isHomorganicLiaison,
   drawToneContours,
   applyDeclination,
   applyBaselineContour,
@@ -540,6 +542,44 @@ test('bolsterNgVowel 拉长 -ng 元音', () => {
   const q2 = { accent_phrases: [{ moras: [{ text: 'ア', vowel_length: 0.05, syl: 0 }, { text: 'ン', vowel_length: 0.25, syl: 0 }] }] };
   bolsterNgVowel(q2, [{ nasalCoda: 'n' }], { ngVowelBody: 1.5 });
   assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.05, '-n 元音不动');
+});
+
+//// 撑长 -un/-uen 的 u 韵腹:un/uen 字非 ン 的有声拍按比例拉长;鼻音 ン 与非 un 字不动 [@x380kkm 2026-06-18] ////
+test('bolsterUnVowel 拉长 -un 的 u', () => {
+  // 损(un):ス 拍拉长,ン 不动。
+  const q = { accent_phrases: [{ moras: [
+    { text: 'ス', vowel_length: 0.06, syl: 0 },
+    { text: 'ン', vowel_length: 0.2, syl: 0 },
+  ] }] };
+  bolsterUnVowel(q, [{ final: 'un' }], { unVowelBody: 1.4 });
+  const m = q.accent_phrases[0].moras;
+  assert.ok(Math.abs(m[0].vowel_length - 0.084) < 1e-9, '-un 元音拍拉长 ×1.4');
+  assert.strictEqual(m[1].vowel_length, 0.2, '鼻音 ン 不动');
+  // 非 un 字(安 an)不动。
+  const q2 = { accent_phrases: [{ moras: [{ text: 'ア', vowel_length: 0.06, syl: 0 }, { text: 'ン', vowel_length: 0.2, syl: 0 }] }] };
+  bolsterUnVowel(q2, [{ final: 'an' }], { unVowelBody: 1.4 });
+  assert.strictEqual(q2.accent_phrases[0].moras[0].vowel_length, 0.06, '非 un 不动');
+});
+
+//// 同源连读判定:前字收真前高 i/ü、后字声母腭化或零声母 i/ü 起音为真;空韵舌尖 i 与 i+a 元音相邻为假 [@x380kkm 2026-06-18] ////
+test('isHomorganicLiaison 同源连读判定', () => {
+  assert.strictEqual(isHomorganicLiaison(parsePinyin('ji3'), parsePinyin('xu4')), true, '继续:i + 腭化 x');
+  assert.strictEqual(isHomorganicLiaison(parsePinyin('xu1'), parsePinyin('yao4')), true, '需要:ü + 零声母 i/ü 起音');
+  assert.strictEqual(isHomorganicLiaison(parsePinyin('ji2'), parsePinyin('yong4')), true, '急用:i + 零声母 i 起音');
+  assert.strictEqual(isHomorganicLiaison(parsePinyin('xi1'), parsePinyin('an1')), false, '西安:i + a 元音相邻,非同源');
+  assert.strictEqual(isHomorganicLiaison(parsePinyin('zhi1'), parsePinyin('yi1')), false, '之祎:空韵舌尖 i 不前高,排除');
+});
+
+//// 同源连读在前字尾加促音 ッ 掐断:继续(i+x)加、西安(i+a)不加;两字仍同短语、不插停顿 [@x380kkm 2026-06-18] ////
+test('sentenceToAccentKana 同源连读加促音', () => {
+  const liaison = sentenceToAccentKana(['ji3', 'xu4']);
+  assert.ok(liaison.kana.includes('ッ'), '继续:前字尾加促音 ッ');
+  assert.ok(!liaison.kana.includes('、'), '不插停顿(两字同短语)');
+  assert.ok(liaison.plan[0].kana.endsWith('ッ'), '促音并入前字 kana');
+  assert.strictEqual(liaison.plan[0].breakAfter, undefined, '无组边界、无 breakAfter');
+  // 西安(i + a)非同源,不加。
+  const hiatus = sentenceToAccentKana(['xi1', 'an1']);
+  assert.ok(!hiatus.kana.includes('ッ'), '西安:非同源不加促音');
 });
 
 //// er 韵收尾:er 字(アル)的 ル 那一拍压短成卷舌尾、元音 ア 不动;非 er 的 ル(如/鲁/路)与关闭时不动 [@x380kkm 2026-06-17] ////
