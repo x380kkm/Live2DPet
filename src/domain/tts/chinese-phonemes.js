@@ -85,10 +85,10 @@ const ASPIRATED_INITIALS = new Set(['p', 't', 'k', 'q', 'c', 'ch']);
 const DENTAL_EMPTY_RHYME = new Set(['z', 'c', 's']);
 const RETROFLEX_EMPTY_RHYME = new Set(['zh', 'ch', 'sh']);
 
-// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.5——单字独立片假名块加单元音补拍本就一顿一顿,提速把音节与停顿一起压紧、连读更流畅(实听确认 1.5 比 1.3 连贯、又不糊);
+// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.45——单字独立片假名块加单元音补拍本就一顿一顿,提速把音节与停顿一起压紧、连读更流畅(实听:1.5 略快,回到 1.45 更稳又不松);
 // 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
 // 调用方取 query 后铺上这组值,再调 applyChineseProsody 整条韵律流水线。
-const CHINESE_QUERY_DEFAULTS = { speedScale: 1.5, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
+const CHINESE_QUERY_DEFAULTS = { speedScale: 1.45, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
 
 // 个别声线偏高,按 styleId 单独压低全局音高(pitchScale);只列需要调的,其余按 0 不动。
 // 26 = WhiteCUL びえーん:实听偏高,压 -0.08。28 = 後鬼 ぬいぐるみ:实听偏高,压 -0.03。
@@ -731,7 +731,8 @@ function drawToneContours(query, plan, config = {}) {
   const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05, weakDrop: 0.08 }, config.t1 || {});
   // t2.liftStart:二声前接一/二声时把起点抬高(趋平近一声,顺向同化);t2.liftPeak:后接二/三声时把峰值再抬一点(逆向异化,默认 0)。
   const t2 = Object.assign({ len: 1.2, low: -0.30, rise: 0.16, liftStart: 0.18, liftPeak: 0 }, config.t2 || {});
-  const t3 = Object.assign({ lenFinal: 2.2, mid: -0.20, bottom: -0.68, top: 0.05, lenLow: 1.5, lowDepth: -0.55 }, config.t3 || {});
+  // 三声延长已撤回:lenFinal、lenLow 默认 1.0(不额外拉长,只画 214 曲折/半三声的音高,不再把元音乘长)。语速放慢后不再靠拉三声承调,免得句末三声(也、矣)拖太长。需要恢复可传 config.t3.lenFinal/lenLow。
+  const t3 = Object.assign({ lenFinal: 1.0, mid: -0.20, bottom: -0.68, top: 0.05, lenLow: 1.0, lowDepth: -0.55 }, config.t3 || {});
   const all = [];
   for (const phrase of (query.accent_phrases || [])) {
     for (const mora of (phrase.moras || [])) {
@@ -864,7 +865,7 @@ function fitSyllableDuration(query, plan, config = {}) {
   const maxMs = config.maxDurMs != null ? config.maxDurMs : 390;
   const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05 }, config.t1 || {});
   const t2 = Object.assign({ len: 1.2 }, config.t2 || {});
-  const t3 = Object.assign({ lenFinal: 2.2, lenLow: 1.5 }, config.t3 || {});
+  const t3 = Object.assign({ lenFinal: 1.0, lenLow: 1.0 }, config.t3 || {});
   const speed = query.speedScale || 1;
   const groups = groupMorasByPlan(query, plan);
   let posInGroup = -1;
