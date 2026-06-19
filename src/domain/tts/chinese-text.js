@@ -47,9 +47,9 @@ function textToTokens(text) {
       wordStart.push(true);
       continue;
     }
-    // 斜杠是 LLM 在自然短语边界插入的断句记号,保留下来在凑音素层驱动句内半半停顿(展示气泡前由上层去掉)。
-    if (tok === '/') {
-      tokens.push('/');
+    // 韵律记号:`/` 韵律短语边界、`·` 韵律词边界,保留下来在凑音素层驱动促音切分(展示气泡前由上层去掉)。
+    if (tok === '/' || tok === '·') {
+      tokens.push(tok);
       wordStart.push(true);
       continue;
     }
@@ -85,8 +85,9 @@ function classifySentenceType(text) {
 }
 //// /据疑问词与句末标点判句类型 ////
 
-//// 用 jieba 分词与确定性韵律分句,在韵律短语边界自动插「/」,替掉大模型凭感觉标的记号 [@x380kkm 2026-06-17] ////
-// jieba 词典分词把专名成语整体保留(罗生门、触目惊心),predictProsodicBreaks 据真词边界与音节数定韵律短语停顿;标点的全停由标点本身驱动,故只补 `/` 半停。
+//// 用 jieba 分词与确定性韵律分句,在韵律短语边界插「/」、韵律词边界插「·」,替掉大模型凭感觉标的记号 [@x380kkm 2026-06-18] ////
+// jieba 词典分词把专名成语整体保留(罗生门、触目惊心),predictProsodicBreaks 据真词边界与音节数定边界层级。
+// 韵律短语边界(PPh)插 `/`(凑音素层出较大促音),韵律词边界(相邻词间、未升 PPh)插 `·`(出极短促音切分);词内与虚词黏附处不插、连读。标点的停顿由标点本身驱动。
 function autoMarkPhrasing(text) {
   const units = segmentWords(text);
   const breaks = predictProsodicBreaks(units);
@@ -94,6 +95,7 @@ function autoMarkPhrasing(text) {
   for (let i = 0; i < units.length; i += 1) {
     out += units[i].punct != null ? units[i].punct : units[i].word;
     if (breaks[i] === 'PPh') out += '/';
+    else if (breaks[i] === 'none' && units[i].word != null && units[i + 1] && units[i + 1].word != null) out += '·';
   }
   return out;
 }
@@ -158,8 +160,6 @@ const PROSODY_ENCLITIC = new Set(['的', '地', '得', '了', '着', '过', '们
 const PROSODY_LEADING = new Set(['把', '被', '在', '向', '对', '从', '给', '跟', '和', '与', '及', '或', '而']);
 // 韵律短语目标音节数与上限:依据归档蓝图(Lai 2016 实测短语峰在 2 到 4、范围到 5;Hong 1999 两停顿间均约 3.6 音节)。
 const PPH_TARGET = 3; const PPH_SOFTMAX = 4; const PPH_HARDMAX = 5;
-// 韵律词最长音节数:标准音步两音节,右端允许扩到三(冯胜利右向音步)。单音节连读到此上限即另起,免得分词把整句切成单字时全黏成一个超长韵律词、按长度切短语失效。
-const PW_MAX = 3;
 
 //// 在一个语调短语块(标点之间的若干词)内,先并韵律词、再按累计音节数软切韵律短语,写回每个词后的边界层级 [@x380kkm 2026-06-17] ////
 function phraseProsodicBlock(positions, units, breaks) {
@@ -171,9 +171,9 @@ function phraseProsodicBlock(positions, units, breaks) {
     const isLeading = u.word && u.word.length === 1 && PROSODY_LEADING.has(u.word);
     const isEnclitic = u.word && u.word.length === 1 && PROSODY_ENCLITIC.has(u.word);
     const monosyllable = (u.sylls || 1) === 1;
-    // 后附虚词无条件并左;普通单音节只在左侧韵律词还没满(< PW_MAX)时并左,满了就另起,免得长串单字黏成一个超长词。
+    // 后附虚词与普通单音节都无条件并入左侧韵律词(取消最长音节上限):让该连读的自然连成一串,词内不另切,促音只落在韵律词与韵律短语边界。
     const last = groups[groups.length - 1];
-    const gluesLeft = groups.length > 0 && !isLeading && (isEnclitic || (monosyllable && last.sylls < PW_MAX));
+    const gluesLeft = groups.length > 0 && !isLeading && (isEnclitic || monosyllable);
     if (gluesLeft) {
       groups[groups.length - 1].positions.push(k);
       groups[groups.length - 1].sylls += (u.sylls || 1);

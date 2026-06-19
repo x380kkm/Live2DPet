@@ -349,10 +349,14 @@ test('apicalizeEmptyRhyme 按类拉长空韵声母', () => {
   assert.ok(Math.abs(m[0].consonant_length - 0.13) < 1e-9, '舌尖后按 ×1.3 拉长');
   assert.ok(m[0].vowel_length > 0.1 && m[1].vowel_length > 0.1, '元音随之拉长、不压短');
   assert.ok(Math.abs(m[0].pitch - 5.6) < 1e-9, '音高小幅抬升 +0.10');
-  // 资(zi,dental):用更大的比例拉长。
+  // 资(zi,dental):用更大的比例拉长。上限设高(1000ms)以验纯倍率,不触封顶。
   const qd = { accent_phrases: [{ moras: [{ text: 'ズ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
-  apicalizeEmptyRhyme(qd, [{ emptyRhyme: 'dental' }], { apicalConsonant: 1.3, apicalConsonantDental: 2.5 });
+  apicalizeEmptyRhyme(qd, [{ emptyRhyme: 'dental' }], { apicalConsonant: 1.3, apicalConsonantDental: 2.5, apicalDentalCapMs: 1000 });
   assert.ok(Math.abs(qd.accent_phrases[0].moras[0].consonant_length - 0.25) < 1e-9, '舌尖前按 ×2.5 拉长、比舌尖后更多');
+  // 舌尖前擦音封顶:×2.5 后超上限(默认 100ms)的被钳回上限,免得四的 [s] 拉到 300ms 与前字黏成长咝声。
+  const qc = { accent_phrases: [{ moras: [{ text: 'ス', consonant_length: 0.12, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
+  apicalizeEmptyRhyme(qc, [{ emptyRhyme: 'dental' }], { apicalConsonantDental: 2.5 });
+  assert.ok(Math.abs(qc.accent_phrases[0].moras[0].consonant_length - 0.1) < 1e-9, '舌尖前擦音封顶到 100ms(0.12×2.5=0.30 超上限被钳)');
   // 非空韵音节(如 ji/xi、或放弃的 ri)不动。
   const q2 = { accent_phrases: [{ moras: [{ text: 'ジ', consonant_length: 0.1, vowel_length: 0.1, pitch: 5.5, syl: 0 }] }] };
   apicalizeEmptyRhyme(q2, [{ emptyRhyme: null }]);
@@ -705,9 +709,10 @@ test('applyToneSandhi 按词边界变调', () => {
   assert.deepStrictEqual(tones(['ni3', 'hao3'], [true, false]), [2, 3], '你好(一个词)读 2-3');
 });
 
-//// 按声线取全局音高偏移与语速倍率:WhiteCUL(26)压 -0.08、後鬼布偶(28)压 -0.03 且语速 1.08,其余不动 [@x380kkm 2026-06-17] ////
+//// 按声线取全局音高偏移与语速倍率:WhiteCUL(26)压 -0.04、後鬼布偶(28)压 -0.03 且语速 1.08,其余不动 [@x380kkm 2026-06-17] ////
 test('chineseVoicePitch 与 chineseVoiceSpeed 按 styleId 取值', () => {
-  assert.strictEqual(chineseVoicePitch(26), -0.08, 'WhiteCUL びえーん 压低');
+  assert.strictEqual(chineseVoicePitch(16), -0.02, '九州そら 基调压低');
+  assert.strictEqual(chineseVoicePitch(26), -0.04, 'WhiteCUL びえーん 压低');
   assert.strictEqual(chineseVoicePitch(28), -0.03, '後鬼 ぬいぐるみ 压低');
   assert.strictEqual(chineseVoicePitch(2), 0, '其它声线音高不动');
   assert.strictEqual(chineseVoiceSpeed(28), 1.08, '後鬼 ぬいぐるみ 稍快');

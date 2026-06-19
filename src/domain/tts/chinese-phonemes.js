@@ -50,7 +50,8 @@ const FINAL_KANA = {
   // 纯鼻音叹词(嗯/呣):成音节鼻音,用 ウン 给一个有声的鼻音 hum(单 ン 太轻),由 parsePinyin 把 ng/n/m 都归到这里。
   ng: 'ウン',
   er: 'アル',
-  i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イウ', iou: 'イウ',
+  // iu/iou 拼音「iu」是「iou」缩写、实读 [jou],主元音是 o(九 jiǔ=jio、有 yǒu=yo);旧记 イウ 漏了主元音 o、把九听成几(ji)。改 イオ:介音 i + 主元音 o。
+  i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イオ', iou: 'イオ',
   ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
   u: 'ウ', ua: 'ウア', uo: 'ウオ', uai: 'ウアイ', ui: 'ウイ', uei: 'ウイ',
   uan: 'ウアン', un: 'ウン', uen: 'ウン', uang: 'ウアン', ueng: 'ウオン',
@@ -69,6 +70,15 @@ const COMBINING = new Set(['ァ', 'ィ', 'ゥ', 'ェ', 'ォ', 'ャ', 'ュ', 'ョ
 const ELONGATE_FINALS = new Set(['a', 'o', 'ê', 'i', 'u']);
 // 重音核路线不收长音ー,改用重复基元音补拍(ニ→ニイ);每个单元音韵母对应的补拍假名。
 const ELONGATE_VOWEL = { a: 'ア', o: 'オ', ê: 'エ', i: 'イ', u: 'ウ' };
+// 零声母 i 系韵母全集,与默认加 [j] 起音的子集:首拍纯元音「イ」起音弱、易被前字吸收,前加「ユ」补起音。
+// 默认子集只含纯 i(益/一/以):它是会被前字吸收的纯元音。iou(有/又)不纳入——它加 ユ 后成 ユイウ,前两拍与 ü(于=ユイ)撞音,「由」听成「于」;iou 的 イ 是介音、非会被吞的纯元音。
+// 其余复韵母(ie/ian/iang 等)同理不纳入,免得给非问题加起音伪迹、又撞音。
+const I_SERIES_FINALS = new Set(['i', 'ia', 'ie', 'iao', 'iu', 'iou', 'ian', 'in', 'iang', 'ing', 'iong']);
+const BARE_YI_DEFAULT_FINALS = new Set(['i']);
+// 以 [i] 收尾的二合元音:尾 [i] 是滑音、本应短促,供 shortenDiphthongOffGlide 把尾 [i] 收成极短滑音。
+const I_OFFGLIDE_FINALS = new Set(['ai', 'ei', 'uai', 'ui', 'uei']);
+// 带前介音的韵母:y 系 i 介音(ia/ie/iao/iou/ian/iang/iong)、w 系 u 介音(ua/uo/uai/uan/uang/ueng)。首个元音拍是介音、非主元音,主元音是其后的韵腹。供 ensureMainVowelShare 跳过介音、不误当主元音。
+const GLIDE_INITIAL_FINALS = new Set(['ia', 'ie', 'iao', 'iou', 'iu', 'ian', 'iang', 'iong', 'ua', 'uo', 'uai', 'uei', 'ui', 'uan', 'uang', 'ueng']);
 // 带 u 介音的韵母(花、欢、火、会):声母 h 在这些韵母上单独走 フ 行融合拼法,见 syllableToKana。
 const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
 // 零声母 y 后补 i 介音还原的韵母:ya→ia、ye→ie、yao→iao、you→iou、yan→ian、yang→iang、yong→iong。
@@ -87,14 +97,13 @@ const RETROFLEX_EMPTY_RHYME = new Set(['zh', 'ch', 'sh']);
 // 同源连读判定用的腭化声母:j/q/x 与前高元音 i/ü 同为前部腭化,相接易黏成一长滑音。供 isHomorganicLiaison。
 const PALATAL_INITIALS = new Set(['j', 'q', 'x']);
 
-// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.45——单字独立片假名块加单元音补拍本就一顿一顿,提速把音节与停顿一起压紧、连读更流畅(实听:1.5 略快,回到 1.45 更稳又不松);
-// 音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。speedScale 在 VOICEVOX 同时压缩音节与停顿。
-// 调用方取 query 后铺上这组值,再调 applyChineseProsody 整条韵律流水线。
-const CHINESE_QUERY_DEFAULTS = { speedScale: 1.45, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
+// 中文句合成的 audio_query 推荐参数(实听迭代定):语速 1.0,音节与停顿按原速、不压缩;音量 1.25 更响更干脆;句首句尾留白收窄,句尾不拖。
+// speedScale 在 VOICEVOX 同时压缩音节与停顿。调用方取 query 后铺上这组值,再调 applyChineseProsody 整条韵律流水线。
+const CHINESE_QUERY_DEFAULTS = { speedScale: 1.0, volumeScale: 1.25, prePhonemeLength: 0.08, postPhonemeLength: 0.1 };
 
 // 个别声线偏高,按 styleId 单独压低全局音高(pitchScale);只列需要调的,其余按 0 不动。
-// 26 = WhiteCUL びえーん:实听偏高,压 -0.08。28 = 後鬼 ぬいぐるみ:实听偏高,压 -0.03。
-const CHINESE_VOICE_PITCH = { 26: -0.08, 28: -0.03 };
+// 26 = WhiteCUL びえーん:实听偏高,压 -0.04。28 = 後鬼 ぬいぐるみ:实听偏高,压 -0.03。16 = 九州そら ノーマル:基调偏高,压 -0.02。
+const CHINESE_VOICE_PITCH = { 16: -0.02, 26: -0.04, 28: -0.03 };
 //// 取某声线的中文全局音高偏移,未列出的声线为 0(不动) [@x380kkm 2026-06-16] ////
 function chineseVoicePitch(styleId) {
   return CHINESE_VOICE_PITCH[styleId] != null ? CHINESE_VOICE_PITCH[styleId] : 0;
@@ -182,14 +191,23 @@ function syllableToKana(parsed, options = {}) {
     const nucleus = BASE_VOWEL[rest[0]];
     kana = nucleus ? (INITIAL_CV.f[nucleus] || 'フ') + rest.slice(1) : 'フ' + rest;
   }
+  // 零声母 i 系韵母:首拍纯元音「イ」起音弱,与前字之间无辅音界限时被前字鼻韵尾或前字元音吸收成近乎静音(益实测均方根能量仅 0.0107)。
+  // 仿 wu→ヴ 在韵母前加一个起音「ユ」给 [j] 起头、不被吸收,保留原韵母结构:纯 i「イ」→「ユイ」、有 iou「イウ」→「ユイウ」。前加而非整字替换,故复韵母的韵腹韵尾不丢、不会念成「yì」。
+  // 默认只作用于纯 i;options.bareYiFinals 给一组要加起音的韵母、options.bareYiAll 扩到全部 i 系。前加 ユ 后已两拍起步,纯 i 跳过补拍、否则拼成「ユイイ」三拍。
+  const onsetFinals = options.bareYiAll ? I_SERIES_FINALS
+    : (options.bareYiFinals ? new Set(options.bareYiFinals) : BARE_YI_DEFAULT_FINALS);
+  const bareYi = parsed.initial === '' && options.bareYiGlide !== false && onsetFinals.has(parsed.final);
+  if (bareYi) {
+    kana = 'ユ' + kana;
+  }
   const elongate = options.elongate !== false;
-  if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5) {
+  if (elongate && ELONGATE_FINALS.has(parsed.final) && parsed.tone !== 5 && !bareYi) {
     // 重音核路线传 kanaSafe:不收长音ー,改用重复基元音补一拍;否则用长音ー。
     // 舌尖前空韵(z/c/s + i)用 ス/ズ/ツ 基([u]),补拍随基用 ウ、不用 イ——イ 会把音色拽回腭化的 シ([ɕi])、听成 xi。
     const padVowel = (parsed.final === 'i' && DENTAL_EMPTY_RHYME.has(parsed.initial)) ? 'ウ' : (ELONGATE_VOWEL[parsed.final] || '');
     kana += options.kanaSafe ? padVowel : 'ー';
   }
-  return { kana, moras: moraCount(kana), ok: true };
+  return { kana, moras: moraCount(kana), ok: true, bareYi };
 }
 //// /把一个拼音音节拼成片假名 ////
 
@@ -273,10 +291,11 @@ function isHomorganicLiaison(cur, next) {
 // 词边界由 options.wordStart(与 tokens 对齐的真值数组)给出,缺省时每音节自成词、退化为等长切。再把零声母纯元音音节各自切出来给独立起音。
 // 先三声变调(默认关),再据声调置重音核让引擎按重音生成自然时长(不补长音,AquesTalk 不收 ー)。返回 { kana, plan }。
 function sentenceToAccentKana(tokens, options = {}) {
-  // `/` 是 LLM 插的断句记号,记作 phrase 项,断成组、给半半停顿;标点记作 punct 项,断成组、给全停顿。
+  // 韵律记号记作 phrase 项,带切分等级:`/` 韵律短语边界(minor)、`·` 韵律词边界(word);默认在前一字尾出促音切分。标点记作 punct 项,断成组、给静音停顿。
   const items = tokens.map((token) => {
     if (isPunctuation(token)) return { punct: token };
-    if (token === '/') return { phrase: true };
+    if (token === '/') return { phrase: 'minor' };
+    if (token === '·') return { phrase: 'word' };
     return { parsed: parsePinyin(token) };
   });
   // 三声变调默认关:变调会把「你好」的「你」读成上扬的二声、听感像「尼」;需要时传 sandhi:true 打开。
@@ -299,33 +318,46 @@ function sentenceToAccentKana(tokens, options = {}) {
   let groupStart = true;
   for (let i = 0; i < items.length; i += 1) {
     const item = items[i];
-    // 把 `/` 韵律短语记号变成促音(切而不打断语气),不切组、不插静音停顿——在前一字尾加 ッ、同组连读。默认开,显式传 sokuonSegment 为 false 退回静音半停。
-    if (item.phrase && options.sokuonSegment !== false) {
-      const lastKana = current[current.length - 1];
-      if (lastKana && !lastKana.endsWith('ッ')) {
-        current[current.length - 1] = lastKana + 'ッ';
-        const last = plan[plan.length - 1];
-        last.kana += 'ッ';
-        last.moras = moraCount(last.kana);
-        last.sokuon = 'minor';
+    // 韵律记号(item.phrase 为 'minor'/`/` 韵律短语边界、'word'/`·` 韵律词边界):默认在前一字尾加促音 ッ 做句内切分,
+    // 同组连读、不插静音、不打断语气;促音大小按等级由 sizeSokuon 定(word 极短、minor 较大)。显式传 sokuonSegment 为 false 时退回旧行为。
+    if (item.phrase) {
+      if (options.sokuonSegment !== false) {
+        const lastKana = current[current.length - 1];
+        if (lastKana && !lastKana.endsWith('ッ')) {
+          current[current.length - 1] = lastKana + 'ッ';
+          const last = plan[plan.length - 1];
+          last.kana += 'ッ';
+          last.moras = moraCount(last.kana);
+          last.sokuon = item.phrase;
+        }
+        continue;
+      }
+      // 关促音:`/` 退回静音半停(切组),`·` 韵律词边界丢弃(连读、不停)。
+      if (item.phrase === 'minor' && current.length) {
+        groups.push(current);
+        groupWordStarts.push(currentWordStart);
+        current = [];
+        currentWordStart = [];
+        plan[plan.length - 1].breakAfter = 'minor';
+        groupStart = true;
       }
       continue;
     }
-    if (item.punct || item.phrase) {
+    if (item.punct) {
       if (current.length) {
         groups.push(current);
         groupWordStarts.push(currentWordStart);
         current = [];
         currentWordStart = [];
-        // 记下这个组边界的停顿等级:`/` 记号最短(minor)、顿号是列举半停(pph)、其余标点(逗号、句号等)是语调短语全停(full)。供 sizePhrasePauses 给 pause_mora 定长。
+        // 记下这个组边界的停顿等级:顿号是列举半停(pph)、其余标点(逗号、句号等)是语调短语全停(full)。供 sizePhrasePauses 给 pause_mora 定长。
         // 顿号比逗号短一档,免得「桂林、象郡，百越」里顿号与逗号同长、逗号听着没停。
-        plan[plan.length - 1].breakAfter = item.phrase ? 'minor' : (item.punct === '、' ? 'pph' : 'full');
+        plan[plan.length - 1].breakAfter = item.punct === '、' ? 'pph' : 'full';
       }
       groupStart = true;
       continue;
     }
     // 默认开补拍:单元音单拍太短、听着发闷,补一拍更饱满(实听确认)。补拍会拉低 ASR 识别率,但本模式以听感为准,显式传 elongate:false 可关。
-    const syllable = syllableToKana(item.parsed, { elongate: options.elongate !== false, kanaSafe: true });
+    const syllable = syllableToKana(item.parsed, { elongate: options.elongate !== false, kanaSafe: true, bareYiGlide: options.bareYiGlide, bareYiFinals: options.bareYiFinals, bareYiAll: options.bareYiAll });
     if (!syllable.ok || syllable.moras === 0) {
       continue;
     }
@@ -349,9 +381,13 @@ function sentenceToAccentKana(tokens, options = {}) {
       ? (DENTAL_EMPTY_RHYME.has(item.parsed.initial) ? 'dental'
         : (RETROFLEX_EMPTY_RHYME.has(item.parsed.initial) ? 'retroflex' : null))
       : null;
+    // 塞擦空韵标记:舌尖前空韵里 z/c(塞擦 [ts])的成音节身子是那段塞擦,落短位置(此/次)塞擦太短就塌;s(擦音 [s])的咝声短也听得见、不算。供 ensureMainVowelShare 给塞擦保比重、不碰 s。
+    const dentalAffricate = emptyRhyme === 'dental' && item.parsed.initial !== 's';
     // er 韵标记:儿/二/而 的韵母是 er(片假名 アル),供 tightenErhuaTail 压短 ル 尾、不让它成独立的「鲁」音节;同时收好儿化。
     const erFinal = fin === 'er';
-    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal, final: fin, sokuon });
+    // 零声母介音字标记:零声母且韵母带前介音(又 iou、王 uang),首拍介音 [j]/[w] 是唯一起音,过短会塌成纯元音(又→欧),供 floorGlideOnset 给介音保底。
+    const zeroGlide = item.parsed.initial === '' && GLIDE_INITIAL_FINALS.has(fin);
+    plan.push({ kana: syllable.kana, moras: syllable.moras, tone: item.parsed.tone, groupStart, aspirated: ASPIRATED_INITIALS.has(item.parsed.initial), sentenceType, nasalCoda, emptyRhyme, erFinal, final: fin, sokuon, bareYi: syllable.bareYi, zeroGlide, dentalAffricate });
     groupStart = false;
   }
   if (current.length) {
@@ -727,12 +763,15 @@ function normalizeSyllableDurations(query, plan, config = {}) {
 // 二声的升、三声的曲折该在元音上完成;若让韵尾也参与 contourBeats 重排,升的高点会落到韵尾上、元音反而低(羊被压住);
 // 且 contourBeats 会把 ル 的辅音剥成裸元音、整字几乎不发声(而、儿二声听着没声)。故末拍是 ン 或 er 的 ル 时摘出,元音单独画调,韵尾收尾。
 function splitToneCoda(group, syllable) {
-  const last = group[group.length - 1];
-  const isCoda = group.length >= 2 && last && (last.text === 'ン' || (syllable && syllable.erFinal && last.text === 'ル'));
+  // 末拍可能是词边界切分的促音 ッ(cl),它跟在韵尾之后;先单独留作尾,韵尾从它之前找——否则韵尾 ン 没被认出、被当元音并入,contourBeats 重画时丢掉鼻尾(兰 ラエンッ→ラ e e、鼻音没了)。
+  const sokuon = (group.length >= 2 && group[group.length - 1] && group[group.length - 1].vowel === 'cl') ? group[group.length - 1] : null;
+  const codaIdx = sokuon ? group.length - 2 : group.length - 1;
+  const codaM = group[codaIdx];
+  const isCoda = codaIdx >= 1 && codaM && (codaM.text === 'ン' || (syllable && syllable.erFinal && codaM.text === 'ル'));
   if (isCoda) {
-    return { vowels: group.slice(0, -1), coda: last };
+    return { vowels: group.slice(0, codaIdx), coda: codaM, sokuon };
   }
-  return { vowels: group, coda: null };
+  return { vowels: sokuon ? group.slice(0, -1) : group, coda: null, sokuon };
 }
 //// /把韵尾从音节 mora 组里摘出来 ////
 
@@ -812,15 +851,17 @@ function drawToneContours(query, plan, config = {}) {
           const lo = (prevTone === 1 || prevTone === 2) ? t2.low + t2.liftStart : t2.low;
           const hi = t2.rise + ((nextTone === 2 || nextTone === 3) ? t2.liftPeak : 0);
           // 升只画在元音上,韵尾(鼻音 ン 或 er 的 ル)摘出、接住升到的高点(不参与变调,免得升堆到韵尾、元音被压低或 ル 被剥成裸元音哑掉)。
-          const { vowels, coda } = splitToneCoda(group, plan[index]);
+          const { vowels, coda, sokuon } = splitToneCoda(group, plan[index]);
           for (const beat of contourBeats(vowels, [base + lo, base + lo, base + hi], t2.len)) out.push(beat);
           if (coda) { coda.pitch = base + hi; out.push(coda); }
+          if (sokuon) out.push(sokuon);
         } else if (tone === 3 && phraseFinal) {
           // 只有短语末/句末的三声画完整 214 曲折;句中三声保持半三声(低、不回升,留给 applyMandarinTones 铺的低平),否则回升会听成二声「尼」。
           // 曲折只画在元音上,韵尾(鼻音 ン 或 er 的 ル)摘出、接住回升到的高点。
-          const { vowels, coda } = splitToneCoda(group, plan[index]);
+          const { vowels, coda, sokuon } = splitToneCoda(group, plan[index]);
           for (const beat of contourBeats(vowels, [base + t3.mid, base + t3.bottom, base + t3.top], t3.lenFinal)) out.push(beat);
           if (coda) { coda.pitch = base + t3.top; out.push(coda); }
+          if (sokuon) out.push(sokuon);
         } else if (tone === 3) {
           // 句中三声是半三声(低平):低压时间太短会被听成二声(古听成鼓)。这里拉长把低压撑住,并压平到低位、不上飘。
           for (const g of group) {
@@ -898,8 +939,8 @@ function tightenGlideMedial(query, plan, config = {}) {
 // 须在 drawToneContours 之前调用:那步把元音乘声调拉长系数(只乘元音、辅音不动),故有效时长=辅音+元音×系数;这里按同一套系数(读同一份 config.t1/t2/t3)反推,夹完再交给它画。
 // 系数:一声重位 lenStrong、轻位 lenWeak、二声 len、句末三声 lenFinal、句中三声 lenLow,与 drawToneContours 一致。speedScale 把 mora 时长整体压缩,故区间按它折算。
 function fitSyllableDuration(query, plan, config = {}) {
-  // 下限 200:180 太短字粘连、240 偏长,实听 200 折中(既不糊也不拖)。
-  const minMs = config.minDurMs != null ? config.minDurMs : 200;
+  // 下限 180:太短字粘连、太快显赶;180 折中,既不糊也不拖。
+  const minMs = config.minDurMs != null ? config.minDurMs : 180;
   const maxMs = config.maxDurMs != null ? config.maxDurMs : 390;
   const t1 = Object.assign({ lenStrong: 1.25, lenWeak: 1.05 }, config.t1 || {});
   const t2 = Object.assign({ len: 1.2 }, config.t2 || {});
@@ -985,6 +1026,9 @@ function apicalizeEmptyRhyme(query, plan, config = {}) {
   const cMulRetro = config.apicalConsonant != null ? config.apicalConsonant : 1.3;
   // 舌尖前空韵(资/词/思,用 ス/ズ/ツ 基)需拉得更多,把 [s]/[ts] 擦音拖成成音节核、[u] 淡出,与 苏/租/粗 拉开(主观确认 ×2.5)。
   const cMulDental = config.apicalConsonantDental != null ? config.apicalConsonantDental : 2.5;
+  // 舌尖前空韵擦音封顶:×2.5 无上限会把四的 [s] 拉到 304ms,与前字(兮)的元音尾黏成一大片高频咝声、无元音断点。封顶后空韵仍保得住、又不糊。有效毫秒。
+  const dentalCapMs = config.apicalDentalCapMs != null ? config.apicalDentalCapMs : 100;
+  const dentalCap = dentalCapMs / 1000 * (query.speedScale || 1);
   const vMul = config.apicalVowel != null ? config.apicalVowel : 1.05; // 元音随轻微放慢拉长的比例(>1,不压)
   const pAdd = config.apicalRaise != null ? config.apicalRaise : 0.10; // 音高抬升量(对数 Hz)
   const clamp = (v) => Math.max(4.8, Math.min(6.6, v));
@@ -994,7 +1038,10 @@ function apicalizeEmptyRhyme(query, plan, config = {}) {
       const row = (s != null && plan[s]) ? plan[s].emptyRhyme : null;
       if (!row) continue;
       const cMul = row === 'dental' ? cMulDental : cMulRetro;
-      if (m.consonant_length != null) m.consonant_length *= cMul; // 只放大有声母那一拍的辅音段
+      if (m.consonant_length != null) {
+        m.consonant_length *= cMul; // 只放大有声母那一拍的辅音段
+        if (row === 'dental' && m.consonant_length > dentalCap) m.consonant_length = dentalCap; // 舌尖前空韵擦音封顶
+      }
       if (m.vowel_length > 0) m.vowel_length *= vMul;
       if (m.pitch > 0) m.pitch = clamp(m.pitch + pAdd);
     }
@@ -1067,13 +1114,14 @@ function bolsterUnVowel(query, plan, config = {}) {
 }
 //// /撑长 -un/-uen 的 u 韵腹 ////
 
-//// 给促音 ッ(切分标记)按级定闭合时长:连读促音最短、`/` 韵律边界促音较长——促音大小即句内切分强度 [@x380kkm 2026-06-18] ////
+//// 给促音 ッ(切分标记)按级定闭合时长:词边界极短、连读次之、`/` 韵律短语边界较长——促音大小即句内切分强度 [@x380kkm 2026-06-18] ////
 // 促音在 query 里是一个 vowel='cl' 的闭合 mora,其 vowel_length 即闭合时长。按 mora.syl 找到来源音节 plan[s].sokuon 的等级、定长。
-// 连读(liaison)只为掐断同源滑音、最短;`/` 韵律短语边界(minor)是句内切分、较长但仍非静音(静音只留给真正的标点)。须在画调型之后调用(标签仍在)。config.sizeSokuon 为 false 可关闭。
+// word(韵律词边界)极短、只分词不打断连读;liaison(同源连读)掐断滑音;minor(`/` 韵律短语边界)句内切分、较长但仍非静音(静音只留给真正的标点)。须在画调型之后调用(标签仍在)。config.sizeSokuon 为 false 可关闭。
 function sizeSokuon(query, plan, config = {}) {
   if (config.sizeSokuon === false) return query;
+  const wordLen = config.sokuonWord != null ? config.sokuonWord : 0.012;
   const liaisonLen = config.sokuonLiaison != null ? config.sokuonLiaison : 0.02;
-  const minorLen = config.sokuonMinor != null ? config.sokuonMinor : 0.06;
+  const minorLen = config.sokuonMinor != null ? config.sokuonMinor : 0.05;
   for (const phrase of (query.accent_phrases || [])) {
     for (const m of (phrase.moras || [])) {
       if (m.vowel !== 'cl') continue;
@@ -1081,6 +1129,7 @@ function sizeSokuon(query, plan, config = {}) {
       const level = (s != null && plan[s]) ? plan[s].sokuon : null;
       if (level === 'minor') m.vowel_length = minorLen;
       else if (level === 'liaison') m.vowel_length = liaisonLen;
+      else if (level === 'word') m.vowel_length = wordLen;
     }
   }
   return query;
@@ -1169,10 +1218,12 @@ function applyDeclination(query, plan, config = {}) {
   }
   if (voiced.length < 2) return query;
   const drop = Math.min(declMax, declSlope * (voiced.length - 1));
+  // 下倾加速:积累的下压量随位置走加速曲线(前段降得慢、越往后越多),末拍降最多。pos^declExp,1.2 比线性稍快收束。
+  const declExp = config.declExp != null ? config.declExp : 1.2;
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   for (let i = 0; i < voiced.length; i += 1) {
     const pos = i / (voiced.length - 1);
-    voiced[i].pitch = clamp(voiced[i].pitch - drop * pos);
+    voiced[i].pitch = clamp(voiced[i].pitch - drop * Math.pow(pos, declExp));
   }
   return query;
 }
@@ -1192,7 +1243,9 @@ function applySentenceIntonation(query, plan, config = {}) {
   const ynMoras = config.ynMoras != null ? config.ynMoras : 6;
   const finalFall = config.finalFall != null ? config.finalFall : 0.12;
   const fallMoras = config.fallMoras != null ? config.fallMoras : 3;
-  const fallExp = config.fallExp != null ? config.fallExp : 1.5;
+  // 句末降的走向:大于 1 加速(末字降最多),小于 1 减速。保持加速、末字降最多,1.5 偏过,降到 1.2 缓一点。
+  const fallExp = config.fallExp != null ? config.fallExp : 1.2;
+  const riseExp = config.riseExp != null ? config.riseExp : 1.2; // 句末是非问上扬同样加速、末字升最多
   const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
   if (!plan || !plan.length) return query;
   // 逐音节算句序号(遇 sentenceEnd 后递增),并记每句的类型与末个非轻声声调。无 sentenceEnd 标记时整段为一句,行为同旧。
@@ -1228,7 +1281,7 @@ function applySentenceIntonation(query, plan, config = {}) {
       const span = peakEnd - start;
       for (let i = start; i <= peakEnd; i += 1) {
         const pos = span > 0 ? (i - start) / span : 1;
-        vm[i].pitch = clamp(vm[i].pitch + ynRise * Math.pow(pos, 1.5));
+        vm[i].pitch = clamp(vm[i].pitch + ynRise * Math.pow(pos, riseExp));
       }
       // 末尾轻声语气词只轻微跟随上扬,保住其高平、不上冲。
       for (let i = peakEnd + 1; i < vm.length; i += 1) vm[i].pitch = clamp(vm[i].pitch + followRaise);
@@ -1246,6 +1299,52 @@ function applySentenceIntonation(query, plan, config = {}) {
   return query;
 }
 //// /按句类型铺句调 ////
+
+//// 均匀缩小声调起伏:每拍对全句均值的偏离一律乘 toneRangeScale,默认 0.65 [@x380kkm 2026-06-19] ////
+// 把每拍对全句均值的偏离量整体乘一个系数,默认 0.65 先做一道整体收窄、让字调起伏小一点(中段也一起收),再由 softCapToneRange 接着压两端极端。
+// 二者叠用:这一步定整体起伏的大盘,软膝盖只额外封住高低两端。须在所有铺音高的步之后、软膝盖之前调用;均值不变,整体音高高低不动。
+function applyToneRangeScale(query, config = {}) {
+  const scale = config.toneRangeScale != null ? config.toneRangeScale : 0.65;
+  if (scale === 1) return query;
+  const voiced = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) { if (m.pitch > 0) voiced.push(m); }
+  }
+  if (voiced.length < 2) return query;
+  const mean = voiced.reduce((sum, m) => sum + m.pitch, 0) / voiced.length;
+  const clamp = (value) => Math.max(4.8, Math.min(6.6, value));
+  for (const m of voiced) m.pitch = clamp(mean + (m.pitch - mean) * scale);
+  return query;
+}
+//// /均匀缩小声调起伏 ////
+
+//// 声调起伏软压上下极端:均值附近一段自然不动,越过膝盖后偏离量按指数渐近封顶,高侧膝盖更窄 [@x380kkm 2026-06-19] ////
+// 绝对音高高低交给引擎 pitchScale,这一步只做相对锚定:算全句有声拍均值作中心,每拍对均值的偏离记 d = pitch - mean。
+// |d| 不超过该侧膝盖的拍原样不动(中段自然字调不被压);越过的偏离按 knee + room*(1 - exp(-(|d|-knee)/room)) 重映射,故越往外越难走、最大偏离封到 knee+room。
+// 高侧膝盖 kneeHi 比低侧 kneeLo 窄一半:更早压住「快断气」的高峰;低侧留宽,托住低位换气。须在所有铺音高的步之后调用;均值不变,整体音高高低不动。
+function softCapToneRange(query, config = {}) {
+  const kneeHi = config.toneKneeHi != null ? config.toneKneeHi : 0.06;
+  const kneeLo = config.toneKneeLo != null ? config.toneKneeLo : 0.12;
+  const room = config.toneRoom != null ? config.toneRoom : 0.1;
+  if (config.softCapTone === false || room <= 0) return query;
+  const voiced = [];
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) { if (m.pitch > 0) voiced.push(m); }
+  }
+  if (voiced.length < 2) return query;
+  const mean = voiced.reduce((sum, m) => sum + m.pitch, 0) / voiced.length;
+  for (const m of voiced) {
+    const d = m.pitch - mean;
+    const mag = Math.abs(d);
+    const knee = d > 0 ? kneeHi : kneeLo; // 高侧膝盖窄、更早压高峰;低侧宽、保低位换气
+    if (mag <= knee) continue;
+    // 越过膝盖的偏离按指数渐近重映射,最大封到 knee+room,故越往外越难走。
+    const capped = knee + room * (1 - Math.exp(-(mag - knee) / room));
+    m.pitch = mean + Math.sign(d) * capped;
+  }
+  return query;
+}
+//// /声调起伏软压上下极端 ////
 
 //// 焦点(句重音):焦点词调域扩张、焦点后压缩下移、焦点前不变,叠在已画的四声之上 [@x380kkm 2026-06-17] ////
 // 普通话用焦点标记信息重点:焦点词调域扩张(高调更高、低调更低,故 T3 受焦是更低而非更高)、焦点后整段调域压窄且下移(post-focus compression)、焦点前几乎不变。
@@ -1316,6 +1415,183 @@ function applyBaselineContour(query, config = {}) {
 }
 //// /句首话题抬升与边界后顶线部分重置 ////
 
+//// 把零声母 i 韵(益)的 ユイ 两拍按比例分:起音 ユ 占少、韵腹 イ 占多,使其听成带起音的单字而非两拍「yu-i」 [@x380kkm 2026-06-19] ////
+// 益改用 ユイ 后是两拍(ユ 起音、イ 韵腹),不分配时 ユ 偏长、听着像「yu-i」两个音。
+// 这里按 mora.syl 找 plan[s].bareYi 为真的字,把它两拍的有声时长总和按比例重切:ユ 占 yuShare(默认 0.12、约一成,实测 ≈31ms)、其余归韵腹 イ(实测 ≈224ms)。
+// 须在所有改 vowel_length 的步(归一、缩补拍、停顿前延长、贴合区间、画调型重排等)之后调用,拿到定稿总长再切,否则比例被后续步骤抹平。config.bareYiGlide 为 false 可关闭。
+function distributeBareYiGlide(query, plan, config = {}) {
+  if (config.bareYiGlide === false) return query;
+  const yuShare = config.bareYiGlideShare != null ? config.bareYiGlideShare : 0.12;
+  // 韵腹 イ 封顶:句末延长会把这字撑到上限,长度重分配又几乎全堆到单个稳态 イ 上,拖成长音(衣 297ms);给 イ 设上限,省下的不堆。
+  const maxNuc = (config.bareYiMaxNucleusMs != null ? config.bareYiMaxNucleusMs : 200) / 1000 * (query.speedScale || 1);
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.syl == null || !(plan[m.syl] && plan[m.syl].bareYi) || !(m.vowel_length > 0)) continue;
+      (groups[m.syl] = groups[m.syl] || []).push(m);
+    }
+  }
+  for (const s in groups) {
+    const g = groups[s];
+    if (g.length < 2) continue; // 需起音 ユ 加韵腹 イ 两拍才分配
+    const tot = g.reduce((a, m) => a + m.vowel_length, 0);
+    g[0].vowel_length = tot * yuShare; // 起音 ユ:短
+    const rest = g.slice(1);
+    const restSum = rest.reduce((a, m) => a + m.vowel_length, 0);
+    const nucTotal = Math.min(tot * (1 - yuShare), maxNuc); // 韵腹总长封顶
+    for (const m of rest) {
+      m.vowel_length = restSum > 0 ? nucTotal * (m.vowel_length / restSum) : nucTotal / rest.length;
+    }
+  }
+  return query;
+}
+//// /把零声母 i 韵的 ユイ 两拍按比例分 ////
+
+//// 把 ai/ei 类二合元音的尾 [i] 收成极短滑音:尾 [i] 压到 glideMs、省下的时长还给主元音首拍,免得尾 [i] 被声调拉长听成独立的「一」 [@x380kkm 2026-06-19] ////
+// ai(来 ライ)、ei(美 メイ)等二合元音的尾 [i] 是滑音、本应短促;声调画调型会复制 mora,把尾 [i] 撑成整拍甚至两拍,听成独立音节「一」(尔来二十听成而来一二十)。
+// 这里对 final 在 I_OFFGLIDE_FINALS 的字,把同一字内首拍之后的 [i] 拍压到 glideMs(默认 30ms 有效),省下的时长加回首拍主元音、但主元音封顶 mainCapMs;总字长可略缩,不会把主元音撑成超长单元音(唯 e 被堆到 320ms、听成两段)。须在画调型(它复制 mora)之后调用。config.offGlide 为 false 关闭。
+function shortenDiphthongOffGlide(query, plan, config = {}) {
+  if (config.offGlide === false) return query;
+  const glideMs = config.offGlideMs != null ? config.offGlideMs : 30;
+  const cap = (glideMs / 1000) * (query.speedScale || 1);
+  const mainCap = (config.offGlideMainCapMs != null ? config.offGlideMainCapMs : 200) / 1000 * (query.speedScale || 1);
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.syl == null || !(m.vowel_length > 0)) continue;
+      (groups[m.syl] = groups[m.syl] || []).push(m);
+    }
+  }
+  for (const s in groups) {
+    if (!I_OFFGLIDE_FINALS.has(plan[s] && plan[s].final)) continue;
+    const g = groups[s];
+    let freed = 0;
+    for (let i = 1; i < g.length; i += 1) {
+      if (g[i].vowel === 'i' && g[i].vowel_length > cap) { freed += g[i].vowel_length - cap; g[i].vowel_length = cap; }
+    }
+    // 省下的还给首拍主元音,但主元音封顶:超过 mainCap 的不再堆上去(否则唯的 e 被撑到 320ms),整字略缩。
+    if (freed > 0) g[0].vowel_length = Math.min(g[0].vowel_length + freed, Math.max(g[0].vowel_length, mainCap));
+  }
+  return query;
+}
+
+//// 给零声母介音字的首拍介音保底:零声母 i/u 介音(又 iou、王 uang)靠介音自己起音,过短会塌成纯元音(又→欧),把介音补到下限、从同字主元音借时长 [@x380kkm 2026-06-19] ////
+// 又(yòu)拼成 イオ、零声母,首拍 イ 是 [j] 起音;实测它只有 26ms、听不出 y,「又」塌成「欧」。这里对 plan[s].zeroGlide 的字,首拍介音短于下限时补到下限,从同字最长元音拍借时长(总长不变)。须在画调型之后调用。config.glideFloor 为 false 关闭、config.glideFloorMs 调下限。
+function floorGlideOnset(query, plan, config = {}) {
+  if (config.glideFloor === false) return query;
+  const floor = (config.glideFloorMs != null ? config.glideFloorMs : 55) / 1000 * (query.speedScale || 1);
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) {
+      if (m.syl == null || !(m.vowel_length > 0)) continue;
+      (groups[m.syl] = groups[m.syl] || []).push(m);
+    }
+  }
+  for (const s in groups) {
+    if (!(plan[s] && plan[s].zeroGlide)) continue;
+    const g = groups[s];
+    const head = g[0];
+    if (head.vowel_length >= floor || g.length < 2) continue;
+    const need = floor - head.vowel_length;
+    // 从最长的非首拍借,够借才补,不把被借的拍压到比首拍还短。
+    const donor = g.slice(1).reduce((a, m) => (m.vowel_length > a.vowel_length ? m : a), g[1]);
+    const give = Math.min(need, donor.vowel_length - floor);
+    if (give > 0) { head.vowel_length += give; donor.vowel_length -= give; }
+  }
+  return query;
+}
+//// /给零声母介音字的首拍介音保底 ////
+//// /把 ai/ei 类二合元音的尾 [i] 收成极短滑音 ////
+
+//// 给短语内非末拍的鼻韵尾 ン 设绝对上限:压掉「接任何字都拖」的长鼻音,鼻音占比仍由 adjustNasalCoda 管、这里只兜底封顶 [@x380kkm 2026-06-19] ////
+// 带鼻韵尾的字 ン 那一拍被 adjustNasalCoda(从主元音借时间并入鼻音)与 bolsterNgVowel 做长,无封顶时整篇平均约 107ms、后鼻音可达 207ms,撑成一条满身子的长鸣,接任何后字都显拖。
+// 这里在所有改鼻拍的步之后兜底:把每个短语内非末拍的 ン 的 vowel_length 封顶到 ≤ (nasalCapMs/1000)×speedScale。短语末那一拍的鼻音保留拖腔(那是韵律收尾、不是缺陷),不压。
+// 默认 45ms:实测拖沓基本消除、鼻音幅度不衰减仍清楚可闻;前后鼻音的区分交给 adjustNasalCoda 的音质处理,不靠长度。config.capNasalCoda 为 false 关闭、config.nasalCapMs 调上限。
+function capNasalCoda(query, plan, config = {}) {
+  if (config.capNasalCoda === false) return query;
+  const capMs = config.nasalCapMs != null ? config.nasalCapMs : 45;
+  const cap = (capMs / 1000) * (query.speedScale || 1);
+  for (const phrase of (query.accent_phrases || [])) {
+    const moras = phrase.moras || [];
+    for (let i = 0; i < moras.length - 1; i += 1) {
+      if (moras[i].vowel === 'N' && moras[i].vowel_length > cap) moras[i].vowel_length = cap;
+    }
+  }
+  return query;
+}
+//// /给短语内非末拍的鼻韵尾 ン 设绝对上限 ////
+
+//// 流水线末尾的最短时长兜底:fitSyllableDuration 之后的步(封顶鼻尾、定促音时长等)会再砍短,这里把仍低于下限的字补回 [@x380kkm 2026-06-19] ////
+// fitSyllableDuration 在中段把字撑到下限,但其后的 capNasalCoda 砍鼻尾、sizeSokuon 定促音等会把字再砍到下限以下(本/躬/耕 掉到约 170ms)。
+// 这里在最末尾按定稿时长再兜一次:某字总有效时长低于 minMs 时,把缺口加到它的主元音拍(有声、非鼻尾 N、非促音 cl),按现有占比分摊;不补鼻音、不补促音,故鼻尾仍短、字也不短。config.enforceMinDur 为 false 关闭。
+function enforceMinDuration(query, plan, config = {}) {
+  if (config.enforceMinDur === false) return query;
+  const minMs = config.minDurMs != null ? config.minDurMs : 180;
+  const minLen = (minMs / 1000) * (query.speedScale || 1);
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) { if (m.syl != null) (groups[m.syl] = groups[m.syl] || []).push(m); }
+  }
+  for (const s in groups) {
+    const g = groups[s];
+    const total = g.reduce((sum, m) => sum + (m.consonant_length || 0) + (m.vowel_length || 0), 0);
+    if (total >= minLen) continue;
+    const nuclei = g.filter((m) => m.vowel_length > 0 && m.vowel !== 'N' && m.vowel !== 'cl' && m.vowel !== 'pau');
+    if (!nuclei.length) continue;
+    const deficit = minLen - total;
+    const nucSum = nuclei.reduce((sum, m) => sum + m.vowel_length, 0);
+    for (const m of nuclei) m.vowel_length += deficit * (m.vowel_length / nucSum);
+  }
+  return query;
+}
+//// /流水线末尾的最短时长兜底 ////
+
+//// 保障主元音占比:每个字的主元音(最长的非鼻尾、非促音元音拍)不足音节时长的 share 时补到 share,免得被声母、鼻尾、介音、滑音挤太短 [@x380kkm 2026-06-19] ////
+// 忠(ジョン)这类「声母 + ong/eng 鼻韵母」字的主元音 [o] 被声母与鼻尾两头挤、只剩约 68ms,听着发促;二合元音(来 ai)、滑音字(下 ia)的主元音也会被滑音抢时长。
+// 这里给主元音设占比下限:总有效时长 × share 为目标,主元音短于此就补到目标,其余拍(声母、鼻尾、促音、其它元音)等比例压缩、使整字总长不变——只调字内分配、不加长(不嵌套)。share 默认 0.4。config.mainVowelShare 为 false 关闭、config.mainVowelShareRatio 调比例。
+function ensureMainVowelShare(query, plan, config = {}) {
+  if (config.mainVowelShare === false) return query;
+  const share = config.mainVowelShareRatio != null ? config.mainVowelShareRatio : 0.4;
+  const groups = {};
+  for (const phrase of (query.accent_phrases || [])) {
+    for (const m of (phrase.moras || [])) { if (m.syl != null) (groups[m.syl] = groups[m.syl] || []).push(m); }
+  }
+  const affShare = config.affricateShareRatio != null ? config.affricateShareRatio : 0.5;
+  for (const s in groups) {
+    const g = groups[s];
+    const total = g.reduce((sum, m) => sum + (m.consonant_length || 0) + (m.vowel_length || 0), 0);
+    // 塞擦空韵字(此/次/字):成音节身子是那段塞擦,占比不足时给塞擦补到 affShare,从元音拍借时长(总长不变)。s 擦音(四/思)不在此列。
+    if (plan[s] && plan[s].dentalAffricate) {
+      const consM = g.find((m) => m.consonant_length > 0);
+      const vows = g.filter((m) => m.vowel_length > 0);
+      const target = affShare * total;
+      if (consM && consM.consonant_length < target && vows.length) {
+        const need = target - consM.consonant_length;
+        const vSum = vows.reduce((sum, m) => sum + m.vowel_length, 0);
+        if (vSum > need) { consM.consonant_length = target; for (const m of vows) m.vowel_length -= need * (m.vowel_length / vSum); }
+      }
+      continue;
+    }
+    const vowels = g.filter((m) => m.vowel_length > 0 && m.vowel !== 'N' && m.vowel !== 'cl' && m.vowel !== 'pau');
+    if (!vowels.length) continue;
+    // 带前介音的韵母(y 系 i 介音、w 系 u 介音):首个元音拍是介音、不算主元音,主元音从其后的韵腹里取。
+    const cand = (GLIDE_INITIAL_FINALS.has(plan[s] && plan[s].final) && vowels.length > 1) ? vowels.slice(1) : vowels;
+    const main = cand.reduce((a, m) => (m.vowel_length > a.vowel_length ? m : a), cand[0]);
+    const target = share * total;
+    if (main.vowel_length >= target) continue;
+    // 主元音补到 target,其余部分(总长减主元音)等比例压到 total-target,整字总长 total 不变。
+    const restOld = total - main.vowel_length;
+    if (restOld <= 0) continue;
+    const k = (total - target) / restOld;
+    for (const m of g) {
+      if (m.consonant_length != null) m.consonant_length *= k; // 保留 null:无声母的拍不能写 0,否则 query 非法
+      m.vowel_length = (m === main) ? target : (m.vowel_length || 0) * k;
+    }
+  }
+  return query;
+}
+//// /保障主元音占比 ////
+
 //// 把一份 audio_query 按中文韵律整形:铺四声、连读收停顿、拉平时长、缩补拍、停顿前延长、句末轻声撑住、句末送气字落到短语首、二三声画调型、整句下倾、按句类型铺句调 [@x380kkm 2026-06-15] ////
 // 中文凑音素的整条韵律流水线,顺序固定:先铺四声音高(默认带 downstep:三声把其后高调压一级再回升),再合并组内短语收停顿,
 // 再拉平各音节时长匀节奏,再把单元音补拍压短,再把停顿前实词延长、句末轻声撑住,再把句末送气字切到短语首送气,
@@ -1342,12 +1618,20 @@ function applyChineseProsody(query, plan, config = {}) {
   applyBaselineContour(query, config);
   applyFocus(query, plan, config);
   applySentenceIntonation(query, plan, config);
+  applyToneRangeScale(query, config); // 先整体收窄起伏(默认 0.65),让字调变化小一点
+  softCapToneRange(query, config); // 再软压上下两端极端、保中段(只相对锚定,不改整体音高)
   apicalizeEmptyRhyme(query, plan, config);
   tightenErhuaTail(query, plan, config);
   bolsterNgVowel(query, plan, config);
   balanceUoGlide(query, plan, config);
   bolsterUnVowel(query, plan, config);
+  distributeBareYiGlide(query, plan, config); // 须在所有改 vowel_length 的步之后:按定稿总长再切 ユ/イ 比例
+  shortenDiphthongOffGlide(query, plan, config); // 须在画调型(复制 mora)之后:把 ai/ei 尾 [i] 收成极短滑音
+  floorGlideOnset(query, plan, config); // 零声母介音字首拍介音保底,免得又塌成欧
+  capNasalCoda(query, plan, config); // 须在 adjustNasalCoda/bolsterNgVowel 之后兜底封顶鼻尾
   sizeSokuon(query, plan, config);
+  ensureMainVowelShare(query, plan, config); // 保障主元音占比,免得被声母/鼻尾/滑音挤太短
+  enforceMinDuration(query, plan, config); // 最末尾:把被后续步砍到下限以下的字补回主元音
   // 收尾:画调型重排 mora 后,短语原有的重音核位置可能超过新的 mora 数,引擎会告警「accent 超过 mora 数」。
   // 中文路径逐 mora 显式铺了音高、不靠重音核,这里把 accent 夹回合法范围消除告警。
   for (const phrase of (query.accent_phrases || [])) {
@@ -1382,6 +1666,14 @@ module.exports = {
   bolsterNgVowel,
   balanceUoGlide,
   bolsterUnVowel,
+  distributeBareYiGlide,
+  shortenDiphthongOffGlide,
+  floorGlideOnset,
+  capNasalCoda,
+  enforceMinDuration,
+  ensureMainVowelShare,
+  applyToneRangeScale,
+  softCapToneRange,
   sizeSokuon,
   isHomorganicLiaison,
   drawToneContours,
