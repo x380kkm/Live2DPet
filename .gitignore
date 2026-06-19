@@ -6,8 +6,8 @@ voicevox_core/
 models/
 archive/
 ref/
-manyread/short/
-manyread/user/
+cleanread/
+__pycache__/
 tools/samples/
 nul
 build.bat
