@@ -73,12 +73,16 @@ function syllableToKana(parsed, options = {}) {
     return { kana: '', moras: 0, ok: false };
   }
   let kana = applyInitial(parsed.initial, finalKana);
-  // h + u 介音的 [xw](花、欢、火、会):日语无 [xw],拼成 ホ+元音(ホアン)会拆成两个元音、听着像「ho-a-n」;
-  // 改用 フ 行,把介音与韵腹并成一个 mora(欢 huan→ファン、花 hua→ファ、火 huo→フォ、会 hui→フィ),听感更像一个整字(实听确认 ファン 最接近「欢」)。
+  // h + u 介音的 [xw](花、欢、火、会):日语无 [xw]。说话默认改用 フ 行把介音与韵腹并成一个 mora(花 hua→ファ、欢 huan→ファン),听感更像一个整字(实听确认 ファン 最接近「欢」)。
+  // 但歌唱在长音上 フ 行会被听成 f(花听成发),故 options.hGlideOnset 为真时改用 ホ 起音加韵腹(花 hua→ホア),起音短、韵腹长。
   if (parsed.initial === 'h' && U_GLIDE_FINALS.has(parsed.final)) {
     const rest = finalKana.slice(1); // 去掉介音 ウ,余下韵腹与韵尾
-    const nucleus = BASE_VOWEL[rest[0]];
-    kana = nucleus ? (INITIAL_CV.f[nucleus] || 'フ') + rest.slice(1) : 'フ' + rest;
+    if (options.hGlideOnset) {
+      kana = 'ホ' + rest;
+    } else {
+      const nucleus = BASE_VOWEL[rest[0]];
+      kana = nucleus ? (INITIAL_CV.f[nucleus] || 'フ') + rest.slice(1) : 'フ' + rest;
+    }
   }
   // 零声母 i 系韵母:首拍纯元音「イ」起音弱,与前字之间无辅音界限时被前字鼻韵尾或前字元音吸收成近乎静音(益实测均方根能量仅 0.0107)。
   // 仿 wu→ヴ 在韵母前加一个起音「ユ」给 [j] 起头、不被吸收,保留原韵母结构:纯 i「イ」→「ユイ」、有 iou「イウ」→「ユイウ」。前加而非整字替换,故复韵母的韵腹韵尾不丢、不会念成「yì」。

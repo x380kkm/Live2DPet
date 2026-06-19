@@ -52,14 +52,15 @@
 
 ```bash
 # Core + ONNX Runtime (CPU)
-gh release download 0.16.3 -R VOICEVOX/voicevox_core -p "voicevox_core-windows-x64-0.16.3.zip"
+gh release download 0.16.4 -R VOICEVOX/voicevox_core -p "voicevox_core-windows-x64-0.16.4.zip"
 gh release download voicevox_onnxruntime-1.17.3 -R VOICEVOX/onnxruntime-builder -p "voicevox_onnxruntime-win-x64-1.17.3.tgz"
 
 # GPU (DirectML) 版 ONNX Runtime
 gh release download voicevox_onnxruntime-1.17.3 -R VOICEVOX/onnxruntime-builder -p "voicevox_onnxruntime-win-x64-dml-1.17.3.tgz"
 
-# VVM 模型文件
-for i in $(seq 0 23); do gh release download 0.16.3 -R VOICEVOX/voicevox_vvm -p "$i.vvm"; done
+# VVM 模型文件(0 到 24 为说话模型,s0 为中文歌唱模型)
+for i in $(seq 0 24); do gh release download 0.16.4 -R VOICEVOX/voicevox_vvm -p "$i.vvm"; done
+gh release download 0.16.4 -R VOICEVOX/voicevox_vvm -p "s0.vvm"
 
 # Open JTalk 辞書
 curl -L -o dict.tar.gz "https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download"

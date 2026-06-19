@@ -110,11 +110,12 @@ GPU アクセラレーション（DirectML）対応。AI の応答は自動的�
 
 | コンポーネント | 必須 | ダウンロード |
 |----------------|------|--------------|
-| VOICEVOX Core | はい | [voicevox_core-windows-x64-0.16.3.zip](https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.3/voicevox_core-windows-x64-0.16.3.zip) |
+| VOICEVOX Core | はい | [voicevox_core-windows-x64-0.16.4.zip](https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.4/voicevox_core-windows-x64-0.16.4.zip) |
 | ONNX Runtime (CPU) | はい | [voicevox_onnxruntime-win-x64-1.17.3.tgz](https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-1.17.3.tgz) |
 | ONNX Runtime (GPU) | いいえ | [voicevox_onnxruntime-win-x64-dml-1.17.3.tgz](https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-dml-1.17.3.tgz) |
 | Open JTalk 辞書 | はい | [open_jtalk_dic_utf_8-1.11.tar.gz](https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download) |
-| デフォルト音声モデル | はい | [0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.3/0.vvm) |
+| デフォルト音声モデル | はい | [0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/0.vvm) |
+| 歌唱モデル(中国語歌唱用) | いいえ | [s0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/s0.vvm) |
 | その他の音声モデル | いいえ | [vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/) |
 
 **解凍後のディレクトリ構造**:
@@ -122,7 +123,7 @@ GPU アクセラレーション（DirectML）対応。AI の応答は自動的�
 ```
 voicevox_core/
 ├── c_api/
-│   └── voicevox_core-windows-x64-0.16.3/
+│   └── voicevox_core-windows-x64-0.16.4/
 │       └── lib/
 │           └── voicevox_core.dll
 ├── voicevox_onnxruntime-win-x64-1.17.3/

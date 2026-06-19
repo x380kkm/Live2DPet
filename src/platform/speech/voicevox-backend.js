@@ -8,6 +8,8 @@ const { SpeechBackend } = require('./speech-backend');
 
 // VOICEVOX FFI 调用成功的返回码
 const VOICEVOX_RESULT_OK = 0;
+// VOICEVOX Core C API 的 Windows x64 版本目录名,决定加载的 DLL 与头文件版本
+const CORE_DIR_NAME = 'voicevox_core-windows-x64-0.16.4';
 // 默认加载的语音模型文件
 const DEFAULT_VVM_FILES = ['0.vvm', '8.vvm'];
 // 启用 GPU 时传给初始化选项的加速模式枚举值
@@ -52,7 +54,7 @@ class VoicevoxBackend extends SpeechBackend {
     try {
       const coreDll = path.join(
         voicevoxDir, 'c_api',
-        'voicevox_core-windows-x64-0.16.3', 'lib',
+        CORE_DIR_NAME, 'lib',
         'voicevox_core.dll'
       );
       // 按是否要 GPU 在 DirectML 与 CPU 两个 onnxruntime 目录间选一个
@@ -152,6 +154,10 @@ class VoicevoxBackend extends SpeechBackend {
       // 从 AquesTalk 风格片假名(带 ' 重音核、/ 句界、ー 长音)生成 audio_query,供中文凑音素按声调置重音
       createAudioQueryFromKana: l.func('int32 voicevox_synthesizer_create_audio_query_from_kana(VoicevoxSynthesizer *, const char *, uint32, _Out_ void **)'),
       synthesis: l.func('int32 voicevox_synthesizer_synthesis(VoicevoxSynthesizer *, const char *, uint32, VoicevoxSynthesisOptions, _Out_ uintptr_t *, _Out_ void **)'),
+      // 歌唱:曲谱 JSON 经 sing 类型样式生成逐帧查询(含 f0、音量、音素)
+      createSingFrameAudioQuery: l.func('int32 voicevox_synthesizer_create_sing_frame_audio_query(VoicevoxSynthesizer *, const char *, uint32, _Out_ void **)'),
+      // 歌唱:逐帧查询经 frame_decode 类型样式合成 WAV,无合成选项结构
+      frameSynthesis: l.func('int32 voicevox_synthesizer_frame_synthesis(VoicevoxSynthesizer *, const char *, uint32, _Out_ uintptr_t *, _Out_ void **)'),
       jsonFree: l.func('void voicevox_json_free(void *)'),
       wavFree: l.func('void voicevox_wav_free(void *)'),
       createMetasJson: l.func('void * voicevox_synthesizer_create_metas_json(VoicevoxSynthesizer *)'),
@@ -244,6 +250,34 @@ class VoicevoxBackend extends SpeechBackend {
     return wavBuf;
   }
   //// /从一份 audio_query 直接合成 WAV ////
+
+  //// 走歌唱路径合成 WAV:曲谱经歌唱教师样式出帧查询,再经歌手样式出波形 [@x380kkm 2026-06-20] ////
+  // score 为 { notes: [{ key: MIDI 音高或 null 表休止, frame_length: 帧数(每秒 93.75 帧), lyric: 单拍假名或"" }] };
+  // teacherStyleId 取 sing 类型样式(波音リツ 6000)推断音高与音量,singerStyleId 取 frame_decode 样式(冥鸣 3014)定音色;未初始化返回 null,FFI 失败抛错。
+  synthesizeSong(score, { teacherStyleId, singerStyleId } = {}) {
+    if (!this.initialized) return null;
+    const scoreJson = typeof score === 'string' ? score : JSON.stringify(score);
+    const queryOut = [null];
+    let rc = this._fn.createSingFrameAudioQuery(this.synthesizer, scoreJson, teacherStyleId, queryOut);
+    if (rc !== VOICEVOX_RESULT_OK) throw new Error(`createSingFrameAudioQuery: ${this._getError(rc)}`);
+    const queryPtr = queryOut[0];
+    let frameQueryJson;
+    try {
+      frameQueryJson = this.koffi.decode(queryPtr, 'char', -1);
+    } finally {
+      this._fn.jsonFree(queryPtr);
+    }
+
+    const wavLenOut = [0];
+    const wavOut = [null];
+    rc = this._fn.frameSynthesis(this.synthesizer, frameQueryJson, singerStyleId, wavLenOut, wavOut);
+    if (rc !== VOICEVOX_RESULT_OK) throw new Error(`frameSynthesis: ${this._getError(rc)}`);
+    const wavPtr = wavOut[0];
+    const wavBuf = Buffer.from(this.koffi.decode(wavPtr, 'uint8', wavLenOut[0]));
+    this._fn.wavFree(wavPtr);
+    return wavBuf;
+  }
+  //// /走歌唱路径合成 WAV ////
 
   //// 走 audio_query 路径合成一次,带速度音高音量控制,释放原生内存 [@x380kkm 2026-06-13] ////
   _synthesizeOnce(text, sid, speedScale, pitchScale, volumeScale, tone) {

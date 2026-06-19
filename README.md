@@ -133,11 +133,12 @@ node launch.js
 
 | 组件 | 必须 | 下载链接 |
 |------|------|----------|
-| VOICEVOX Core | 是 | [voicevox_core-windows-x64-0.16.3.zip](https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.3/voicevox_core-windows-x64-0.16.3.zip) |
+| VOICEVOX Core | 是 | [voicevox_core-windows-x64-0.16.4.zip](https://github.com/VOICEVOX/voicevox_core/releases/download/0.16.4/voicevox_core-windows-x64-0.16.4.zip) |
 | ONNX Runtime (CPU) | 是 | [voicevox_onnxruntime-win-x64-1.17.3.tgz](https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-1.17.3.tgz) |
 | ONNX Runtime (GPU) | 否 | [voicevox_onnxruntime-win-x64-dml-1.17.3.tgz](https://github.com/VOICEVOX/onnxruntime-builder/releases/download/voicevox_onnxruntime-1.17.3/voicevox_onnxruntime-win-x64-dml-1.17.3.tgz) |
 | Open JTalk 辞書 | 是 | [open_jtalk_dic_utf_8-1.11.tar.gz](https://sourceforge.net/projects/open-jtalk/files/Dictionary/open_jtalk_dic-1.11/open_jtalk_dic_utf_8-1.11.tar.gz/download) |
-| 默认语音模型 | 是 | [0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.3/0.vvm) |
+| 默认语音模型 | 是 | [0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/0.vvm) |
+| 歌唱模型(中文歌唱用) | 否 | [s0.vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/download/0.16.4/s0.vvm) |
 | 其他语音模型 | 否 | [vvm](https://github.com/VOICEVOX/voicevox_vvm/releases/)|
 
 **解压后的目录结构**:
@@ -145,7 +146,7 @@ node launch.js
 ```
 voicevox_core/
 ├── c_api/
-│   └── voicevox_core-windows-x64-0.16.3/
+│   └── voicevox_core-windows-x64-0.16.4/
 │       └── lib/
 │           └── voicevox_core.dll
 ├── voicevox_onnxruntime-win-x64-1.17.3/
