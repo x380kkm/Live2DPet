@@ -254,7 +254,8 @@ class VoicevoxBackend extends SpeechBackend {
   //// 走歌唱路径合成 WAV:曲谱经歌唱教师样式出帧查询,再经歌手样式出波形 [@x380kkm 2026-06-20] ////
   // score 为 { notes: [{ key: MIDI 音高或 null 表休止, frame_length: 帧数(每秒 93.75 帧), lyric: 单拍假名或"" }] };
   // teacherStyleId 取 sing 类型样式(波音リツ 6000)推断音高与音量,singerStyleId 取 frame_decode 样式(冥鸣 3014)定音色;未初始化返回 null,FFI 失败抛错。
-  synthesizeSong(score, { teacherStyleId, singerStyleId } = {}) {
+  // options:outputSamplingRate 输出采样率(缺省 48000,须为 24000 的非零整数倍,原始默认 24000 偏低、与乐队混音不匹配),volumeScale 音量缩放(缺省 1.6,原始逐帧音量峰值仅约 0.13、人声过弱被乐队盖住),outputStereo 立体声(缺省 false)。
+  synthesizeSong(score, { teacherStyleId, singerStyleId, outputSamplingRate = 48000, volumeScale = 1.6, outputStereo = false } = {}) {
     if (!this.initialized) return null;
     const scoreJson = typeof score === 'string' ? score : JSON.stringify(score);
     const queryOut = [null];
@@ -267,6 +268,12 @@ class VoicevoxBackend extends SpeechBackend {
     } finally {
       this._fn.jsonFree(queryPtr);
     }
+    // 把这些此前被忽略的输出设置写回逐帧查询:全采样率出声更清亮、音量提到能压过乐队、可选立体声。
+    const fq = JSON.parse(frameQueryJson);
+    fq.outputSamplingRate = outputSamplingRate;
+    fq.volumeScale = volumeScale;
+    fq.outputStereo = outputStereo;
+    frameQueryJson = JSON.stringify(fq);
 
     const wavLenOut = [0];
     const wavOut = [null];
