@@ -12,9 +12,12 @@ const BEATS_PER_BAR = 4;
 // sections: [{ role, key?, style, tonicMidi, seed, phrases?, barsPerPhrase?, form? }]
 //   role 段落名(verse/chorus/bridge 等),key 复用键(同 key 复用同一段乐句,缺省用 role),seed 经 makeRng 转随机源。
 // makeRng(seed) 由调用方注入,返回可重复随机源,保证整首可复现。
-function composeSong(sections, makeRng) {
+// options.withCounter 同时拼出第二声部(吉他):各段开 withCounter,counter 与 melody 同样按段拼接、逐段对齐。
+function composeSong(sections, makeRng, options = {}) {
+  const withCounter = options.withCounter || false;
   const built = {};
   const melody = [];
+  const counter = [];
   const chords = [];
   const layout = [];
   let cum = 0;
@@ -23,12 +26,15 @@ function composeSong(sections, makeRng) {
     if (!built[key]) {
       const part = compose({
         style: sec.style,
+        model: sec.model,
+        profile: sec.profile,
         tonicMidi: sec.tonicMidi,
         rng: makeRng(sec.seed),
         phrases: sec.phrases || 4,
         barsPerPhrase: sec.barsPerPhrase || 2,
         form: sec.form,
         breathAtEnd: true, // 段内末句也留气口,使段与段之间有换气;拼接时按需删掉整首最后一个气口
+        withCounter,
       });
       built[key] = part;
     }
@@ -39,13 +45,18 @@ function composeSong(sections, makeRng) {
     part.melody.forEach((e) => {
       melody.push(e.rest != null ? { rest: e.rest } : { key: e.key, beats: e.beats });
     });
+    if (withCounter && part.counter) {
+      part.counter.forEach((e) => counter.push(e.rest != null ? { rest: e.rest } : { key: e.key, beats: e.beats }));
+    }
     part.chords.forEach((c) => {
       chords.push({ startBeat: cum + c.startBeat, beats: c.beats, root: c.root, pcs: c.pcs, tonic: sec.tonicMidi });
     });
     layout.push({ role: sec.role, key, groove: sec.groove, tonic: sec.tonicMidi, bars: partBeats / BEATS_PER_BAR, sung: sungInSec });
     cum += partBeats;
   });
-  return { melody, chords, layout, totalBars: cum / BEATS_PER_BAR, parts: built };
+  const out = { melody, chords, layout, totalBars: cum / BEATS_PER_BAR, parts: built };
+  if (withCounter) out.counter = counter;
+  return out;
 }
 //// /把段落表拼成整首长曲 ////
 
