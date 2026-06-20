@@ -11,63 +11,63 @@
 // 各 groove 均经渲染验证含完整乐队(至少鼓+贝斯),部分另带弦乐/合成/管风琴等音色,给配器更多层次。
 const GENRES = {
   'jpop-upbeat': {
-    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], singer: 3028,
+    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], singer: 3014,
     grooves: ['8BeatPop2', '8BeatPop1', 'PopRock1', 'PopRock2', '8BeatPop3'],
     profile: { register: { lo: -3, hi: 14 }, base: 4, amp: 8, jitter: 1.2, shapes: ['rise', 'arch', 'peakLate'], midLeapW: 0.07 },
   },
   'jpop-ballad': {
-    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], singer: 3028,
+    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], singer: 3014,
     grooves: ['16BeatBallad1', '16BeatBallad2', '8BeatBallad3', 'Ballad1', '68Ballad'],
     profile: { register: { lo: -7, hi: 12 }, base: 2, amp: 6, jitter: 1.0, shapes: ['arch', 'fall', 'wave'], midLeapW: 0.14 },
   },
   'janime-emotional': {
-    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], singer: 3028,
+    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], singer: 3014,
     grooves: ['16BeatBallad1', '16BeatBallad3', '8BeatBallad3', 'Ballad', '68Ballad'],
     profile: { register: { lo: -5, hi: 14 }, base: 3, amp: 7, jitter: 1.3, shapes: ['wave', 'valley', 'fall'], midLeapW: 0.09 },
   },
   'janime-energetic': {
-    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], singer: 3028,
+    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], singer: 3014,
     grooves: ['8BeatPop3', 'BasicRock', '60sRock', 'PopRock2', 'PopRock1'],
     profile: { register: { lo: -2, hi: 14 }, base: 5, amp: 9, jitter: 1.5, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.04 },
   },
   'kpop-dance': {
-    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], singer: 3028,
+    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], singer: 3014,
     grooves: ['DancePop1', 'DancePop3', 'DancePop2', '8BeatDance', 'PopRock2'],
     profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 6, jitter: 1.4, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.08 },
   },
   'musical-theater': {
-    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], singer: 3028,
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], singer: 3014,
     grooves: ['Broadway', '68Swing', '16BeatBallad2', '8BeatPop1', 'Ballad1'],
     profile: { register: { lo: -6, hi: 16 }, base: 3, amp: 9, jitter: 1.2, shapes: ['peakLate', 'arch', 'rise'], midLeapW: 0.07 },
   },
   children: {
-    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], singer: 3028,
+    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], singer: 3014,
     grooves: ['60sPop', '8BeatPop1', 'PopRock1', '8BeatBallad3'],
     profile: { register: { lo: -3, hi: 11 }, base: 3, amp: 5, jitter: 0.8, shapes: ['arch', 'rise'], midLeapW: 0.25 },
   },
   folk: {
-    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], singer: 3028,
+    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], singer: 3014,
     grooves: ['Folk', 'FolkRock', 'BlueFolk', 'BlueGrass', 'CountryBlues'],
     profile: { register: { lo: -5, hi: 12 }, base: 3, amp: 6, jitter: 1.0, shapes: ['arch', 'wave'], midLeapW: 0.18 },
   },
   electronic: {
-    model: 'anime-major', tonics: [60, 62, 64], tempo: [120, 132], singer: 3028,
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [120, 132], singer: 3014,
     grooves: ['Techno', 'Trance', 'House', 'HipHop', 'DancePop1', '8BeatDance'],
     profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 7, jitter: 1.2, shapes: ['wave', 'rise', 'valley'], midLeapW: 0.10 },
   },
   // 硬核电子三种:trance(高速、锯齿主音、推进)、bigroom(强劲大房间)、dnb(超快、密集鼓)。hard:true 让配方走硬核主奏、亮 pad、加重鼓。
   trance: {
-    model: 'anime-major', tonics: [62, 64, 57], tempo: [136, 142], singer: 3028, hard: true,
+    model: 'anime-major', tonics: [62, 64, 57], tempo: [136, 142], singer: 3014, hard: true,
     grooves: ['Trance', 'Trance1', 'Trance2', 'House'],
     profile: { register: { lo: -2, hi: 16 }, base: 4, amp: 9, jitter: 1.3, shapes: ['rise', 'wave', 'peakLate'], midLeapW: 0.07 },
   },
   bigroom: {
-    model: 'anime-major', tonics: [60, 62, 64], tempo: [126, 132], singer: 3028, hard: true,
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [126, 132], singer: 3014, hard: true,
     grooves: ['Techno', 'TeamTechno', 'DANCE', '8BeatDance'],
     profile: { register: { lo: -2, hi: 15 }, base: 4, amp: 9, jitter: 1.4, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.06 },
   },
   dnb: {
-    model: 'anime-minor', tonics: [57, 59, 62], tempo: [168, 176], singer: 3028, hard: true,
+    model: 'anime-minor', tonics: [57, 59, 62], tempo: [168, 176], singer: 3014, hard: true,
     grooves: ['HipHop', 'HipHopPlusPlus', 'HipHopPlus1', 'HipHopPlus2'],
     profile: { register: { lo: -3, hi: 15 }, base: 3, amp: 8, jitter: 1.5, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.05 },
   },
