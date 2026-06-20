@@ -55,6 +55,22 @@ const GENRES = {
     grooves: ['Techno', 'Trance', 'House', 'HipHop', 'DancePop1', '8BeatDance'],
     profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 7, jitter: 1.2, shapes: ['wave', 'rise', 'valley'], midLeapW: 0.10 },
   },
+  // 硬核电子三种:trance(高速、锯齿主音、推进)、bigroom(强劲大房间)、dnb(超快、密集鼓)。hard:true 让配方走硬核主奏、亮 pad、加重鼓。
+  trance: {
+    model: 'anime-major', tonics: [62, 64, 57], tempo: [136, 142], singer: 3028, hard: true,
+    grooves: ['Trance', 'Trance1', 'Trance2', 'House'],
+    profile: { register: { lo: -2, hi: 16 }, base: 4, amp: 9, jitter: 1.3, shapes: ['rise', 'wave', 'peakLate'], midLeapW: 0.07 },
+  },
+  bigroom: {
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [126, 132], singer: 3028, hard: true,
+    grooves: ['Techno', 'TeamTechno', 'DANCE', '8BeatDance'],
+    profile: { register: { lo: -2, hi: 15 }, base: 4, amp: 9, jitter: 1.4, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.06 },
+  },
+  dnb: {
+    model: 'anime-minor', tonics: [57, 59, 62], tempo: [168, 176], singer: 3028, hard: true,
+    grooves: ['HipHop', 'HipHopPlusPlus', 'HipHopPlus1', 'HipHopPlus2'],
+    profile: { register: { lo: -3, hi: 15 }, base: 3, amp: 8, jitter: 1.5, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.05 },
+  },
 };
 
 //// 从区间里按随机源定一首歌的具体配置:主音、速度、groove 各取一个,其余照搬档案 [@x380kkm 2026-06-20] ////
@@ -65,7 +81,7 @@ function resolveGenre(name, rng) {
   const tonicMidi = g.tonics[Math.floor(r() * g.tonics.length)];
   const tempo = g.tempo[0] + Math.floor(r() * (g.tempo[1] - g.tempo[0] + 1));
   const groove = g.grooves[Math.floor(r() * g.grooves.length)];
-  return { name, model: g.model, tonicMidi, tempo, groove, singer: g.singer, profile: g.profile };
+  return { name, model: g.model, tonicMidi, tempo, groove, singer: g.singer, profile: g.profile, hard: !!g.hard };
 }
 //// /从区间里定一首歌的具体配置 ////
 
