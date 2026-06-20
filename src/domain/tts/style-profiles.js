@@ -9,35 +9,35 @@
 //   profile 旋律侧档案(音域、走向基线/振幅/抖动、轮廓形状集、中跳抑制)、singer 歌手样式 id。
 const GENRES = {
   'jpop-upbeat': {
-    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], groove: '8BeatPop2', singer: 3014,
-    profile: { register: { lo: -3, hi: 14 }, base: 4, amp: 8, jitter: 1.2, shapes: ['rise', 'arch', 'peakLate'], midLeapW: 0.10 },
+    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], groove: '8BeatPop2', singer: 3026,
+    profile: { register: { lo: -3, hi: 14 }, base: 4, amp: 8, jitter: 1.2, shapes: ['rise', 'arch', 'peakLate'], midLeapW: 0.07 },
   },
   'jpop-ballad': {
-    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], groove: '16BeatBallad1', singer: 3014,
-    profile: { register: { lo: -7, hi: 12 }, base: 2, amp: 6, jitter: 1.0, shapes: ['arch', 'fall', 'wave'], midLeapW: 0.22 },
+    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], groove: '16BeatBallad1', singer: 3026,
+    profile: { register: { lo: -7, hi: 12 }, base: 2, amp: 6, jitter: 1.0, shapes: ['arch', 'fall', 'wave'], midLeapW: 0.14 },
   },
   'janime-emotional': {
-    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], groove: '16BeatBallad1', singer: 3014,
-    profile: { register: { lo: -5, hi: 14 }, base: 3, amp: 7, jitter: 1.3, shapes: ['wave', 'valley', 'fall'], midLeapW: 0.15 },
+    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], groove: '16BeatBallad1', singer: 3026,
+    profile: { register: { lo: -5, hi: 14 }, base: 3, amp: 7, jitter: 1.3, shapes: ['wave', 'valley', 'fall'], midLeapW: 0.09 },
   },
   'janime-energetic': {
-    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], groove: '8BeatPop3', singer: 3014,
-    profile: { register: { lo: -2, hi: 14 }, base: 5, amp: 9, jitter: 1.5, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.06 },
+    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], groove: '8BeatPop3', singer: 3026,
+    profile: { register: { lo: -2, hi: 14 }, base: 5, amp: 9, jitter: 1.5, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.04 },
   },
   'kpop-dance': {
-    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], groove: 'DancePop1', singer: 3014,
-    profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 6, jitter: 1.4, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.12 },
+    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], groove: 'DancePop1', singer: 3026,
+    profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 6, jitter: 1.4, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.08 },
   },
   'musical-theater': {
-    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], groove: '8BeatPop1', singer: 3014,
-    profile: { register: { lo: -6, hi: 16 }, base: 3, amp: 9, jitter: 1.2, shapes: ['peakLate', 'arch', 'rise'], midLeapW: 0.10 },
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], groove: '8BeatPop1', singer: 3026,
+    profile: { register: { lo: -6, hi: 16 }, base: 3, amp: 9, jitter: 1.2, shapes: ['peakLate', 'arch', 'rise'], midLeapW: 0.07 },
   },
   children: {
-    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], groove: '60sPop', singer: 3014,
+    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], groove: '60sPop', singer: 3026,
     profile: { register: { lo: -3, hi: 11 }, base: 3, amp: 5, jitter: 0.8, shapes: ['arch', 'rise'], midLeapW: 0.25 },
   },
   folk: {
-    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], groove: 'Folk', singer: 3014,
+    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], groove: 'Folk', singer: 3026,
     profile: { register: { lo: -5, hi: 12 }, base: 3, amp: 6, jitter: 1.0, shapes: ['arch', 'wave'], midLeapW: 0.18 },
   },
 };

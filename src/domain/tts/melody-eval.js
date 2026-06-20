@@ -9,8 +9,8 @@ const zlib = require('zlib');
 // 各指标的合理区间与权重：落区间内不扣分，出界按距离线性扣；权重体现对「撕裂」的敏感度。
 const BANDS = {
   stepRatio: { lo: 0.30, hi: 0.85, weight: 2 },    // 级进（相邻音程≤2 半音）占比：太低则跳跃零散、太高则平；五声以小三度为「级」，占比天然偏低，故下界放宽
-  leapRate: { lo: 0, hi: 0.18, weight: 2 },         // 大跳（>7 半音）占比：太高最撕裂
-  rangeSemitones: { lo: 7, hi: 19, weight: 1.5 },   // 音域跨度：太窄单调、太宽难唱
+  leapRate: { lo: 0, hi: 0.32, weight: 2 },         // 大跳（>7 半音）占比：上界按真实语料校准(动漫自然约 0.31),只在极端跳跃成灾时才扣
+  rangeSemitones: { lo: 7, hi: 22, weight: 1.5 },   // 音域跨度：太窄单调、太宽难唱;动漫戏剧性大跳音域偏宽,故放宽上界
   repeatRate: { lo: 0.0, hi: 0.18, weight: 1.5 },   // 同音重复占比：太高发木、卡在一个音上
   dominantPitchFraction: { lo: 0.0, hi: 0.40, weight: 2 }, // 最常出现音高的占比：太高=老围着一个音转、「完全一个调」（动机重复不在此列）
   beatAlign: { lo: 0.8, hi: 1.0, weight: 1.5 },     // 音符起点落在半拍格上的比例：越高节奏越稳

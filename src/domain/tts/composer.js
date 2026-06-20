@@ -70,13 +70,14 @@ const DEFAULT_PROFILE = {
   amp: 7,
   jitter: 1.5,
   shapes: ['arch'],
-  midLeapW: 0.15,
+  midLeapW: 0.10,
 };
 // 旋律取音各项权重:数据(语料二阶转移)是主因,轮廓与跳度是软约束。
 const DATA_POW = 1.0; // 语料转移计数的幂:1 即按训练频次正比,越大越死守语料。
-const DATA_EPS = 0.2; // 给调内每个候选音的底数:即便语料没覆盖也留一点可能,避免走死、并稍作平滑。
+const DATA_EPS = 0.05; // 给调内每个候选音的底数:留一点未覆盖音的可能,但很小,让语料(含其大跳)主导而非被平滑磨平。
 const REPEAT_PEN = 0.3; // 与上一音同高的惩罚系数:压低原地不动,防「一个调」。
-const BIG_LEAP_DEG = 9; // 超过此半音差视为过大跳,额外指数压制。
+const CONTOUR_SIGMA = 10; // 轮廓软拉的半音容差:放宽,让轮廓只定大致音区,不把语料的大跳拉回级进。
+const BIG_LEAP_DEG = 12; // 仅超过八度才算过大跳并指数压制,保留语料里小幅与中等的戏剧性跳进。
 const STRONG_CHORD_BONUS = 6; // 强拍落和弦音的加权(软偏置而非硬锁):大多落和弦音保清晰,偶尔放经过音/倚音去方正。
 const WEAK_CHORD_BONUS = 1.2; // 弱拍的和弦音加权:很弱,基本由语料自由级进。
 // 曲式候选:按句数取一组,每首随机选一种,不再永远 AABA;重复字母表示同一动机的再现(本作曲器做变奏式再现,非逐音照搬)。
@@ -259,14 +260,14 @@ function pickNextDegree(model, d2, d1, ladder, chordSet, chordBonus, target, mid
   if (trans) {
     for (const k in trans) { const g = nearestIn(ladder, parseInt(k, 10)); dataW[g] = (dataW[g] || 0) + trans[k]; }
   }
-  const sigma = 4; // 轮廓软拉的半音容差:越大越松,让数据主导音高、轮廓只管大致音区。
   const w = {};
   let total = 0;
   for (const g of ladder) {
     const base = (dataW[g] || 0) + DATA_EPS;
-    const contour = Math.exp(-((g - target) * (g - target)) / (2 * sigma * sigma));
+    const contour = Math.exp(-((g - target) * (g - target)) / (2 * CONTOUR_SIGMA * CONTOUR_SIGMA));
     const leapAbs = Math.abs(g - d1);
-    const leap = Math.exp(-Math.max(0, leapAbs - 2) * midLeapW) * (leapAbs > BIG_LEAP_DEG ? Math.exp(-(leapAbs - BIG_LEAP_DEG) * 0.6) : 1);
+    // 只对中等以上跳进按风格轻度抑制(midLeapW 小则更敢跳),八度以上才强压;让语料的戏剧性大跳保留下来。
+    const leap = Math.exp(-Math.max(0, leapAbs - 4) * midLeapW) * (leapAbs > BIG_LEAP_DEG ? Math.exp(-(leapAbs - BIG_LEAP_DEG) * 0.5) : 1);
     const rep = g === d1 ? REPEAT_PEN : 1;
     const harm = chordSet.has(g) ? chordBonus : 1;
     w[g] = (base ** DATA_POW) * contour * leap * rep * harm;
