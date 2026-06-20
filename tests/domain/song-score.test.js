@@ -8,6 +8,7 @@ const assert = require('node:assert');
 const ss = require('../../src/domain/tts/song-score');
 const { buildScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter, nucleusVowelOfFinal, nucleusIndex, allocateWithNucleus, allocateMoraFrames, lyricsToSyllables, layoutSyllable } = ss;
 const molihua = require('../../src/domain/tts/songs/molihua');
+const kangding = require('../../src/domain/tts/songs/kangding');
 
 // 取一个汉字的音节解析与 mora 切分,供下面的语言学断言复用
 function syl(ch) {
@@ -138,11 +139,29 @@ test('buildScore throws when sung entry count and syllable count differ', () => 
   assert.throws(() => buildScore('好朵花', [{ note: 'E4', beats: 1 }], {}), /不等/);
 });
 
+//// 零声母 yo(哟)补 i 介音:还原成 イオ、不丢起音、不唱成「哦」 [@x380kkm 2026-06-20] ////
+test('哟 (yo) gets the i-glide so it is not bare o', () => {
+  const yo = syl('哟');
+  assert.strictEqual(yo.kana, 'イオ');
+  assert.strictEqual(moraVowelLetter(yo.moras[nucleusIndex(yo.parsed, yo.moras)]), 'o');
+});
+
 //// 演示曲茉莉花:51 字对 51 个发声条目,每个发声音符歌词恰一个 mora,曲谱不以发声音符起头 [@x380kkm 2026-06-20] ////
 test('molihua demo builds a valid score', () => {
   assert.strictEqual(Array.from(molihua.lyrics).length, 51);
   assert.strictEqual(molihua.melody.filter((e) => e.rest == null).length, 51);
   const score = buildScore(molihua.lyrics, molihua.melody, { bpm: molihua.bpm });
+  assert.strictEqual(score.notes[0].key, null);
+  for (const n of score.notes) {
+    if (n.key != null) assert.strictEqual(splitMoras(n.lyric).length, 1, `多 mora 歌词:${n.lyric}`);
+  }
+});
+
+//// 演示曲康定情歌:39 字对 39 个发声条目,每个发声音符歌词恰一个 mora [@x380kkm 2026-06-20] ////
+test('kangding demo builds a valid score', () => {
+  assert.strictEqual(Array.from(kangding.lyrics).length, 39);
+  assert.strictEqual(kangding.melody.filter((e) => e.rest == null).length, 39);
+  const score = buildScore(kangding.lyrics, kangding.melody, { bpm: kangding.bpm });
   assert.strictEqual(score.notes[0].key, null);
   for (const n of score.notes) {
     if (n.key != null) assert.strictEqual(splitMoras(n.lyric).length, 1, `多 mora 歌词:${n.lyric}`);

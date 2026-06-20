@@ -51,7 +51,7 @@ const FINAL_KANA = {
   ng: 'ウン',
   er: 'アル',
   // iu/iou 拼音「iu」是「iou」缩写、实读 [jou],主元音是 o(九 jiǔ=jio、有 yǒu=yo);旧记 イウ 漏了主元音 o、把九听成几(ji)。改 イオ:介音 i + 主元音 o。
-  i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', iu: 'イオ', iou: 'イオ',
+  i: 'イ', ia: 'イア', ie: 'イエ', iao: 'イアオ', io: 'イオ', iu: 'イオ', iou: 'イオ',
   ian: 'イエン', in: 'イン', iang: 'イアン', ing: 'イン', iong: 'イオン',
   u: 'ウ', ua: 'ウア', uo: 'ウオ', uai: 'ウアイ', ui: 'ウイ', uei: 'ウイ',
   uan: 'ウアン', un: 'ウン', uen: 'ウン', uang: 'ウアン', ueng: 'ウオン',
@@ -78,12 +78,12 @@ const BARE_YI_DEFAULT_FINALS = new Set(['i']);
 // 以 [i] 收尾的二合元音:尾 [i] 是滑音、本应短促,供 shortenDiphthongOffGlide 把尾 [i] 收成极短滑音。
 const I_OFFGLIDE_FINALS = new Set(['ai', 'ei', 'uai', 'ui', 'uei']);
 // 带前介音的韵母:y 系 i 介音(ia/ie/iao/iou/ian/iang/iong)、w 系 u 介音(ua/uo/uai/uan/uang/ueng)。首个元音拍是介音、非主元音,主元音是其后的韵腹。供 ensureMainVowelShare 跳过介音、不误当主元音。
-const GLIDE_INITIAL_FINALS = new Set(['ia', 'ie', 'iao', 'iou', 'iu', 'ian', 'iang', 'iong', 'ua', 'uo', 'uai', 'uei', 'ui', 'uan', 'uang', 'ueng']);
+const GLIDE_INITIAL_FINALS = new Set(['ia', 'ie', 'iao', 'io', 'iou', 'iu', 'ian', 'iang', 'iong', 'ua', 'uo', 'uai', 'uei', 'ui', 'uan', 'uang', 'ueng']);
 // 带 u 介音的韵母(花、欢、火、会):声母 h 在这些韵母上单独走 フ 行融合拼法,见 syllableToKana。
 const U_GLIDE_FINALS = new Set(['ua', 'uo', 'uai', 'ui', 'uei', 'uan', 'un', 'uen', 'uang', 'ueng']);
-// 零声母 y 后补 i 介音还原的韵母:ya→ia、ye→ie、yao→iao、you→iou、yan→ian、yang→iang、yong→iong。
+// 零声母 y 后补 i 介音还原的韵母:ya→ia、ye→ie、yo→io、yao→iao、you→iou、yan→ian、yang→iang、yong→iong。
 // yu 系列另走 ü;yi/yin/ying 本就 i 起头,去 y 即可,不在此列。
-const Y_MEDIAL = new Set(['a', 'e', 'ao', 'ou', 'an', 'ang', 'ong']);
+const Y_MEDIAL = new Set(['a', 'e', 'o', 'ao', 'ou', 'an', 'ang', 'ong']);
 // 声母按长到短匹配,zh/ch/sh 优先于单字母。
 const INITIALS = ['zh', 'ch', 'sh', 'b', 'p', 'm', 'f', 'd', 't', 'n', 'l', 'g', 'k', 'h', 'j', 'q', 'x', 'r', 'z', 'c', 's', 'y', 'w'];
 // 普通话送气声母:这些字的塞音/塞擦音要送气([pʰ tʰ kʰ tɕʰ tsʰ tʂʰ]),日语只在短语首才给清塞音送气,见 splitFinalAspiratedStop。
