@@ -71,23 +71,17 @@ const DEFAULT_PROFILE = {
   shapes: ['arch'],
   midLeapW: 0.15,
 };
-// 旋律打分各项权重:与目标走向的贴近、抑制大跳、风格音级偏好的温和加成、softmax 温度。
-const TARGET_W = 1.0;
-const BIG_LEAP_W = 1.2;
-const STYLE_W = 0.6;
-const TEMP = 1.3;
+// 旋律取音各项权重:数据(语料二阶转移)是主因,轮廓与跳度是软约束。
+const DATA_POW = 1.0; // 语料转移计数的幂:1 即按训练频次正比,越大越死守语料。
+const DATA_EPS = 0.2; // 给调内每个候选音的底数:即便语料没覆盖也留一点可能,避免走死、并稍作平滑。
+const REPEAT_PEN = 0.3; // 与上一音同高的惩罚系数:压低原地不动,防「一个调」。
+const BIG_LEAP_DEG = 9; // 超过此半音差视为过大跳,额外指数压制。
 
 //// 按风格加载对应模型文件 [@x380kkm 2026-06-20] ////
 function loadModel(style) {
   return require(`./melody-model-${style}.json`);
 }
 //// /按风格加载对应模型文件 ////
-
-//// 把数字夹在闭区间内 [@x380kkm 2026-06-20] ////
-function clamp(x, lo, hi) {
-  return x < lo ? lo : (x > hi ? hi : x);
-}
-//// /把数字夹在闭区间内 ////
 
 //// 按计数权重从 { 键： 次数 } 里随机取一个键，空表回 null [@x380kkm 2026-06-20] ////
 function pickWeighted(counts, rng) {
@@ -152,40 +146,59 @@ function buildLadder(scaleSet, register = DEFAULT_PROFILE.register) {
 }
 //// /列出旋律音阶的梯子 ////
 
-//// 取梯子上最接近某音高的下标 [@x380kkm 2026-06-20] ////
-function ladderIndex(ladder, pitch) {
-  let bi = 0;
+//// 取数组里最接近某值的元素 [@x380kkm 2026-06-20] ////
+function nearestIn(arr, x) {
+  let best = arr[0];
   let bd = Infinity;
-  for (let i = 0; i < ladder.length; i += 1) {
-    const d = Math.abs(ladder[i] - pitch);
-    if (d < bd) { bd = d; bi = i; }
-  }
-  return bi;
+  for (const v of arr) { const d = Math.abs(v - x); if (d < bd) { bd = d; best = v; } }
+  return best;
 }
-//// /取梯子上最近的下标 ////
+//// /取数组里最接近的元素 ////
 
-//// 从模型的音高转移统计出各音级的出现偏好，折成温和的对数加成（注入风格，但不夺和声主导） [@x380kkm 2026-06-20] ////
-function degreePrior(model, scaleSet) {
-  const pc = {};
-  const trans = (model && model.pitch2) || {};
-  for (const k in trans) {
-    const t = trans[k];
-    for (const d in t) { const p = ((parseInt(d, 10) % 12) + 12) % 12; pc[p] = (pc[p] || 0) + t[d]; }
-  }
-  const total = Object.values(pc).reduce((a, b) => a + b, 0) || 1;
-  const bonus = {};
-  for (const p of scaleSet) bonus[p] = Math.log((pc[p] || 0.5) / total + 1e-3);
-  return bonus;
+//// 把时值吸附到半拍格(最小 0.5),并格式化成 dur1 表的键(整数补 .0) [@x380kkm 2026-06-20] ////
+function snapDur(d) {
+  const s = Math.max(0.5, Math.round(d * 2) / 2);
+  return s;
 }
-//// /从模型统计音级偏好 ////
+function durKey(d) {
+  return Number.isInteger(d) ? d.toFixed(1) : String(d);
+}
+//// /时值吸附与键格式化 ////
 
-//// 取一个小节节奏型（对齐拍格、和为 4 拍） [@x380kkm 2026-06-20] ////
-function pickBarPattern(rng) {
-  const counts = {};
-  BAR_PATTERNS.forEach((b, i) => { counts[i] = b.w; });
-  return BAR_PATTERNS[parseInt(pickWeighted(counts, rng), 10)].pat;
+//// 取一个小节节奏型:优先用语料训练的时值转移 dur1 采样并填满 4 拍,无 dur 数据时退回内置型 [@x380kkm 2026-06-20] ////
+function pickBarPattern(rng, model, state) {
+  const hasDur = model && model.dur1 && model.durStart && Object.keys(model.durStart).length > 0;
+  if (!hasDur) {
+    const counts = {};
+    BAR_PATTERNS.forEach((b, i) => { counts[i] = b.w; });
+    return BAR_PATTERNS[parseInt(pickWeighted(counts, rng), 10)].pat;
+  }
+  const out = [];
+  let rem = BEATS_PER_BAR;
+  while (rem > 1e-9) {
+    const tbl = (state.prev != null && model.dur1[durKey(state.prev)]) || model.durStart;
+    let d = snapDur(parseFloat(pickWeighted(tbl, rng)));
+    if (d > rem) d = rem; // 末尾截到正好填满整小节
+    out.push(d);
+    rem -= d;
+    state.prev = d;
+  }
+  return out;
 }
 //// /取一个小节节奏型 ////
+
+//// 取乐句起始的两个度数:用语料的 starts 分布,吸附到调内梯子;无则居中起 [@x380kkm 2026-06-20] ////
+function sampleStart(model, ladder, rng) {
+  if (model && model.starts) {
+    const pair = pickWeighted(model.starts, rng);
+    if (pair) {
+      const [a, b] = pair.split(',').map((x) => parseInt(x, 10));
+      return [nearestIn(ladder, a), nearestIn(ladder, b)];
+    }
+  }
+  return [0, ladder[Math.floor(ladder.length / 2)]];
+}
+//// /取乐句起始度数 ////
 
 //// 选一条和弦进行，按每句小节数裁到合适长度（不足则循环）；pool 缺省按调式取内置池 [@x380kkm 2026-06-20] ////
 function pickProgression(mode, bars, rng, pool) {
@@ -206,69 +219,50 @@ function contourTarget(frac, rng, profile, shapeName) {
 }
 //// /算乐句内目标音高 ////
 
-//// 列出某和弦在可唱窗口内的全部和弦音音高（和弦音先吸附到旋律音阶），无则退回整把梯子 [@x380kkm 2026-06-20] ////
-function anchorCandidates(chord, scaleSet, ladder) {
+//// 列出某和弦在梯子上的和弦音度数（和弦音先吸附到旋律音阶），空则退回整把梯子 [@x380kkm 2026-06-20] ////
+function chordDegrees(chord, scaleSet, ladder) {
   const pcs = new Set(chord.pcs.map((pc) => nearestScalePc(((pc % 12) + 12) % 12, scaleSet)));
   const c = ladder.filter((v) => pcs.has(((v % 12) + 12) % 12));
   return c.length ? c : ladder.slice();
 }
-//// /列出和弦音候选 ////
+//// /列出和弦音度数 ////
 
-//// 在候选和弦音里挑强拍锚音：硬性排除上一锚音以保证骨架走动，再贴近目标走向、抑制大跳、带风格偏好，softmax 加权随机 [@x380kkm 2026-06-20] ////
-function pickAnchor(cands, target, prev, degBonus, rng, midLeapW = DEFAULT_PROFILE.midLeapW) {
-  // 上一锚音存在且尚有别的候选时，排除它，保证相邻强拍不停在同一音（消除「一个调」式重复）。
-  let pool = cands;
-  if (prev != null) { const f = cands.filter((p) => p !== prev); if (f.length) pool = f; }
-  const scored = pool.map((p) => {
-    let s = -Math.abs(p - target) * TARGET_W;
-    if (prev != null) {
-      const leap = Math.abs(p - prev);
-      if (leap > 7) s -= (leap - 7) * BIG_LEAP_W; // 抑制大跳（>纯五度）
-      else if (leap >= 3) s -= (leap - 2) * midLeapW; // 轻抑中跳，profile 调高则更平、调低则更跳
-    }
-    s += STYLE_W * (degBonus[((p % 12) + 12) % 12] != null ? degBonus[((p % 12) + 12) % 12] : -3);
-    return { p, s };
-  });
-  const mx = Math.max(...scored.map((x) => x.s));
+//// 取下一个度数：以语料二阶转移 pitch2 为主因加权,叠轮廓软拉、抑同音与过大跳;强拍限定在和弦音里 [@x380kkm 2026-06-20] ////
+// universe 为可选音集(强拍传和弦音、弱拍传整把梯子);d2,d1 为前两音度数;target 为本拍轮廓目标音高;midLeapW 越大越偏级进。
+function pickNextDegree(model, d2, d1, universe, target, midLeapW, rng) {
+  const trans = (model && model.pitch2 && model.pitch2[`${d2},${d1}`]) || null;
+  // 把语料转移按落点吸附到 universe,累加成各候选的数据权重。
+  const dataW = {};
+  if (trans) {
+    for (const k in trans) { const g = nearestIn(universe, parseInt(k, 10)); dataW[g] = (dataW[g] || 0) + trans[k]; }
+  }
+  const sigma = 4; // 轮廓软拉的半音容差:越大越松,让数据主导音高、轮廓只管大致音区。
   const w = {};
-  scored.forEach((x, i) => { w[i] = Math.exp((x.s - mx) / TEMP); });
-  return scored[parseInt(pickWeighted(w, rng), 10)].p;
-}
-//// /挑强拍锚音 ////
-
-//// 用音阶经过音/邻音把两个强拍锚音连起来：同高时上下邻音摆动，异高时沿梯子线性级进，末了去掉相邻同音 [@x380kkm 2026-06-20] ////
-function fillBetween(a, b, k, ladder) {
-  const ia = ladderIndex(ladder, a);
-  const ib = ladderIndex(ladder, b);
-  const idxs = [];
-  if (ia === ib) {
-    for (let j = 1; j <= k; j += 1) idxs.push(clamp(ia + ((j % 2 === 1) ? 1 : -1), 0, ladder.length - 1));
-  } else {
-    for (let j = 1; j <= k; j += 1) idxs.push(clamp(Math.round(ia + (ib - ia) * j / (k + 1)), 0, ladder.length - 1));
+  let total = 0;
+  for (const g of universe) {
+    const base = (dataW[g] || 0) + DATA_EPS;
+    const contour = Math.exp(-((g - target) * (g - target)) / (2 * sigma * sigma));
+    const leapAbs = Math.abs(g - d1);
+    const leap = Math.exp(-Math.max(0, leapAbs - 2) * midLeapW) * (leapAbs > BIG_LEAP_DEG ? Math.exp(-(leapAbs - BIG_LEAP_DEG) * 0.6) : 1);
+    const rep = g === d1 ? REPEAT_PEN : 1;
+    w[g] = (base ** DATA_POW) * contour * leap * rep;
+    total += w[g];
   }
-  // 把首尾锚音一并纳入，逐个让填充音既不等于前一音、也不等于后一音（含末锚），挪到离两邻中点最近的合法音阶级。
-  const seq = [ia, ...idxs, ib];
-  const last = ladder.length - 1;
-  for (let i = 1; i < seq.length - 1; i += 1) {
-    if (seq[i] !== seq[i - 1] && seq[i] !== seq[i + 1]) continue;
-    const mid = (seq[i - 1] + seq[i + 1]) / 2;
-    const opts = [seq[i] + 1, seq[i] - 1, seq[i] + 2, seq[i] - 2]
-      .filter((c) => c >= 0 && c <= last && c !== seq[i - 1] && c !== seq[i + 1]);
-    if (opts.length) { opts.sort((p, q) => Math.abs(p - mid) - Math.abs(q - mid)); seq[i] = opts[0]; }
-  }
-  return seq.slice(1, -1).map((idx) => ladder[idx]);
+  let r = rng() * total;
+  for (const g of universe) { r -= w[g]; if (r < 0) return g; }
+  return universe[universe.length - 1];
 }
-//// /经过音连接两个锚音 ////
+//// /取下一个度数 ////
 
-//// 生成一个乐句：定节奏型并标强拍 → 强拍落和弦锚音 → 弱拍用经过音填充，返回 [{pitch, beats}] 与各半小节和弦 [@x380kkm 2026-06-20] ////
-// chords 为半小节(每 2 拍)一个和弦,长度 bars*2;强拍(第 1、3 拍)各对应本半小节的和弦,使强拍锚音逐个勾勒整条进行。
-// profile 给音域、走向基线/振幅与中跳抑制;shape 为本句采用的轮廓形状名,逐句可不同以拉开旋律线。
-function composePhrase(chords, scaleSet, ladder, degBonus, bars, rng, profile, shape) {
-  // 第二层节奏：逐小节取节奏型，记下每个音的时值、小节内起拍位置与是否强拍（第 1、3 拍）。
+//// 生成一个乐句:节奏取自语料 dur1、音高从语料 pitch2 左到右取,强拍限在和弦音(和声骨架)、弱拍自由级进,轮廓软拉音区 [@x380kkm 2026-06-20] ////
+// chords 为半小节(每 2 拍)一个和弦,长度 bars*2;profile 给音域、走向与跳度;shape 为本句轮廓形状名;model 提供语料分布。
+function composePhrase(chords, scaleSet, ladder, model, bars, rng, profile, shape) {
+  // 第二层节奏:逐小节用语料时值转移取节奏型,记下每音的时值、小节内起拍与是否强拍(第 1、3 拍)。
   const slots = [];
+  const durState = { prev: null };
   for (let b = 0; b < bars; b += 1) {
     let pos = 0;
-    for (const dur of pickBarPattern(rng)) {
+    for (const dur of pickBarPattern(rng, model, durState)) {
       const strong = Math.abs(pos - 0) < 1e-9 || Math.abs(pos - 2) < 1e-9;
       slots.push({ beats: dur, bar: b, onset: pos, strong });
       pos += dur;
@@ -276,35 +270,17 @@ function composePhrase(chords, scaleSet, ladder, degBonus, bars, rng, profile, s
   }
   // 取某槽位所在半小节的和弦:第 1 拍起属前半,第 3 拍起属后半。
   const chordOf = (slot) => chords[slot.bar * 2 + (slot.onset >= 2 ? 1 : 0)];
-  // 第三层旋律（强拍）：强拍按所在半小节的和弦取锚音，沿本句轮廓走向并接续前一锚音。
-  const strongIdx = slots.map((s, i) => (s.strong ? i : -1)).filter((i) => i >= 0);
-  let prev = null;
-  strongIdx.forEach((si, n) => {
-    const cands = anchorCandidates(chordOf(slots[si]), scaleSet, ladder);
-    const frac = strongIdx.length > 1 ? n / (strongIdx.length - 1) : 0;
-    slots[si].pitch = pickAnchor(cands, contourTarget(frac, rng, profile, shape), prev, degBonus, rng, profile.midLeapW);
-    prev = slots[si].pitch;
+  // 第三层旋律:从语料起始度数出发,逐音用语料转移取下一音;强拍限定在所在和弦的和弦音、弱拍可走整把梯子,轮廓软拉音区。
+  let [d2, d1] = sampleStart(model, ladder, rng);
+  slots.forEach((slot, i) => {
+    const frac = slots.length > 1 ? i / (slots.length - 1) : 0;
+    const target = contourTarget(frac, rng, profile, shape);
+    const universe = slot.strong ? chordDegrees(chordOf(slot), scaleSet, ladder) : ladder;
+    const g = pickNextDegree(model, d2, d1, universe, target, profile.midLeapW, rng);
+    slot.pitch = g;
+    d2 = d1;
+    d1 = g;
   });
-  // 第三层旋律（弱拍）：相邻两强拍之间的弱拍用经过音连；末个强拍之后的尾部弱拍沿梯子缓降。
-  for (let n = 0; n < strongIdx.length; n += 1) {
-    const from = strongIdx[n];
-    const to = n + 1 < strongIdx.length ? strongIdx[n + 1] : slots.length;
-    const run = to - from - 1;
-    if (run <= 0) continue;
-    if (n + 1 < strongIdx.length) {
-      const fills = fillBetween(slots[from].pitch, slots[to].pitch, run, ladder);
-      for (let j = 0; j < run; j += 1) slots[from + 1 + j].pitch = fills[j];
-    } else {
-      // 尾部弱拍沿梯子缓降，每步挪一个音阶级；触底则反弹，始终不出现相邻同音。
-      let idx = ladderIndex(ladder, slots[from].pitch);
-      for (let j = 1; j <= run; j += 1) {
-        let nxt = idx - 1;
-        if (nxt < 0) nxt = idx + 1;
-        slots[from + j].pitch = ladder[nxt];
-        idx = nxt;
-      }
-    }
-  }
   return { notes: slots.map((s) => ({ pitch: s.pitch, beats: s.beats })), chords };
 }
 //// /生成一个乐句 ////
@@ -332,7 +308,6 @@ function compose(options = {}) {
   const mode = scale === 'minor' ? 'minor' : 'major';
   const harmonyScale = scale === 'minor' ? SCALES.minor : SCALES.diatonic;
   const ladder = buildLadder(melodyScale, profile.register);
-  const degBonus = degreePrior(model, melodyScale);
 
   // 为曲式里每个字母各作一个乐句（连同其和弦），重复字母复用同一乐句以成动机重复；不同字母用档案里不同的轮廓形状,拉开句间走向。
   const phraseOf = {};
@@ -344,7 +319,7 @@ function compose(options = {}) {
     const chords = progDeg.map((d) => triad(harmonyScale, d));
     const shape = shapes[shapeNo % shapes.length];
     shapeNo += 1;
-    phraseOf[letter] = composePhrase(chords, melodyScale, ladder, degBonus, bars, rng, profile, shape);
+    phraseOf[letter] = composePhrase(chords, melodyScale, ladder, model, bars, rng, profile, shape);
   }
 
   // 第一层与第三层落地为时间轴：逐乐句铺音符并记和弦跨度；非末句从尾部刻出气口，使每句严格等于 bars*4 拍，
@@ -379,6 +354,6 @@ function compose(options = {}) {
 //// /离线随机作曲 ////
 
 module.exports = {
-  compose, loadModel, snapToScale, triad, buildLadder, pickProgression, degreePrior,
+  compose, loadModel, snapToScale, triad, buildLadder, pickProgression,
   SCALES, BAR_PATTERNS, PROGRESSIONS, CONTOUR_SHAPES, DEFAULT_PROFILE,
 };
