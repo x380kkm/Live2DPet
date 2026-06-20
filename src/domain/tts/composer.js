@@ -218,11 +218,14 @@ function sampleStart(model, ladder, rng) {
 }
 //// /取乐句起始度数 ////
 
-//// 在功能和声转移表上随机游走出一条 n 个和弦的进行:首和弦为主和弦作落地,之后逐步采下一级 [@x380kkm 2026-06-20] ////
-function walkProgression(mode, n, rng) {
-  const T = CHORD_TRANS[mode] || CHORD_TRANS.major;
-  const out = [0];
+//// 在和弦转移表上随机游走出一条 n 个和弦的进行(音阶级序号):优先用语料学到的 chordTrans,缺则用内置功能和声表 [@x380kkm 2026-06-20] ////
+function walkProgression(model, mode, n, rng) {
+  const learned = model && model.chordTrans;
+  const T = learned || CHORD_TRANS[mode] || CHORD_TRANS.major;
+  // 起始和弦:有语料则按 chordStart 采样(动漫多起于 I 或 V),否则落主和弦。
   let cur = 0;
+  if (learned && model.chordStart) { const s = pickWeighted(model.chordStart, rng); if (s != null) cur = parseInt(s, 10); }
+  const out = [cur];
   for (let i = 1; i < n; i += 1) {
     const nx = pickWeighted(T[cur] || { 0: 1 }, rng);
     cur = nx != null ? parseInt(nx, 10) : 0;
@@ -339,8 +342,8 @@ function compose(options = {}) {
   let shapeNo = 0;
   for (const letter of form) {
     if (blueprintOf[letter]) continue;
-    // 每半小节一个和弦:游走出 bars*2 个,和声逐步走动而非固定模板。
-    const progDeg = walkProgression(mode, bars * 2, rng);
+    // 每半小节一个和弦:游走出 bars*2 个,和声逐步走动而非固定模板(优先用语料学到的和弦转移)。
+    const progDeg = walkProgression(model, mode, bars * 2, rng);
     const chords = progDeg.map((d) => triad(harmonyScale, d));
     const shape = shapes[shapeNo % shapes.length];
     shapeNo += 1;
