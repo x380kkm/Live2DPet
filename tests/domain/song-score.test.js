@@ -6,9 +6,10 @@
 const { test } = require('node:test');
 const assert = require('node:assert');
 const ss = require('../../src/domain/tts/song-score');
-const { buildScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter, nucleusVowelOfFinal, nucleusIndex, allocateWithNucleus, allocateMoraFrames, lyricsToSyllables, layoutSyllable } = ss;
+const { buildScore, hummingScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter, nucleusVowelOfFinal, nucleusIndex, allocateWithNucleus, allocateMoraFrames, lyricsToSyllables, layoutSyllable } = ss;
 const molihua = require('../../src/domain/tts/songs/molihua');
 const kangding = require('../../src/domain/tts/songs/kangding');
+const dongfanghong = require('../../src/domain/tts/songs/dongfanghong');
 
 // 取一个汉字的音节解析与 mora 切分,供下面的语言学断言复用
 function syl(ch) {
@@ -157,11 +158,31 @@ test('molihua demo builds a valid score', () => {
   }
 });
 
+//// 哼唱:每个音符唱同一个中性 mora,不掺歌词,以休止开头 [@x380kkm 2026-06-20] ////
+test('hummingScore hums every note on one neutral mora', () => {
+  const score = hummingScore(molihua.melody, { bpm: molihua.bpm, mora: 'ン' });
+  const sung = score.notes.filter((n) => n.key != null);
+  assert.ok(sung.length > 0);
+  assert.ok(sung.every((n) => n.lyric === 'ン'));
+  assert.strictEqual(score.notes[0].key, null);
+});
+
 //// 演示曲康定情歌:39 字对 39 个发声条目,每个发声音符歌词恰一个 mora [@x380kkm 2026-06-20] ////
 test('kangding demo builds a valid score', () => {
   assert.strictEqual(Array.from(kangding.lyrics).length, 39);
   assert.strictEqual(kangding.melody.filter((e) => e.rest == null).length, 39);
   const score = buildScore(kangding.lyrics, kangding.melody, { bpm: kangding.bpm });
+  assert.strictEqual(score.notes[0].key, null);
+  for (const n of score.notes) {
+    if (n.key != null) assert.strictEqual(splitMoras(n.lyric).length, 1, `多 mora 歌词:${n.lyric}`);
+  }
+});
+
+//// 演示曲东方红:32 字对 32 个发声条目,每个发声音符歌词恰一个 mora [@x380kkm 2026-06-20] ////
+test('dongfanghong demo builds a valid score', () => {
+  assert.strictEqual(Array.from(dongfanghong.lyrics).length, 32);
+  assert.strictEqual(dongfanghong.melody.filter((e) => e.rest == null).length, 32);
+  const score = buildScore(dongfanghong.lyrics, dongfanghong.melody, { bpm: dongfanghong.bpm });
   assert.strictEqual(score.notes[0].key, null);
   for (const n of score.notes) {
     if (n.key != null) assert.strictEqual(splitMoras(n.lyric).length, 1, `多 mora 歌词:${n.lyric}`);

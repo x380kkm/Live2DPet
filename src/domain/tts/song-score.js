@@ -232,8 +232,30 @@ function buildScore(lyrics, melody, options = {}) {
 }
 //// /把中文歌词与旋律拼成 VOICEVOX Score ////
 
+//// 把旋律拼成哼唱 Score:每个音符唱同一个中性 mora,不要歌词 [@x380kkm 2026-06-20] ////
+// 哼唱是歌唱路径的轻量分支:绕开拼音与咬字,每个音符(花腔逐音)放同一个 mora(默认 ン 闭口鼻音,亦可 ラ 等)。
+function hummingScore(melody, options = {}) {
+  const bpm = options.bpm || 70;
+  const mora = options.mora || 'ン';
+  const leadRestBeats = options.leadRestBeats != null ? options.leadRestBeats : 0.25;
+  const tailRestBeats = options.tailRestBeats != null ? options.tailRestBeats : 0.25;
+  const notes = [{ key: null, frame_length: beatsToFrames(leadRestBeats, bpm), lyric: '' }];
+  for (const entry of melody) {
+    if (entry.rest != null) {
+      notes.push({ key: null, frame_length: beatsToFrames(entry.rest, bpm), lyric: '' });
+      continue;
+    }
+    for (const p of entryToPitches(entry, bpm)) {
+      notes.push({ key: p.key, frame_length: p.frames, lyric: mora });
+    }
+  }
+  notes.push({ key: null, frame_length: beatsToFrames(tailRestBeats, bpm), lyric: '' });
+  return { notes };
+}
+//// /把旋律拼成哼唱 Score ////
+
 module.exports = {
-  buildScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter,
+  buildScore, hummingScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter,
   nucleusVowelOfFinal, nucleusIndex, allocateWithNucleus, allocateMoraFrames, mostSonorousIndex,
   lyricsToSyllables, layoutSyllable, FRAMES_PER_SECOND,
 };
