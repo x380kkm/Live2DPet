@@ -9,7 +9,8 @@ const { compose } = require('./composer');
 const BEATS_PER_BAR = 4;
 
 //// 把段落表拼成整首长曲:可复用段(同 key)只作一次,逐段按小节对齐拼接 [@x380kkm 2026-06-20] ////
-// sections: [{ role, key?, style, tonicMidi, seed, phrases?, barsPerPhrase?, form? }]
+// sections: [{ role, key?, style, model?, harmony?, profile?, tonicMidi, seed, phrases?, barsPerPhrase?, form? }]
+//   harmony 该段的和声档(见 harmony-profiles),逐段透传给 compose,使各风格和弦语汇不同。
 //   role 段落名(verse/chorus/bridge 等),key 复用键(同 key 复用同一段乐句,缺省用 role),seed 经 makeRng 转随机源。
 // makeRng(seed) 由调用方注入,返回可重复随机源,保证整首可复现。
 // options.withCounter 同时拼出第二声部(吉他):各段开 withCounter,counter 与 melody 同样按段拼接、逐段对齐。
@@ -27,6 +28,7 @@ function composeSong(sections, makeRng, options = {}) {
       const part = compose({
         style: sec.style,
         model: sec.model,
+        harmony: sec.harmony,
         profile: sec.profile,
         tonicMidi: sec.tonicMidi,
         rng: makeRng(sec.seed),

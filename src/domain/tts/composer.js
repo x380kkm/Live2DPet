@@ -78,8 +78,13 @@ const DATA_EPS = 0.05; // 给调内每个候选音的底数:留一点未覆盖�
 const REPEAT_PEN = 0.3; // 与上一音同高的惩罚系数:压低原地不动,防「一个调」。
 const CONTOUR_SIGMA = 10; // 轮廓软拉的半音容差:放宽,让轮廓只定大致音区,不把语料的大跳拉回级进。
 const BIG_LEAP_DEG = 12; // 仅超过八度才算过大跳并指数压制,保留语料里小幅与中等的戏剧性跳进。
-const STRONG_CHORD_BONUS = 6; // 强拍落和弦音的加权(软偏置而非硬锁):大多落和弦音保清晰,偶尔放经过音/倚音去方正。
-const WEAK_CHORD_BONUS = 1.2; // 弱拍的和弦音加权:很弱,基本由语料自由级进。
+const STRONG_CHORD_BONUS = 14; // 强拍落和弦音的加权:足够强使绝大多数强拍是和弦音(和声清晰),仍非硬锁、偶尔容经过音/倚音。
+const WEAK_CHORD_BONUS = 1.3; // 弱拍的和弦音加权:很弱,基本由语料自由级进。
+const CONSONANCE_PEN = 0.12; // 与同拍另一声部成不协和音程(小二/大二/三全音/七度)时的衰减系数:越小越避让,使第二声部不与主旋律撞音。
+const COUNTER_SPLIT_PROB = 0.4; // 第二声部把主声部长音(不短于 COUNTER_LONG_BEATS)劈成两半的概率:人声持续时吉他走动,繁简法里第二声部作「繁」。
+const COUNTER_MERGE_PROB = 0.35; // 第二声部把主声部相邻短音(不长于 COUNTER_SHORT_BEATS)并成一个的概率:人声密集时吉他持续,繁简法里第二声部作「简」。
+const COUNTER_LONG_BEATS = 1.5; // 视为「长音」可劈的下限拍数。
+const COUNTER_SHORT_BEATS = 0.5; // 视为「短音」可并的上限拍数。
 // 曲式候选:按句数取一组,每首随机选一种,不再永远 AABA;重复字母表示同一动机的再现(本作曲器做变奏式再现,非逐音照搬)。
 const FORMS = {
   2: ['AB', 'AA'],
@@ -219,15 +224,18 @@ function sampleStart(model, ladder, rng) {
 }
 //// /取乐句起始度数 ////
 
-//// 在和弦转移表上随机游走出一条 n 个和弦的进行(音阶级序号):优先用语料学到的 chordTrans,缺则用内置功能和声表 [@x380kkm 2026-06-20] ////
-function walkProgression(model, mode, n, rng) {
-  const learned = model && model.chordTrans;
-  const T = learned || CHORD_TRANS[mode] || CHORD_TRANS.major;
-  // 起始和弦:有语料则按 chordStart 采样(动漫多起于 I 或 V),否则落主和弦。
+//// 在和弦转移表上随机游走出一条 n 个和弦的进行(音阶级序号):优先用风格各自的和声档,缺则退回旋律模型的 chordTrans,再缺用内置功能和声表 [@x380kkm 2026-06-21] ////
+// spec 一套和声档 { mode, chordTrans, chordStart, holdProb };holdProb 为保持上一和弦的概率,体现各风格的和声节奏(电子换得慢、音乐剧换得快)。
+function walkProgression(spec, mode, n, rng) {
+  const T = (spec && spec.chordTrans) || CHORD_TRANS[mode] || CHORD_TRANS.major;
+  const holdProb = (spec && spec.holdProb) || 0;
+  // 起始和弦:有起始分布则按它采样(动漫多起于 I 或 V),否则落主和弦。
   let cur = 0;
-  if (learned && model.chordStart) { const s = pickWeighted(model.chordStart, rng); if (s != null) cur = parseInt(s, 10); }
+  if (spec && spec.chordStart) { const s = pickWeighted(spec.chordStart, rng); if (s != null) cur = parseInt(s, 10); }
   const out = [cur];
   for (let i = 1; i < n; i += 1) {
+    // 按和声节奏的保持概率决定本半小节是否沿用上一和弦(持续/踏板),否则在转移表上走一步。
+    if (holdProb && rng() < holdProb) { out.push(cur); continue; }
     const nx = pickWeighted(T[cur] || { 0: 1 }, rng);
     cur = nx != null ? parseInt(nx, 10) : 0;
     out.push(cur);
@@ -251,9 +259,12 @@ function chordDegrees(chord, scaleSet, ladder) {
 }
 //// /列出和弦音度数 ////
 
-//// 取下一个度数：以语料二阶转移 pitch2 为主因加权,叠轮廓软拉、抑同音与过大跳,和弦音按 chordBonus 软偏置(非硬锁) [@x380kkm 2026-06-20] ////
-// 候选始终是整把梯子;chordSet 为本拍和弦音集合,chordBonus 越大越偏向落和弦音;d2,d1 为前两音度数,target 为轮廓目标。
-function pickNextDegree(model, d2, d1, ladder, chordSet, chordBonus, target, midLeapW, rng) {
+// 与某度数成不协和音程(同度0也算撞、小二1、大二2、三全音6、七度10/11)时该衰减,用于第二声部避让主旋律。
+const DISSONANT_INTERVALS = new Set([0, 1, 2, 6, 10, 11]);
+
+//// 取下一个度数：以语料二阶转移 pitch2 为主因加权,叠轮廓软拉、抑同音与过大跳,和弦音按 chordBonus 软偏置;avoid 给定则避让与之不协和的音程 [@x380kkm 2026-06-20] ////
+// 候选始终是整把梯子;chordSet 为本拍和弦音集合,chordBonus 越大越偏向落和弦音;avoid 为同拍另一声部度数(第二声部用,避免撞音)。
+function pickNextDegree(model, d2, d1, ladder, chordSet, chordBonus, target, midLeapW, rng, avoid) {
   const trans = (model && model.pitch2 && model.pitch2[`${d2},${d1}`]) || null;
   // 把语料转移按落点吸附到梯子,累加成各候选的数据权重。
   const dataW = {};
@@ -270,7 +281,9 @@ function pickNextDegree(model, d2, d1, ladder, chordSet, chordBonus, target, mid
     const leap = Math.exp(-Math.max(0, leapAbs - 4) * midLeapW) * (leapAbs > BIG_LEAP_DEG ? Math.exp(-(leapAbs - BIG_LEAP_DEG) * 0.5) : 1);
     const rep = g === d1 ? REPEAT_PEN : 1;
     const harm = chordSet.has(g) ? chordBonus : 1;
-    w[g] = (base ** DATA_POW) * contour * leap * rep * harm;
+    // 与主旋律同拍音的音程不协和则衰减(第二声部避让撞音);协和(三六度等)不罚。
+    const cons = (avoid != null && DISSONANT_INTERVALS.has(((g - avoid) % 12 + 12) % 12)) ? CONSONANCE_PEN : 1;
+    w[g] = (base ** DATA_POW) * contour * leap * rep * harm * cons;
     total += w[g];
   }
   let r = rng() * total;
@@ -296,9 +309,44 @@ function buildBlueprint(model, bars, rng) {
 }
 //// /造节奏骨架 ////
 
+//// 在每小节内对一串时值做繁简变形:长音劈半、相邻短音并一,产出与原节奏相近但互补的时值序列 [@x380kkm 2026-06-21] ////
+// 用于第二声部:人声持续(长音)时吉他走动,人声密集(短音连排)时吉他持续;每小节总拍不变,故不破坏小节对齐。
+function varyDurs(durs, rng) {
+  const out = [];
+  for (let i = 0; i < durs.length; i += 1) {
+    const d = durs[i];
+    if (d >= COUNTER_LONG_BEATS && rng() < COUNTER_SPLIT_PROB) { out.push(d / 2, d / 2); continue; }
+    if (d <= COUNTER_SHORT_BEATS && i + 1 < durs.length && durs[i + 1] <= COUNTER_SHORT_BEATS && rng() < COUNTER_MERGE_PROB) {
+      out.push(d + durs[i + 1]); i += 1; continue;
+    }
+    out.push(d);
+  }
+  return out;
+}
+//// /对一串时值做繁简变形 ////
+
+//// 由主声部节奏骨架派生第二声部的互补骨架:逐小节做繁简变形后重排出带 bar/onset/strong 的新槽位 [@x380kkm 2026-06-21] ////
+// 在每小节内变形并保持小节总拍不变,使第二声部与主声部节奏相近而不同、彼此呼应,且仍逐小节与伴奏对齐。
+function varyRhythm(slots, rng) {
+  const byBar = new Map();
+  for (const s of slots) { if (!byBar.has(s.bar)) byBar.set(s.bar, []); byBar.get(s.bar).push(s.beats); }
+  const out = [];
+  for (const bar of [...byBar.keys()].sort((a, b) => a - b)) {
+    let pos = 0;
+    for (const dur of varyDurs(byBar.get(bar), rng)) {
+      const strong = Math.abs(pos - 0) < 1e-9 || Math.abs(pos - 2) < 1e-9;
+      out.push({ beats: dur, bar, onset: pos, strong });
+      pos += dur;
+    }
+  }
+  return out;
+}
+//// /派生第二声部的互补骨架 ////
+
 //// 在节奏骨架上实现音高:从语料起始度数出发逐音用语料转移取下一音,强拍软偏置落和弦音,轮廓软拉音区 [@x380kkm 2026-06-20] ////
 // slots 节奏骨架,chords 半小节和弦序列;每次调用用新的 rng 取样,故同骨架多次实现得到不同旋律(变奏)。
-function realizePhrase(slots, chords, scaleSet, ladder, model, rng, profile, shape) {
+// against 给定则是同骨架另一声部各拍的度数,逐拍避让与之不协和的音程(第二声部据此避开撞人声)。
+function realizePhrase(slots, chords, scaleSet, ladder, model, rng, profile, shape, against) {
   const chordOf = (slot) => chords[slot.bar * 2 + (slot.onset >= 2 ? 1 : 0)];
   let [d2, d1] = sampleStart(model, ladder, rng);
   return slots.map((slot, i) => {
@@ -306,7 +354,8 @@ function realizePhrase(slots, chords, scaleSet, ladder, model, rng, profile, sha
     const target = contourTarget(frac, rng, profile, shape);
     const chordSet = new Set(chordDegrees(chordOf(slot), scaleSet, ladder));
     const bonus = slot.strong ? STRONG_CHORD_BONUS : WEAK_CHORD_BONUS;
-    const g = pickNextDegree(model, d2, d1, ladder, chordSet, bonus, target, profile.midLeapW, rng);
+    const avoid = against ? against[i] : null;
+    const g = pickNextDegree(model, d2, d1, ladder, chordSet, bonus, target, profile.midLeapW, rng, avoid);
     d2 = d1;
     d1 = g;
     return { pitch: g, beats: slot.beats };
@@ -335,6 +384,9 @@ function compose(options = {}) {
   const shapes = (profile.shapes && profile.shapes.length) ? profile.shapes : DEFAULT_PROFILE.shapes;
   const withCounter = options.withCounter || false;
   const counterShift = options.counterRegisterShift != null ? options.counterRegisterShift : 7;
+  // 和声档:优先用风格各自传入的和声档(各风格语汇不同);缺则退回旋律模型自带的和弦字段;再缺由 walkProgression 用内置功能和声表。
+  const harmony = options.harmony
+    || (model.chordTrans ? { chordTrans: model.chordTrans, chordStart: model.chordStart, holdProb: 0 } : null);
 
   const melodyScale = SCALES[scale] || SCALES.pentatonic;
   // 五声调式的和声借用其母大调，使和弦功能成立，旋律仍吸附回五声。
@@ -349,8 +401,8 @@ function compose(options = {}) {
   let shapeNo = 0;
   for (const letter of form) {
     if (blueprintOf[letter]) continue;
-    // 每半小节一个和弦:游走出 bars*2 个,和声逐步走动而非固定模板(优先用语料学到的和弦转移)。
-    const progDeg = walkProgression(model, mode, bars * 2, rng);
+    // 每半小节一个和弦:游走出 bars*2 个,和声按风格各自的和声档走动(转移表与和声节奏均按风格不同)。
+    const progDeg = walkProgression(harmony, mode, bars * 2, rng);
     const chords = progDeg.map((d) => triad(harmonyScale, d));
     const shape = shapes[shapeNo % shapes.length];
     const counterShape = shapes[(shapeNo + 1) % shapes.length]; // 第二声部用不同轮廓,走向与主声部分离
@@ -386,11 +438,21 @@ function compose(options = {}) {
     const notes = realized.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
     if (isLast) notes[notes.length - 1].key = tonic; // 末句末音收于主音
     if (breathe) carveBreath(notes);
-    // 第二声部:同一节奏骨架与和弦上走另一条独立马尔可夫线(更高音区、不同轮廓),与主声部呼应而不同。
+    // 第二声部:在主声部和弦上走另一条独立马尔可夫线(更高音区、不同轮廓),节奏由主声部骨架繁简变形而来——相近而互补、彼此呼应。
     // 关键:第二声部「不」跟着刻气口——人声在句末换气静音时,吉他持续奏满整句(末音延长盖过气口),使乐队不随人声一起断。
     let cnotes = null;
     if (withCounter) {
-      const realizedC = realizePhrase(bp.slots, bp.chords, melodyScale, counterLadder, model, rng, profile, bp.counterShape);
+      const cslots = varyRhythm(bp.slots, rng);
+      // 主声部已发声音符的时间线(post-carve、末句已收主音),供第二声部按时间位置避让撞音;气口与空档处无主声部音,不避让。
+      const melTL = [];
+      let mt = 0;
+      for (const nt of notes) { melTL.push({ s: mt, e: mt + nt.beats, deg: nt.key - tonic }); mt += nt.beats; }
+      const cAgainst = cslots.map((cs) => {
+        const o = cs.bar * BEATS_PER_BAR + cs.onset + 1e-9;
+        const m = melTL.find((x) => o >= x.s && o < x.e);
+        return m ? m.deg : null;
+      });
+      const realizedC = realizePhrase(cslots, bp.chords, melodyScale, counterLadder, model, rng, profile, bp.counterShape, cAgainst);
       cnotes = realizedC.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
     }
     notes.forEach((nt) => { melody.push(nt); cum += nt.beats; });

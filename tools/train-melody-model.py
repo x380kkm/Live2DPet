@@ -1,6 +1,6 @@
 # /// script
 # requires-python = ">=3.12"
-# dependencies = ["music21", "numpy", "scikit-learn"]
+# dependencies = ["music21", "numpy", "scikit-learn", "mido"]
 # ///
 # audience: internal
 # train-melody-model: 从乐谱语料训练旋律生成用的马尔可夫模型(二阶音高度数 + 一阶时值),导出紧凑 JSON 供运行期离线采样。
@@ -92,6 +92,78 @@ def extract_chords(score, tonic_pc, scale_pcs):
             seq.append((idx, dur))
     return seq if len(seq) >= 3 else None
 
+#### 音名到音级(0-11),含升降号别名 ####
+NOTE_PC = {'C': 0, 'B#': 0, 'C#': 1, 'Db': 1, 'D': 2, 'D#': 3, 'Eb': 3, 'E': 4, 'Fb': 4,
+           'E#': 5, 'F': 5, 'F#': 6, 'Gb': 6, 'G': 7, 'G#': 8, 'Ab': 8, 'A': 9, 'A#': 10,
+           'Bb': 10, 'B': 11, 'Cb': 11}
+
+#### 读 POP909 一首 MIDI 的 MELODY(人声主旋律)轨,返回 [(midi, 起tick, 止tick)] 与 ticks/beat、bpm ####
+def pop909_melody(mid_path):
+    import mido
+    mid = mido.MidiFile(mid_path)
+    tpb = mid.ticks_per_beat
+    tempos = [m.tempo for t in mid.tracks for m in t if m.type == 'set_tempo']
+    bpm = mido.tempo2bpm(tempos[0]) if tempos else 120.0
+    for t in mid.tracks:
+        if any(x.type == 'track_name' and x.name == 'MELODY' for x in t):
+            cur, on, out = 0, {}, []
+            for m in t:
+                cur += m.time
+                if m.type == 'note_on' and m.velocity > 0:
+                    on[m.note] = cur
+                elif m.type == 'note_off' or (m.type == 'note_on' and m.velocity == 0):
+                    if m.note in on:
+                        out.append((m.note, on.pop(m.note), cur))
+            out.sort(key=lambda x: x[1])
+            return out, tpb, bpm
+    return [], tpb, bpm
+
+#### 从 POP909 语料读人声主旋律与逐拍和弦:每首取 MELODY 轨当主旋律(单声部、可唱)、chord_midi.txt 当真实和声进行;按 want_mode 筛大小调 ####
+# 用 key_audio.txt 给定的调直接归一到相对主音度数(不必再做调性识别);和弦根音吸附到音阶级序号,与 composer 的 triad(序号) 同坐标系。
+def read_pop909(root, want_mode):
+    tunes = []
+    for d in sorted(glob.glob(os.path.join(root, '[0-9][0-9][0-9]'))):
+        try:
+            with open(os.path.join(d, 'key_audio.txt'), encoding='utf-8') as f:
+                keyname = f.readline().split('\t')[2].strip()
+            root_str, qual = keyname.split(':')
+            mode = 'major' if qual.startswith('maj') else 'minor'
+            if want_mode and mode != want_mode:
+                continue
+            tonic_pc = NOTE_PC[root_str]
+            shift = (-tonic_pc) % 12
+            if shift > 6:
+                shift -= 12
+            mel, tpb, bpm = pop909_melody(os.path.join(d, os.path.basename(d) + '.mid'))
+            if len(mel) < 6:
+                continue
+            degs = [(midi + shift) - 60 for (midi, _, _) in mel]
+            if max(degs) > 21 or min(degs) < -16:
+                continue
+            durs = [quantize((e - s) / tpb) for (_, s, e) in mel]
+            scale_pcs = SCALE_PCS['minor'] if mode == 'minor' else SCALE_PCS['diatonic']
+            seq = []
+            with open(os.path.join(d, 'chord_midi.txt'), encoding='utf-8') as f:
+                for line in f:
+                    parts = line.split('\t')
+                    if len(parts) < 3:
+                        continue
+                    name = parts[2].strip()
+                    if name == 'N' or ':' not in name:
+                        continue
+                    pc = (NOTE_PC[name.split(':')[0]] - tonic_pc) % 12
+                    idx = nearest_scale_index(pc, scale_pcs)
+                    dur = quantize((float(parts[1]) - float(parts[0])) * bpm / 60.0)
+                    if seq and seq[-1][0] == idx:
+                        seq[-1] = (idx, seq[-1][1] + dur)
+                    else:
+                        seq.append((idx, dur))
+            chords = seq if len(seq) >= 3 else None
+            tunes.append((degs, durs, chords))
+        except Exception as e:
+            print(f"  跳过 {d}: {e}", file=sys.stderr)
+    return tunes
+
 #### 从若干首(degrees, durs, chords)建一份马尔可夫模型;chords 可为 None(单声部无和声) ####
 def build_model(tlist, scale):
     pitch2 = collections.defaultdict(collections.Counter)
@@ -142,9 +214,11 @@ def main():
     ap.add_argument('--esac', action='store_true')
     ap.add_argument('--m21files')
     ap.add_argument('--dir')
+    ap.add_argument('--pop909', help='POP909 的 POP909/ 目录:取各曲 MELODY 轨当人声主旋律、chord_midi.txt 当和声')
     ap.add_argument('--scale', choices=['pentatonic', 'diatonic'], required=True)
     ap.add_argument('--mode', choices=['major', 'minor'])
     ap.add_argument('--cluster', type=int, default=0)
+    ap.add_argument('--melody-only', action='store_true', help='只学旋律,不做和弦识别(单声部人声语料如 Kiritan 用):和声另行嫁接')
     ap.add_argument('--out', required=True)
     ap.add_argument('--limit', type=int, default=0)
     args = ap.parse_args()
@@ -167,6 +241,9 @@ def main():
         sources += [(f, False) for f in files]
 
     tunes = []  # (degs, durs, chords)
+    if args.pop909:
+        tunes += read_pop909(args.pop909, args.mode)
+        print(f"  POP909 读入 {len(tunes)} 首({args.mode or '全部'}调)", file=sys.stderr)
     scale_pcs = SCALE_PCS['minor'] if args.mode == 'minor' else SCALE_PCS.get(args.scale)
     for src, single in sources:
         try:
@@ -181,7 +258,7 @@ def main():
                 continue
             # 多声部且非五声(动漫吉他谱)时,从纵向和声识别和弦进行;和弦识别失败不拖累旋律,单独兜底为 None。
             chords = None
-            if not single and scale_pcs is not None:
+            if not single and scale_pcs is not None and not args.melody_only:
                 try:
                     chords = extract_chords(score, tonic_pc, scale_pcs)
                 except Exception:
