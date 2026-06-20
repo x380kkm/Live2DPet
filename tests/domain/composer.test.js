@@ -43,20 +43,27 @@ test('compose returns melody and half-bar chord spans', () => {
   }
 });
 
-//// 和声与旋律协调：强拍（每半小节起点)的音是该半小节和弦音（末音收主除外） [@x380kkm 2026-06-20] ////
-test('strong-beat notes land on the half-bar chord (harmony drives melody)', () => {
-  const r = compose({ style: 'anime-major', rng: seeded(15), tonicMidi: 62, phrases: 4, barsPerPhrase: 2 });
-  const ns = onsets(r.melody);
-  const last = ns[ns.length - 1];
-  for (const n of ns) {
-    if (n === last) continue; // 末句末音强制收于主音，不约束于末和弦
-    // 强拍落在半小节边界(起拍为 2 的整数倍);该处必有一个和弦跨度从此开始。
-    if (Math.abs((n.onset / 2) % 1) > 1e-9) continue;
-    const span = r.chords.find((c) => Math.abs(c.startBeat - n.onset) < 1e-9);
-    if (!span) continue;
-    const pc = (((n.key - 62) % 12) + 12) % 12;
-    assert.ok(span.pcs.includes(pc), `强拍音级 ${pc}（拍 ${n.onset}）不在和弦 ${JSON.stringify(span.pcs)} 内`);
+//// 和声与旋律协调：强拍多数落在该半小节和弦音上（软偏置,允许少量经过音/倚音去方正） [@x380kkm 2026-06-20] ////
+test('most strong-beat notes land on the half-bar chord (soft harmony bias)', () => {
+  let onChord = 0;
+  let total = 0;
+  for (let s = 1; s <= 6; s += 1) {
+    const r = compose({ style: 'anime-major', rng: seeded(s * 13 + 1), tonicMidi: 62, phrases: 4, barsPerPhrase: 2 });
+    const ns = onsets(r.melody);
+    const last = ns[ns.length - 1];
+    for (const n of ns) {
+      if (n === last) continue; // 末音收主,不计
+      if (Math.abs((n.onset / 2) % 1) > 1e-9) continue; // 只看落在半小节边界的强拍
+      const span = r.chords.find((c) => Math.abs(c.startBeat - n.onset) < 1e-9);
+      if (!span) continue;
+      total += 1;
+      const pc = (((n.key - 62) % 12) + 12) % 12;
+      if (span.pcs.includes(pc)) onChord += 1;
+    }
   }
+  // 软偏置下大多数强拍仍落和弦音(和声清晰),但不强求全部(留出经过音的灵活)。
+  assert.ok(onChord / total >= 0.7, `强拍落和弦音比例 ${(onChord / total).toFixed(2)} 偏低,和声不清`);
+  assert.ok(onChord / total < 1.0, `强拍 100% 锁死和弦音,说明又退回硬锁、过于方正`);
 });
 
 //// 生成音都落在该风格音阶上 [@x380kkm 2026-06-20] ////
@@ -77,15 +84,17 @@ test('melody actually moves and is not stuck on one pitch', () => {
   assert.ok(f.dominantPitchFraction < 0.4, `单音占比过高：${f.dominantPitchFraction}`);
 });
 
-//// 动机重复：AABA 曲式里第一、第二乐句完全相同 [@x380kkm 2026-06-20] ////
-test('AABA repeats the A phrase verbatim', () => {
-  const r = compose({ style: 'anime-major', rng: seeded(7), tonicMidi: 62, phrases: 4, barsPerPhrase: 2 });
+//// 变奏式再现：指定 AABA 时,重复的 A 句复用同一节奏骨架(时值序列相同),但旋律音高可不同(不逐音照搬) [@x380kkm 2026-06-20] ////
+test('AABA reprises share rhythm but vary the melody', () => {
+  const r = compose({ style: 'anime-major', rng: seeded(7), tonicMidi: 62, phrases: 4, barsPerPhrase: 2, form: 'AABA' });
   const phrases = [];
   let cur = [];
   for (const e of r.melody) {
-    if (e.rest != null) { phrases.push(cur); cur = []; } else cur.push(`${e.key}:${e.beats}`);
+    if (e.rest != null) { phrases.push(cur); cur = []; } else cur.push(e);
   }
   phrases.push(cur);
   assert.strictEqual(phrases.length, 4, `应有 4 个乐句，得到 ${phrases.length}`);
-  assert.deepStrictEqual(phrases[0], phrases[1]);
+  const beats = (p) => p.map((e) => e.beats).join(',');
+  // 两个 A 句节奏骨架相同(变奏式再现的识别性)。
+  assert.strictEqual(beats(phrases[0]), beats(phrases[1]), '重复的 A 句应复用同一节奏骨架');
 });

@@ -53,15 +53,16 @@ test('note onsets align to the half-beat grid', () => {
   }
 });
 
-//// 动机重复:AABA 曲式里第一、第二乐句完全相同 [@x380kkm 2026-06-20] ////
-test('AABA repeats the A phrase verbatim', () => {
-  const m = generateMelody({ model: fakeModel, rng: seeded(7), tonicMidi: 60, phrases: 4, barsPerPhrase: 2 });
+//// 变奏式再现:指定 AABA 时重复的 A 句复用同一节奏骨架,时值序列相同 [@x380kkm 2026-06-20] ////
+test('AABA reprises share the rhythm blueprint', () => {
+  const m = generateMelody({ model: fakeModel, rng: seeded(7), tonicMidi: 60, phrases: 4, barsPerPhrase: 2, form: 'AABA' });
   const phrases = [];
   let cur = [];
   for (const e of m) {
-    if (e.rest != null) { phrases.push(cur); cur = []; } else cur.push(`${e.key}:${e.beats}`);
+    if (e.rest != null) { phrases.push(cur); cur = []; } else cur.push(e);
   }
   phrases.push(cur);
   assert.ok(phrases.length === 4, `应有 4 个乐句,得到 ${phrases.length}`);
-  assert.deepStrictEqual(phrases[0], phrases[1]); // 头两个 A 相同
+  const beats = (p) => p.map((e) => e.beats).join(',');
+  assert.strictEqual(beats(phrases[0]), beats(phrases[1])); // 两个 A 句节奏骨架相同
 });

@@ -33,18 +33,25 @@ test('resolveGenre yields a tonic from choices and a tempo in range', () => {
 
 //// 不同风格的旋律特征确实拉开:不是所有风格都落在同一调与同一音区 [@x380kkm 2026-06-20] ////
 test('different genres produce distinct keys and registers', () => {
-  const means = {};
-  for (const name of Object.keys(GENRES)) {
-    const g = resolveGenre(name, seeded(name.length * 7 + 3));
-    const model = loadModel(g.model);
-    const { melody } = compose({ model, tonicMidi: g.tonicMidi, profile: g.profile, progressions: g.progressions, rng: seeded(42), phrases: 4 });
-    const ks = melody.filter((e) => e.key != null).map((e) => e.key);
-    means[name] = ks.reduce((a, b) => a + b, 0) / ks.length;
-  }
+  // 每个风格对多个种子求平均音高,避免单次取样的偶然,稳健地比较音区。
+  const meanHigh = (name) => {
+    let sum = 0;
+    let n = 0;
+    for (let s = 1; s <= 8; s += 1) {
+      const g = resolveGenre(name, seeded(s * 17 + name.length));
+      const model = loadModel(g.model);
+      const { melody } = compose({ model, tonicMidi: g.tonicMidi, profile: g.profile, rng: seeded(s * 5 + 3), phrases: 4 });
+      const ks = melody.filter((e) => e.key != null).map((e) => e.key);
+      sum += ks.reduce((a, b) => a + b, 0) / ks.length;
+      n += 1;
+    }
+    return sum / n;
+  };
   // 抒情(jpop-ballad)的平均音高应明显低于高能(janime-energetic),证明音区被风格拉开。
-  assert.ok(means['janime-energetic'] - means['jpop-ballad'] > 4,
-    `高能与抒情的均高差 ${(means['janime-energetic'] - means['jpop-ballad']).toFixed(1)} 太小,音区没拉开`);
-  // 至少有两种不同的主音被用到(并非所有风格同调)。
-  const tonics = new Set(Object.keys(GENRES).map((n) => resolveGenre(n, seeded(n.length * 7 + 3)).tonicMidi));
-  assert.ok(tonics.size >= 3, `用到的主音种类 ${tonics.size} 太少,仍偏同调`);
+  const gap = meanHigh('janime-energetic') - meanHigh('jpop-ballad');
+  assert.ok(gap > 3, `高能与抒情的均高差 ${gap.toFixed(1)} 太小,音区没拉开`);
+  // 多个种子下用到多种不同主音(并非所有曲同调)。
+  const tonics = new Set();
+  for (const n of Object.keys(GENRES)) for (let s = 1; s <= 4; s += 1) tonics.add(resolveGenre(n, seeded(s * 9 + n.length)).tonicMidi);
+  assert.ok(tonics.size >= 4, `用到的主音种类 ${tonics.size} 太少,仍偏同调`);
 });

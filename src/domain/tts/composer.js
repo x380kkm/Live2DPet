@@ -30,25 +30,26 @@ const BAR_PATTERNS = [
 ];
 const BEATS_PER_BAR = 4;
 
-// 各调式的和弦进行候选：元素为调内音阶级序号（0 起），每条配权重。大调含 J-pop 王道与轴式进行，小调含常见自然小调走向。
-const PROGRESSIONS = {
-  major: [
-    { prog: [0, 4, 5, 3], w: 3 }, // I-V-vi-IV 轴式
-    { prog: [0, 5, 3, 4], w: 2 }, // I-vi-IV-V 五十年代
-    { prog: [5, 3, 0, 4], w: 2 }, // vi-IV-I-V
-    { prog: [3, 4, 2, 5], w: 3 }, // IV-V-iii-vi 王道
-    { prog: [0, 3, 4, 0], w: 2 }, // I-IV-V-I
-    { prog: [0, 4, 5, 4], w: 1 }, // I-V-vi-V
-    { prog: [3, 4, 0, 0], w: 1.5 }, // IV-V-I-I
-  ],
-  minor: [
-    { prog: [0, 5, 2, 6], w: 3 }, // i-VI-III-VII
-    { prog: [0, 3, 4, 0], w: 2 }, // i-iv-v-i
-    { prog: [0, 6, 5, 6], w: 2 }, // i-VII-VI-VII
-    { prog: [0, 5, 6, 0], w: 2 }, // i-VI-VII-i
-    { prog: [0, 2, 5, 4], w: 1.5 }, // i-III-VI-v
-    { prog: [0, 3, 6, 4], w: 1.5 }, // i-iv-VII-v
-  ],
+// 功能和声的转移概率（调内音阶级序号 0 起 → 下一级:权重）：和弦进行不再用固定模板,而是在这张表上随机游走,既守功能习惯又每首不同。
+const CHORD_TRANS = {
+  major: {
+    0: { 3: 3, 4: 3, 5: 2, 1: 1, 2: 1 }, // I → IV V vi ii iii
+    1: { 4: 3, 3: 1, 6: 1 }, // ii → V IV vii°
+    2: { 5: 2, 3: 1 }, // iii → vi IV
+    3: { 4: 3, 0: 2, 1: 1, 5: 1 }, // IV → V I ii vi
+    4: { 0: 4, 5: 2 }, // V → I vi
+    5: { 3: 2, 1: 2, 4: 1, 2: 1 }, // vi → IV ii V iii
+    6: { 0: 3 }, // vii° → I
+  },
+  minor: {
+    0: { 5: 3, 3: 2, 6: 2, 2: 1, 4: 1 }, // i → VI iv VII III v
+    1: { 4: 2, 0: 1 }, // ii° → v i
+    2: { 5: 2, 6: 1, 3: 1 }, // III → VI VII iv
+    3: { 0: 2, 4: 1, 5: 1 }, // iv → i v VI
+    4: { 0: 3, 5: 1 }, // v → i VI
+    5: { 3: 2, 6: 2, 2: 1 }, // VI → iv VII III
+    6: { 0: 2, 2: 2 }, // VII → i III
+  },
 };
 
 // 句间气口拍数：从非末句尾部刻出，留作换气，且保持每句严格等于整小节。
@@ -76,6 +77,23 @@ const DATA_POW = 1.0; // 语料转移计数的幂:1 即按训练频次正比,越
 const DATA_EPS = 0.2; // 给调内每个候选音的底数:即便语料没覆盖也留一点可能,避免走死、并稍作平滑。
 const REPEAT_PEN = 0.3; // 与上一音同高的惩罚系数:压低原地不动,防「一个调」。
 const BIG_LEAP_DEG = 9; // 超过此半音差视为过大跳,额外指数压制。
+const STRONG_CHORD_BONUS = 6; // 强拍落和弦音的加权(软偏置而非硬锁):大多落和弦音保清晰,偶尔放经过音/倚音去方正。
+const WEAK_CHORD_BONUS = 1.2; // 弱拍的和弦音加权:很弱,基本由语料自由级进。
+// 曲式候选:按句数取一组,每首随机选一种,不再永远 AABA;重复字母表示同一动机的再现(本作曲器做变奏式再现,非逐音照搬)。
+const FORMS = {
+  2: ['AB', 'AA'],
+  3: ['ABA', 'ABC', 'AAB', 'ABB'],
+  4: ['AABA', 'ABAB', 'ABAC', 'ABCA', 'ABCB', 'AABB'],
+  5: ['AABAB', 'ABACA', 'ABABC', 'ABACD'],
+  6: ['AABABA', 'ABACAB', 'ABABCB'],
+};
+//// 按乐句数随机取一种曲式;无对应表则退回全不同字母(通谱) [@x380kkm 2026-06-20] ////
+function pickForm(phrases, rng) {
+  const pool = FORMS[phrases];
+  if (!pool) return Array.from({ length: phrases }, (_, i) => String.fromCharCode(65 + i)).join('');
+  return pool[Math.floor(rng() * pool.length)];
+}
+//// /随机取一种曲式 ////
 
 //// 按风格加载对应模型文件 [@x380kkm 2026-06-20] ////
 function loadModel(style) {
@@ -200,17 +218,19 @@ function sampleStart(model, ladder, rng) {
 }
 //// /取乐句起始度数 ////
 
-//// 选一条和弦进行，按每句小节数裁到合适长度（不足则循环）；pool 缺省按调式取内置池 [@x380kkm 2026-06-20] ////
-function pickProgression(mode, bars, rng, pool) {
-  const p = pool || PROGRESSIONS[mode] || PROGRESSIONS.major;
-  const counts = {};
-  p.forEach((x, i) => { counts[i] = x.w; });
-  const prog = p[parseInt(pickWeighted(counts, rng), 10)].prog;
-  const out = [];
-  for (let b = 0; b < bars; b += 1) out.push(prog[b % prog.length]);
+//// 在功能和声转移表上随机游走出一条 n 个和弦的进行:首和弦为主和弦作落地,之后逐步采下一级 [@x380kkm 2026-06-20] ////
+function walkProgression(mode, n, rng) {
+  const T = CHORD_TRANS[mode] || CHORD_TRANS.major;
+  const out = [0];
+  let cur = 0;
+  for (let i = 1; i < n; i += 1) {
+    const nx = pickWeighted(T[cur] || { 0: 1 }, rng);
+    cur = nx != null ? parseInt(nx, 10) : 0;
+    out.push(cur);
+  }
   return out;
 }
-//// /选一条和弦进行 ////
+//// /随机游走出一条和弦进行 ////
 
 //// 算乐句内某进度的目标音高：按所选轮廓形状给出相对高低,叠基线、振幅与随机抖动 [@x380kkm 2026-06-20] ////
 function contourTarget(frac, rng, profile, shapeName) {
@@ -227,37 +247,37 @@ function chordDegrees(chord, scaleSet, ladder) {
 }
 //// /列出和弦音度数 ////
 
-//// 取下一个度数：以语料二阶转移 pitch2 为主因加权,叠轮廓软拉、抑同音与过大跳;强拍限定在和弦音里 [@x380kkm 2026-06-20] ////
-// universe 为可选音集(强拍传和弦音、弱拍传整把梯子);d2,d1 为前两音度数;target 为本拍轮廓目标音高;midLeapW 越大越偏级进。
-function pickNextDegree(model, d2, d1, universe, target, midLeapW, rng) {
+//// 取下一个度数：以语料二阶转移 pitch2 为主因加权,叠轮廓软拉、抑同音与过大跳,和弦音按 chordBonus 软偏置(非硬锁) [@x380kkm 2026-06-20] ////
+// 候选始终是整把梯子;chordSet 为本拍和弦音集合,chordBonus 越大越偏向落和弦音;d2,d1 为前两音度数,target 为轮廓目标。
+function pickNextDegree(model, d2, d1, ladder, chordSet, chordBonus, target, midLeapW, rng) {
   const trans = (model && model.pitch2 && model.pitch2[`${d2},${d1}`]) || null;
-  // 把语料转移按落点吸附到 universe,累加成各候选的数据权重。
+  // 把语料转移按落点吸附到梯子,累加成各候选的数据权重。
   const dataW = {};
   if (trans) {
-    for (const k in trans) { const g = nearestIn(universe, parseInt(k, 10)); dataW[g] = (dataW[g] || 0) + trans[k]; }
+    for (const k in trans) { const g = nearestIn(ladder, parseInt(k, 10)); dataW[g] = (dataW[g] || 0) + trans[k]; }
   }
   const sigma = 4; // 轮廓软拉的半音容差:越大越松,让数据主导音高、轮廓只管大致音区。
   const w = {};
   let total = 0;
-  for (const g of universe) {
+  for (const g of ladder) {
     const base = (dataW[g] || 0) + DATA_EPS;
     const contour = Math.exp(-((g - target) * (g - target)) / (2 * sigma * sigma));
     const leapAbs = Math.abs(g - d1);
     const leap = Math.exp(-Math.max(0, leapAbs - 2) * midLeapW) * (leapAbs > BIG_LEAP_DEG ? Math.exp(-(leapAbs - BIG_LEAP_DEG) * 0.6) : 1);
     const rep = g === d1 ? REPEAT_PEN : 1;
-    w[g] = (base ** DATA_POW) * contour * leap * rep;
+    const harm = chordSet.has(g) ? chordBonus : 1;
+    w[g] = (base ** DATA_POW) * contour * leap * rep * harm;
     total += w[g];
   }
   let r = rng() * total;
-  for (const g of universe) { r -= w[g]; if (r < 0) return g; }
-  return universe[universe.length - 1];
+  for (const g of ladder) { r -= w[g]; if (r < 0) return g; }
+  return ladder[ladder.length - 1];
 }
 //// /取下一个度数 ////
 
-//// 生成一个乐句:节奏取自语料 dur1、音高从语料 pitch2 左到右取,强拍限在和弦音(和声骨架)、弱拍自由级进,轮廓软拉音区 [@x380kkm 2026-06-20] ////
-// chords 为半小节(每 2 拍)一个和弦,长度 bars*2;profile 给音域、走向与跳度;shape 为本句轮廓形状名;model 提供语料分布。
-function composePhrase(chords, scaleSet, ladder, model, bars, rng, profile, shape) {
-  // 第二层节奏:逐小节用语料时值转移取节奏型,记下每音的时值、小节内起拍与是否强拍(第 1、3 拍)。
+//// 造一个乐句的节奏骨架:逐小节用语料时值转移取节奏型,记下每音的时值、小节内起拍与是否强拍(第 1、3 拍) [@x380kkm 2026-06-20] ////
+// 节奏骨架与音高分离:重复乐句复用同一骨架但重采音高,做变奏式再现而非逐音照搬。
+function buildBlueprint(model, bars, rng) {
   const slots = [];
   const durState = { prev: null };
   for (let b = 0; b < bars; b += 1) {
@@ -268,29 +288,34 @@ function composePhrase(chords, scaleSet, ladder, model, bars, rng, profile, shap
       pos += dur;
     }
   }
-  // 取某槽位所在半小节的和弦:第 1 拍起属前半,第 3 拍起属后半。
+  return slots;
+}
+//// /造节奏骨架 ////
+
+//// 在节奏骨架上实现音高:从语料起始度数出发逐音用语料转移取下一音,强拍软偏置落和弦音,轮廓软拉音区 [@x380kkm 2026-06-20] ////
+// slots 节奏骨架,chords 半小节和弦序列;每次调用用新的 rng 取样,故同骨架多次实现得到不同旋律(变奏)。
+function realizePhrase(slots, chords, scaleSet, ladder, model, rng, profile, shape) {
   const chordOf = (slot) => chords[slot.bar * 2 + (slot.onset >= 2 ? 1 : 0)];
-  // 第三层旋律:从语料起始度数出发,逐音用语料转移取下一音;强拍限定在所在和弦的和弦音、弱拍可走整把梯子,轮廓软拉音区。
   let [d2, d1] = sampleStart(model, ladder, rng);
-  slots.forEach((slot, i) => {
+  return slots.map((slot, i) => {
     const frac = slots.length > 1 ? i / (slots.length - 1) : 0;
     const target = contourTarget(frac, rng, profile, shape);
-    const universe = slot.strong ? chordDegrees(chordOf(slot), scaleSet, ladder) : ladder;
-    const g = pickNextDegree(model, d2, d1, universe, target, profile.midLeapW, rng);
-    slot.pitch = g;
+    const chordSet = new Set(chordDegrees(chordOf(slot), scaleSet, ladder));
+    const bonus = slot.strong ? STRONG_CHORD_BONUS : WEAK_CHORD_BONUS;
+    const g = pickNextDegree(model, d2, d1, ladder, chordSet, bonus, target, profile.midLeapW, rng);
     d2 = d1;
     d1 = g;
+    return { pitch: g, beats: slot.beats };
   });
-  return { notes: slots.map((s) => ({ pitch: s.pitch, beats: s.beats })), chords };
 }
-//// /生成一个乐句 ////
+//// /在节奏骨架上实现音高 ////
 
 //// 离线随机作曲：和弦骨架 + 节奏 + 和声约束下的旋律，按曲式做动机重复，返回旋律与对齐的和弦跨度 [@x380kkm 2026-06-20] ////
 // options:style 风格（缺省 folk）或 model 直接给模型，rng 随机源，tonicMidi 主音（缺省 60=C4），
 //   form 曲式字母串（缺省按句数取 AABA/ABA），barsPerPhrase 每句小节数（缺省 2），phrases 句数（缺省 4），
 //   breathAtEnd 末句也收主音并刻气口（缺省 false）：用于把本段当作长曲的一段、与后段严格按小节拼接时留出段间换气，
-//   profile 风格档案（缺省 DEFAULT_PROFILE）：给音域、走向基线/振幅/抖动、可选轮廓形状集、中跳抑制，是拉开风格差异的旋律侧旋钮，
-//   progressions 自定义和弦进行池（缺省按调式取内置池）。
+//   profile 风格档案（缺省 DEFAULT_PROFILE）：给音域、走向基线/振幅/抖动、可选轮廓形状集、中跳抑制，是拉开风格差异的旋律侧旋钮。
+//   和弦进行不用固定模板,而在功能和声转移表上随机游走;曲式不固定 AABA,按句数从候选里随机取并做变奏式再现。
 function compose(options = {}) {
   const model = options.model || loadModel(options.style || 'folk');
   const scale = model.scale || 'pentatonic';
@@ -298,7 +323,7 @@ function compose(options = {}) {
   const tonic = options.tonicMidi != null ? options.tonicMidi : 60;
   const bars = options.barsPerPhrase || 2;
   const phrases = options.phrases || 4;
-  const form = options.form || (phrases <= 3 ? 'ABA' : 'AABA');
+  const form = options.form || pickForm(phrases, rng);
   const breathAtEnd = options.breathAtEnd || false;
   const profile = Object.assign({}, DEFAULT_PROFILE, options.profile);
   const shapes = (profile.shapes && profile.shapes.length) ? profile.shapes : DEFAULT_PROFILE.shapes;
@@ -309,32 +334,33 @@ function compose(options = {}) {
   const harmonyScale = scale === 'minor' ? SCALES.minor : SCALES.diatonic;
   const ladder = buildLadder(melodyScale, profile.register);
 
-  // 为曲式里每个字母各作一个乐句（连同其和弦），重复字母复用同一乐句以成动机重复；不同字母用档案里不同的轮廓形状,拉开句间走向。
-  const phraseOf = {};
+  // 为曲式里每个字母各造一份「蓝图」:和弦进行（功能和声随机游走）、节奏骨架、轮廓形状;重复字母复用同一蓝图。
+  const blueprintOf = {};
   let shapeNo = 0;
   for (const letter of form) {
-    if (phraseOf[letter]) continue;
-    // 每半小节一个和弦:取 bars*2 个,使每句铺满一整条进行(如 I-V-vi-IV),和声有走动而非停在 I-V。
-    const progDeg = pickProgression(mode, bars * 2, rng, options.progressions);
+    if (blueprintOf[letter]) continue;
+    // 每半小节一个和弦:游走出 bars*2 个,和声逐步走动而非固定模板。
+    const progDeg = walkProgression(mode, bars * 2, rng);
     const chords = progDeg.map((d) => triad(harmonyScale, d));
     const shape = shapes[shapeNo % shapes.length];
     shapeNo += 1;
-    phraseOf[letter] = composePhrase(chords, melodyScale, ladder, model, bars, rng, profile, shape);
+    blueprintOf[letter] = { chords, slots: buildBlueprint(model, bars, rng), shape };
   }
 
-  // 第一层与第三层落地为时间轴：逐乐句铺音符并记和弦跨度；非末句从尾部刻出气口，使每句严格等于 bars*4 拍，
-  // 整曲严格按 4/4 小节，便于与伴奏（MMA 等严格小节）逐拍对齐、不漂移；末句末音收于主音。
+  // 第一层与第三层落地为时间轴：逐乐句在蓝图上实现音高（重复字母用同骨架重采音高,做变奏式再现而非逐音照搬），
+  // 记和弦跨度；非末句从尾部刻出气口，使每句严格等于 bars*4 拍，整曲严格按 4/4 小节,与伴奏逐拍对齐;末句末音收主音。
   const melody = [];
   const chordSpans = [];
   const letters = form.split('');
   let cum = 0;
   letters.forEach((letter, pi) => {
-    const phrase = phraseOf[letter];
+    const bp = blueprintOf[letter];
     const isLast = pi === letters.length - 1;
-    phrase.chords.forEach((c, h) => {
+    bp.chords.forEach((c, h) => {
       chordSpans.push({ startBeat: cum + h * (BEATS_PER_BAR / 2), beats: BEATS_PER_BAR / 2, root: c.root, pcs: c.pcs });
     });
-    const notes = phrase.notes.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
+    const realized = realizePhrase(bp.slots, bp.chords, melodyScale, ladder, model, rng, profile, bp.shape);
+    const notes = realized.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
     // 末句收主音（resolve）；非末句、或末句但要求段尾换气时，从尾部刻出 BREATH 拍作气口（总拍数不变）。
     const breathe = !isLast || breathAtEnd;
     if (isLast) notes[notes.length - 1].key = tonic;
@@ -354,6 +380,6 @@ function compose(options = {}) {
 //// /离线随机作曲 ////
 
 module.exports = {
-  compose, loadModel, snapToScale, triad, buildLadder, pickProgression,
-  SCALES, BAR_PATTERNS, PROGRESSIONS, CONTOUR_SHAPES, DEFAULT_PROFILE,
+  compose, loadModel, snapToScale, triad, buildLadder, walkProgression, pickForm,
+  SCALES, BAR_PATTERNS, CHORD_TRANS, CONTOUR_SHAPES, DEFAULT_PROFILE,
 };
