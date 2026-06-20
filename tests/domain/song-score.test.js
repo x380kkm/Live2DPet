@@ -125,7 +125,7 @@ test('buildScore lays out lead rest, weighted moras, melisma, and tail rest', ()
   assert.strictEqual(single.notes[single.notes.length - 1].key, null);
   assert.deepStrictEqual(
     single.notes.slice(1, -1).map((n) => `${n.key}:${n.lyric}:${n.frame_length}`),
-    ['64:ハ:31', '64:オ:9', '69:ドゥ:7', '69:オ:73']
+    ['64:ハ:31', '64:オ:9', '69:ドゥ:7', '69:オ:74']
   );
   // 美(メイ)落两音符 A4->C5:花腔逐音符各一个 mora
   const melisma = buildScore('美', [{ notes: [['A4', 0.5], ['C5', 0.5]] }], { bpm: 70 });

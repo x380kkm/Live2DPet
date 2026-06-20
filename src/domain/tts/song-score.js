@@ -53,6 +53,18 @@ function beatsToFrames(beats, bpm) {
 }
 //// /把拍数按速度换成帧数 ////
 
+//// 把一串拍长做累积网格量化为帧长:每个音的起点对齐到精确网格,音长取相邻网格之差,逐音不累积舍入误差(防人声相对伴奏漂移) [@x380kkm 2026-06-20] ////
+function gridFrames(beatsList, bpm) {
+  const fpb = FRAMES_PER_SECOND * 60 / bpm;
+  let cum = 0;
+  return beatsList.map((b) => {
+    const sf = Math.round(cum * fpb);
+    cum += b;
+    return Math.max(1, Math.round(cum * fpb) - sf);
+  });
+}
+//// /累积网格量化拍长为帧长 ////
+
 //// 把片假名串按 mora 切开:小书写假名并入前一个 mora,其余各自成 mora [@x380kkm 2026-06-20] ////
 function splitMoras(kana) {
   const moras = [];
@@ -214,20 +226,39 @@ function buildScore(lyrics, melody, options = {}) {
     throw new Error(`旋律发声条目数 ${sungCount} 与歌词音节数 ${syllables.length} 不等`);
   }
 
-  const notes = [{ key: null, frame_length: beatsToFrames(leadRestBeats, bpm), lyric: '' }];
+  // 先按出现顺序收集所有「槽位」的拍长(首休止、各发声音含花腔逐音、句休止、尾休止),整体累积网格量化,
+  // 使每个音/休止的起点都锁在拍格上、逐音不累积舍入,人声不相对伴奏漂移;再把每段音节的网格帧长交 layoutSyllable 分到各 mora。
+  const slots = [{ kind: 'rest', beats: leadRestBeats }];
+  const entryPlan = []; // 每个发声条目记下它在 slots 里的音高槽起止与对应音节
   let s = 0;
   for (const entry of melody) {
-    if (entry.rest != null) {
-      notes.push({ key: null, frame_length: beatsToFrames(entry.rest, bpm), lyric: '' });
+    if (entry.rest != null) { slots.push({ kind: 'rest', beats: entry.rest }); continue; }
+    const pairs = entry.notes || [[entry.note != null ? entry.note : entry.key, entry.beats]];
+    const start = slots.length;
+    for (const [name, beats] of pairs) slots.push({ kind: 'pitch', beats, key: noteNameToMidi(name) });
+    entryPlan.push({ start, count: pairs.length, syl: syllables[s] });
+    s += 1;
+  }
+  slots.push({ kind: 'rest', beats: tailRestBeats });
+  const frames = gridFrames(slots.map((x) => x.beats), bpm);
+
+  const notes = [];
+  let si = 0;          // slots 游标
+  let pi = 0;          // entryPlan 游标
+  while (si < slots.length) {
+    if (slots[si].kind === 'rest') {
+      notes.push({ key: null, frame_length: frames[si], lyric: '' });
+      si += 1;
       continue;
     }
-    const syllable = syllables[s];
-    s += 1;
-    const pitches = entryToPitches(entry, bpm);
-    const moras = splitMoras(syllable.kana);
-    for (const note of layoutSyllable(syllable.parsed, moras, pitches)) notes.push(note);
+    const plan = entryPlan[pi];
+    pi += 1;
+    const pitches = [];
+    for (let k = 0; k < plan.count; k += 1) pitches.push({ key: slots[plan.start + k].key, frames: frames[plan.start + k] });
+    si += plan.count;
+    const moras = splitMoras(plan.syl.kana);
+    for (const note of layoutSyllable(plan.syl.parsed, moras, pitches)) notes.push(note);
   }
-  notes.push({ key: null, frame_length: beatsToFrames(tailRestBeats, bpm), lyric: '' });
   return { notes };
 }
 //// /把中文歌词与旋律拼成 VOICEVOX Score ////
@@ -239,18 +270,16 @@ function hummingScore(melody, options = {}) {
   const mora = options.mora || 'ン';
   const leadRestBeats = options.leadRestBeats != null ? options.leadRestBeats : 0.25;
   const tailRestBeats = options.tailRestBeats != null ? options.tailRestBeats : 0.25;
-  const notes = [{ key: null, frame_length: beatsToFrames(leadRestBeats, bpm), lyric: '' }];
+  // 先按出现顺序收集每个音的(音高、歌词、拍长),含首尾休止与花腔逐音;再整体累积网格量化,使每音起点锁在拍格上、不漂移。
+  const seq = [{ key: null, lyric: '', beats: leadRestBeats }];
   for (const entry of melody) {
-    if (entry.rest != null) {
-      notes.push({ key: null, frame_length: beatsToFrames(entry.rest, bpm), lyric: '' });
-      continue;
-    }
-    for (const p of entryToPitches(entry, bpm)) {
-      notes.push({ key: p.key, frame_length: p.frames, lyric: mora });
-    }
+    if (entry.rest != null) { seq.push({ key: null, lyric: '', beats: entry.rest }); continue; }
+    const pairs = entry.notes || [[entry.note != null ? entry.note : entry.key, entry.beats]];
+    for (const [name, beats] of pairs) seq.push({ key: noteNameToMidi(name), lyric: mora, beats });
   }
-  notes.push({ key: null, frame_length: beatsToFrames(tailRestBeats, bpm), lyric: '' });
-  return { notes };
+  seq.push({ key: null, lyric: '', beats: tailRestBeats });
+  const frames = gridFrames(seq.map((x) => x.beats), bpm);
+  return { notes: seq.map((x, i) => ({ key: x.key, frame_length: frames[i], lyric: x.lyric })) };
 }
 //// /把旋律拼成哼唱 Score ////
 
