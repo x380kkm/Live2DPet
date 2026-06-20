@@ -386,16 +386,16 @@ function compose(options = {}) {
     const notes = realized.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
     if (isLast) notes[notes.length - 1].key = tonic; // 末句末音收于主音
     if (breathe) carveBreath(notes);
-    // 第二声部:同一节奏骨架与和弦上走另一条独立马尔可夫线(更高音区、不同轮廓),与主声部呼应而不同;气口刻法相同以对齐。
+    // 第二声部:同一节奏骨架与和弦上走另一条独立马尔可夫线(更高音区、不同轮廓),与主声部呼应而不同。
+    // 关键:第二声部「不」跟着刻气口——人声在句末换气静音时,吉他持续奏满整句(末音延长盖过气口),使乐队不随人声一起断。
     let cnotes = null;
     if (withCounter) {
       const realizedC = realizePhrase(bp.slots, bp.chords, melodyScale, counterLadder, model, rng, profile, bp.counterShape);
       cnotes = realizedC.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
-      if (breathe) carveBreath(cnotes);
     }
     notes.forEach((nt) => { melody.push(nt); cum += nt.beats; });
-    if (cnotes) cnotes.forEach((nt) => counter.push(nt));
-    if (breathe) { melody.push({ rest: BREATH }); if (cnotes) counter.push({ rest: BREATH }); cum += BREATH; }
+    if (cnotes) cnotes.forEach((nt) => counter.push(nt)); // 第二声部铺满整句,无句末休止
+    if (breathe) { melody.push({ rest: BREATH }); cum += BREATH; }
   });
   const out = { melody, chords: chordSpans, tonicMidi: tonic, scale };
   if (withCounter) out.counter = counter;
