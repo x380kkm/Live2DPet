@@ -320,6 +320,8 @@ function realizePhrase(slots, chords, scaleSet, ladder, model, rng, profile, sha
 //   breathAtEnd 末句也收主音并刻气口（缺省 false）：用于把本段当作长曲的一段、与后段严格按小节拼接时留出段间换气，
 //   profile 风格档案（缺省 DEFAULT_PROFILE）：给音域、走向基线/振幅/抖动、可选轮廓形状集、中跳抑制，是拉开风格差异的旋律侧旋钮。
 //   和弦进行不用固定模板,而在功能和声转移表上随机游走;曲式不固定 AABA,按句数从候选里随机取并做变奏式再现。
+//   withCounter 另出一条第二声部(给吉他):同一套和弦与节奏骨架上走一条独立的马尔可夫线,坐在更高音区,与人声相似但不同、彼此呼应;
+//   counterRegisterShift 第二声部相对主声部上移的半音数(缺省 7)。
 function compose(options = {}) {
   const model = options.model || loadModel(options.style || 'folk');
   const scale = model.scale || 'pentatonic';
@@ -331,14 +333,18 @@ function compose(options = {}) {
   const breathAtEnd = options.breathAtEnd || false;
   const profile = Object.assign({}, DEFAULT_PROFILE, options.profile);
   const shapes = (profile.shapes && profile.shapes.length) ? profile.shapes : DEFAULT_PROFILE.shapes;
+  const withCounter = options.withCounter || false;
+  const counterShift = options.counterRegisterShift != null ? options.counterRegisterShift : 7;
 
   const melodyScale = SCALES[scale] || SCALES.pentatonic;
   // 五声调式的和声借用其母大调，使和弦功能成立，旋律仍吸附回五声。
   const mode = scale === 'minor' ? 'minor' : 'major';
   const harmonyScale = scale === 'minor' ? SCALES.minor : SCALES.diatonic;
   const ladder = buildLadder(melodyScale, profile.register);
+  // 第二声部的「梯子」整体上移,使吉他线坐在人声上方、与人声错开音区。
+  const counterLadder = buildLadder(melodyScale, { lo: profile.register.lo + counterShift, hi: profile.register.hi + counterShift });
 
-  // 为曲式里每个字母各造一份「蓝图」:和弦进行（功能和声随机游走）、节奏骨架、轮廓形状;重复字母复用同一蓝图。
+  // 为曲式里每个字母各造一份「蓝图」:和弦进行（功能和声随机游走）、节奏骨架、主声部与第二声部各自的轮廓形状;重复字母复用同一蓝图。
   const blueprintOf = {};
   let shapeNo = 0;
   for (const letter of form) {
@@ -347,13 +353,25 @@ function compose(options = {}) {
     const progDeg = walkProgression(model, mode, bars * 2, rng);
     const chords = progDeg.map((d) => triad(harmonyScale, d));
     const shape = shapes[shapeNo % shapes.length];
+    const counterShape = shapes[(shapeNo + 1) % shapes.length]; // 第二声部用不同轮廓,走向与主声部分离
     shapeNo += 1;
-    blueprintOf[letter] = { chords, slots: buildBlueprint(model, bars, rng), shape };
+    blueprintOf[letter] = { chords, slots: buildBlueprint(model, bars, rng), shape, counterShape };
   }
+
+  // 从乐句尾刻出 BREATH 拍作气口(总拍数不变);主、第二声部用同一刻法保持逐拍对齐。
+  const carveBreath = (notes) => {
+    let need = BREATH;
+    while (need > 1e-9 && notes.length) {
+      const lastN = notes[notes.length - 1];
+      if (lastN.beats > need + 1e-9) { lastN.beats = Number((lastN.beats - need).toFixed(6)); need = 0; }
+      else { need = Number((need - lastN.beats).toFixed(6)); notes.pop(); }
+    }
+  };
 
   // 第一层与第三层落地为时间轴：逐乐句在蓝图上实现音高（重复字母用同骨架重采音高,做变奏式再现而非逐音照搬），
   // 记和弦跨度；非末句从尾部刻出气口，使每句严格等于 bars*4 拍，整曲严格按 4/4 小节,与伴奏逐拍对齐;末句末音收主音。
   const melody = [];
+  const counter = [];
   const chordSpans = [];
   const letters = form.split('');
   let cum = 0;
@@ -363,23 +381,25 @@ function compose(options = {}) {
     bp.chords.forEach((c, h) => {
       chordSpans.push({ startBeat: cum + h * (BEATS_PER_BAR / 2), beats: BEATS_PER_BAR / 2, root: c.root, pcs: c.pcs });
     });
+    const breathe = !isLast || breathAtEnd;
     const realized = realizePhrase(bp.slots, bp.chords, melodyScale, ladder, model, rng, profile, bp.shape);
     const notes = realized.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
-    // 末句收主音（resolve）；非末句、或末句但要求段尾换气时，从尾部刻出 BREATH 拍作气口（总拍数不变）。
-    const breathe = !isLast || breathAtEnd;
-    if (isLast) notes[notes.length - 1].key = tonic;
-    if (breathe) {
-      let need = BREATH;
-      while (need > 1e-9 && notes.length) {
-        const lastN = notes[notes.length - 1];
-        if (lastN.beats > need + 1e-9) { lastN.beats = Number((lastN.beats - need).toFixed(6)); need = 0; }
-        else { need = Number((need - lastN.beats).toFixed(6)); notes.pop(); }
-      }
+    if (isLast) notes[notes.length - 1].key = tonic; // 末句末音收于主音
+    if (breathe) carveBreath(notes);
+    // 第二声部:同一节奏骨架与和弦上走另一条独立马尔可夫线(更高音区、不同轮廓),与主声部呼应而不同;气口刻法相同以对齐。
+    let cnotes = null;
+    if (withCounter) {
+      const realizedC = realizePhrase(bp.slots, bp.chords, melodyScale, counterLadder, model, rng, profile, bp.counterShape);
+      cnotes = realizedC.map((nt) => ({ key: tonic + nt.pitch, beats: nt.beats }));
+      if (breathe) carveBreath(cnotes);
     }
     notes.forEach((nt) => { melody.push(nt); cum += nt.beats; });
-    if (breathe) { melody.push({ rest: BREATH }); cum += BREATH; }
+    if (cnotes) cnotes.forEach((nt) => counter.push(nt));
+    if (breathe) { melody.push({ rest: BREATH }); if (cnotes) counter.push({ rest: BREATH }); cum += BREATH; }
   });
-  return { melody, chords: chordSpans, tonicMidi: tonic, scale };
+  const out = { melody, chords: chordSpans, tonicMidi: tonic, scale };
+  if (withCounter) out.counter = counter;
+  return out;
 }
 //// /离线随机作曲 ////
 
