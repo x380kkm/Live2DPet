@@ -11,42 +11,42 @@
 // 各 groove 均经渲染验证含完整乐队(至少鼓+贝斯),部分另带弦乐/合成/管风琴等音色,给配器更多层次。
 const GENRES = {
   'jpop-upbeat': {
-    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], singer: 3068,
+    model: 'anime-major', tonics: [64, 65, 67], tempo: [126, 138], singer: 3002,
     grooves: ['8BeatPop2', '8BeatPop1', 'PopRock1', 'PopRock2', '8BeatPop3'],
     profile: { register: { lo: -3, hi: 14 }, base: 4, amp: 8, jitter: 1.2, shapes: ['rise', 'arch', 'peakLate'], midLeapW: 0.07 },
   },
   'jpop-ballad': {
-    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], singer: 3068,
+    model: 'anime-major', tonics: [59, 60, 62], tempo: [72, 84], singer: 3002,
     grooves: ['16BeatBallad1', '16BeatBallad2', '8BeatBallad3', 'Ballad1', '68Ballad'],
     profile: { register: { lo: -7, hi: 12 }, base: 2, amp: 6, jitter: 1.0, shapes: ['arch', 'fall', 'wave'], midLeapW: 0.14 },
   },
   'janime-emotional': {
-    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], singer: 3068,
+    model: 'anime-minor', tonics: [57, 59, 60], tempo: [88, 100], singer: 3002,
     grooves: ['16BeatBallad1', '16BeatBallad3', '8BeatBallad3', 'Ballad', '68Ballad'],
     profile: { register: { lo: -5, hi: 14 }, base: 3, amp: 7, jitter: 1.3, shapes: ['wave', 'valley', 'fall'], midLeapW: 0.09 },
   },
   'janime-energetic': {
-    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], singer: 3068,
+    model: 'anime-major', tonics: [64, 66, 67], tempo: [150, 164], singer: 3002,
     grooves: ['8BeatPop3', 'BasicRock', '60sRock', 'PopRock2', 'PopRock1'],
     profile: { register: { lo: -2, hi: 14 }, base: 5, amp: 9, jitter: 1.5, shapes: ['rise', 'peakLate', 'arch'], midLeapW: 0.04 },
   },
   'kpop-dance': {
-    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], singer: 3068,
+    model: 'anime-major', tonics: [61, 63, 64], tempo: [110, 120], singer: 3002,
     grooves: ['DancePop1', 'DancePop3', 'DancePop2', '8BeatDance', 'PopRock2'],
     profile: { register: { lo: -4, hi: 13 }, base: 3, amp: 6, jitter: 1.4, shapes: ['wave', 'valley', 'rise'], midLeapW: 0.08 },
   },
   'musical-theater': {
-    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], singer: 3068,
+    model: 'anime-major', tonics: [60, 62, 64], tempo: [96, 112], singer: 3002,
     grooves: ['Broadway', '68Swing', '16BeatBallad2', '8BeatPop1', 'Ballad1'],
     profile: { register: { lo: -6, hi: 16 }, base: 3, amp: 9, jitter: 1.2, shapes: ['peakLate', 'arch', 'rise'], midLeapW: 0.07 },
   },
   children: {
-    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], singer: 3068,
+    model: 'children', tonics: [62, 64, 65], tempo: [116, 126], singer: 3002,
     grooves: ['60sPop', '8BeatPop1', 'PopRock1', '8BeatBallad3'],
     profile: { register: { lo: -3, hi: 11 }, base: 3, amp: 5, jitter: 0.8, shapes: ['arch', 'rise'], midLeapW: 0.25 },
   },
   folk: {
-    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], singer: 3068,
+    model: 'folk', tonics: [60, 62, 64], tempo: [88, 100], singer: 3002,
     grooves: ['Folk', 'FolkRock', 'BlueFolk', 'BlueGrass', 'CountryBlues'],
     profile: { register: { lo: -5, hi: 12 }, base: 3, amp: 6, jitter: 1.0, shapes: ['arch', 'wave'], midLeapW: 0.18 },
   },
@@ -64,4 +64,24 @@ function resolveGenre(name, rng) {
 }
 //// /从区间里定一首歌的具体配置 ////
 
-module.exports = { GENRES, resolveGenre };
+//// 在风格的 groove 池上做带惯性的随机游走,逐乐句给一个 groove:多数乐句沿用上一句,偶尔切换,使配器随曲推进而非整首一个 [@x380kkm 2026-06-20] ////
+// n 乐句数,stayProb 沿用上一 groove 的概率(惯性,缺省 0.65,避免每句都换显得碎)。
+function walkGrooves(name, n, rng, stayProb = 0.65) {
+  const g = GENRES[name];
+  if (!g) throw new Error(`未知风格:${name}`);
+  const r = rng || Math.random;
+  const pool = g.grooves;
+  let cur = pool[Math.floor(r() * pool.length)];
+  const seq = [cur];
+  for (let i = 1; i < n; i += 1) {
+    if (r() >= stayProb) {
+      const others = pool.filter((x) => x !== cur);
+      if (others.length) cur = others[Math.floor(r() * others.length)];
+    }
+    seq.push(cur);
+  }
+  return seq;
+}
+//// /groove 随机游走 ////
+
+module.exports = { GENRES, resolveGenre, walkGrooves };

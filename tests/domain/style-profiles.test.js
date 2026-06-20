@@ -5,7 +5,7 @@
 
 const { test } = require('node:test');
 const assert = require('node:assert');
-const { GENRES, resolveGenre } = require('../../src/domain/tts/style-profiles');
+const { GENRES, resolveGenre, walkGrooves } = require('../../src/domain/tts/style-profiles');
 const { compose, loadModel } = require('../../src/domain/tts/composer');
 
 //// 可重复种子随机源(mulberry32) [@x380kkm 2026-06-20] ////
@@ -29,6 +29,27 @@ test('resolveGenre yields a tonic from choices and a tempo in range', () => {
       assert.ok(r.profile && Array.isArray(r.profile.shapes) && r.profile.shapes.length > 0);
     }
   }
+});
+
+//// groove 随机游走:逐乐句给一个 groove,都在该风格的池内,带惯性(常沿用上一句),长序列里会出现切换 [@x380kkm 2026-06-20] ////
+test('walkGrooves yields an in-pool groove per phrase with inertia and some change', () => {
+  for (const name of Object.keys(GENRES)) {
+    const pool = new Set(GENRES[name].grooves);
+    const seq = walkGrooves(name, 4, seeded(name.length * 5 + 2));
+    assert.strictEqual(seq.length, 4);
+    for (const gv of seq) assert.ok(pool.has(gv), `${name} 游走出的 ${gv} 不在池内`);
+    // 惯性:相邻常相同 —— 至少出现过一次沿用(长池风格亦然)
+    let repeats = 0;
+    for (let i = 1; i < seq.length; i += 1) if (seq[i] === seq[i - 1]) repeats += 1;
+    assert.ok(repeats >= 1 || GENRES[name].grooves.length === 1, `${name} 的 groove 游走毫无惯性(每句都换)`);
+  }
+  // 多种子下整体应出现过切换(并非永远定在一个 groove)
+  let changed = false;
+  for (let s = 1; s <= 8 && !changed; s += 1) {
+    const seq = walkGrooves('jpop-upbeat', 6, seeded(s * 11 + 1));
+    if (new Set(seq).size > 1) changed = true;
+  }
+  assert.ok(changed, 'groove 游走从不切换,退化成静态选取');
 });
 
 //// 不同风格的旋律特征确实拉开:不是所有风格都落在同一调与同一音区 [@x380kkm 2026-06-20] ////
