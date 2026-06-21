@@ -170,6 +170,9 @@ def track_end_tick(events):
 SNARE_KEYS = {37, 38, 40}          # SideStick / AcousticSnare / ElectricSnare,均作军鼓族。
 HIHAT_KEYS = {42, 44, 46}          # Closed / Pedal / Open hi-hat。
 GHOST_NOTE = 38                    # 鬼音用原声军鼓键。
+TOMS = [45, 47, 48, 50]            # Low/LowMid/HiMid/High Tom:由低到高,作过门递进。
+CRASH = 49                         # Crash Cymbal 1:过门后落在下一小节正拍。
+FILL_EVERY = 4                     # 每隔几小节在末拍加一记过门(乐句衔接处)。
 
 
 def ornament_drums(track, ticks_per_beat, rng):
@@ -231,7 +234,27 @@ def ornament_drums(track, ticks_per_beat, rng):
                                          note=GHOST_NOTE, velocity=0, time=0)])
         ghost_added += 1
 
-    return to_track(events), ghost_added
+    #### 句末过门 ####
+    # 每隔 FILL_EVERY 小节,在该小节末拍加一段 16 分音符的 tom 递进过门、力度渐强,并在下一小节正拍落一记 crash,做乐句衔接的推进感。
+    fills_added = 0
+    nbars = end_tick // bar_ticks
+    for b in range(FILL_EVERY - 1, nbars, FILL_EVERY):
+        if b + 1 >= nbars:
+            continue  # 末小节不加,留出自然收尾。
+        base = b * bar_ticks + 3 * ticks_per_beat  # 该小节第 4 拍起。
+        rising = rng.random() < 0.7  # 多数上行递进,偶尔下行换花样。
+        toms = TOMS if rising else list(reversed(TOMS))
+        for i in range(4):
+            tick = base + i * sixteenth
+            vel = clamp_velocity(72 + i * 12 + rng.randint(-4, 4))  # 渐强冲向下一小节。
+            events.append([tick, mido.Message("note_on", channel=DRUM_CHANNEL, note=toms[i], velocity=vel, time=0)])
+            events.append([tick + max(1, sixteenth // 2), mido.Message("note_off", channel=DRUM_CHANNEL, note=toms[i], velocity=0, time=0)])
+        crash_tick = (b + 1) * bar_ticks
+        events.append([crash_tick, mido.Message("note_on", channel=DRUM_CHANNEL, note=CRASH, velocity=clamp_velocity(100 + rng.randint(0, 10)), time=0)])
+        events.append([crash_tick + sixteenth * 2, mido.Message("note_off", channel=DRUM_CHANNEL, note=CRASH, velocity=0, time=0)])
+        fills_added += 1
+
+    return to_track(events), ghost_added, fills_added
 
 
 #### 装饰二:和弦琶音化 ####
@@ -385,14 +408,15 @@ def process(in_path, out_path, seed=20240620):
     tempo = first_tempo(mid)
     tpb = mid.ticks_per_beat
 
-    stats = {"ghost_notes": 0, "arpeggiated_chords": 0, "overlaps_fixed": 0}
+    stats = {"ghost_notes": 0, "fills": 0, "arpeggiated_chords": 0, "overlaps_fixed": 0}
 
     new_tracks = []
     for track in mid.tracks:
         drum = is_drum_track(track)
         if drum:
-            track, ghosts = ornament_drums(track, tpb, rng)
+            track, ghosts, fills = ornament_drums(track, tpb, rng)
             stats["ghost_notes"] += ghosts
+            stats["fills"] += fills
         elif arpeggiation_candidate(track):
             track, chords = arpeggiate_block_chords(track, tpb, tempo, rng)
             stats["arpeggiated_chords"] += chords
@@ -419,8 +443,8 @@ def main(argv):
     dst_notes = sum(1 for tr in dst.tracks for m in tr if m.type == "note_on" and m.velocity > 0)
     print("ornament done:", argv[1], "->", argv[2])
     print("  note_on: %d -> %d (+%d)" % (src_notes, dst_notes, dst_notes - src_notes))
-    print("  ghost_notes=%d arpeggiated_chords=%d overlaps_fixed=%d"
-          % (stats["ghost_notes"], stats["arpeggiated_chords"], stats["overlaps_fixed"]))
+    print("  ghost_notes=%d fills=%d arpeggiated_chords=%d overlaps_fixed=%d"
+          % (stats["ghost_notes"], stats["fills"], stats["arpeggiated_chords"], stats["overlaps_fixed"]))
     return 0
 
 
