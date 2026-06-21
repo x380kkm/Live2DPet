@@ -46,7 +46,7 @@ test('walkGrooves yields an in-pool groove per phrase with inertia and some chan
   // 多种子下整体应出现过切换(并非永远定在一个 groove)
   let changed = false;
   for (let s = 1; s <= 8 && !changed; s += 1) {
-    const seq = walkGrooves('jpop-upbeat', 6, seeded(s * 11 + 1));
+    const seq = walkGrooves('s03', 6, seeded(s * 11 + 1));
     if (new Set(seq).size > 1) changed = true;
   }
   assert.ok(changed, 'groove 游走从不切换,退化成静态选取');
@@ -68,8 +68,8 @@ test('different genres produce distinct keys and registers', () => {
     }
     return sum / n;
   };
-  // 抒情(jpop-ballad)的平均音高应明显低于高能(janime-energetic),证明音区被风格拉开。
-  const gap = meanHigh('janime-energetic') - meanHigh('jpop-ballad');
+  // 抒情(s01,低主音)的平均音高应明显低于高能(s04,高主音),证明音区被风格拉开。
+  const gap = meanHigh('s04') - meanHigh('s01');
   assert.ok(gap > 3, `高能与抒情的均高差 ${gap.toFixed(1)} 太小,音区没拉开`);
   // 多个种子下用到多种不同主音(并非所有曲同调)。
   const tonics = new Set();

@@ -84,7 +84,7 @@ for (const s of song.layout) {
 fs.writeFileSync(`${prefix}.chart.mma`, lines.join('\n') + '\n');
 fs.writeFileSync(`${prefix}.chords.json`, JSON.stringify({ tonicMidi: g.tonicMidi, scale, spans: song.chords }));
 
-const recipe = pickRecipe(genre, seeded(seed * 101 + 13), g.hard);
+const recipe = pickRecipe(g, seeded(seed * 101 + 13));
 fs.writeFileSync(`${prefix}.arrange.json`, JSON.stringify(recipe));
 // 分段音节预算:每个独一段落音节化求每句音节数(供写词逐句对齐);复用段标 repeatOf 指回首次出现,提示复用同段歌词。
 const phrasesOfKey = {};
