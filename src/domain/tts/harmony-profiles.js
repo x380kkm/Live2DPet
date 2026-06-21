@@ -71,6 +71,19 @@ const COLORS = {
   children: { triad: 1 },
 };
 
+// 各和声档插入副属和弦(下一和弦的属七)的概率:音乐剧与复古摇摆离调色彩多、流行偶尔、电子与民谣与儿歌基本不用(电子求模态纯净、儿歌求简单)。
+const SECDOM = {
+  'anime-major': 0.1,
+  'anime-minor': 0.08,
+  'folk-major': 0.04,
+  'folk-minor': 0.04,
+  kpop: 0.08,
+  'hard-electronic-major': 0,
+  'hard-electronic-minor': 0,
+  musical: 0.22,
+  children: 0,
+};
+
 //// 按名取一套和声档:语料档惰性读盘并缓存,特征档取出,统一附上该风格的和弦色彩权重(返回浅拷贝,不动缓存) [@x380kkm 2026-06-21] ////
 const cache = {};
 function getHarmony(name) {
@@ -79,7 +92,7 @@ function getHarmony(name) {
   if (CHARACTERISTIC[name]) spec = CHARACTERISTIC[name];
   else if (CORPUS[name]) { if (!cache[name]) cache[name] = CORPUS[name](); spec = cache[name]; }
   else throw new Error(`未知和声档:${name}`);
-  return Object.assign({}, spec, { colors: COLORS[name] || { triad: 1 } });
+  return Object.assign({}, spec, { colors: COLORS[name] || { triad: 1 }, secDom: SECDOM[name] || 0 });
 }
 //// /按名取和声档 ////
 

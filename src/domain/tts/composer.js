@@ -10,7 +10,7 @@
 // 不变量：纯逻辑无副作用；随机源经 options.rng 注入（缺省 Math.random），便于测试可重复。
 
 const { SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE, VOCAL_RANGE, loadModel, snapToScale, buildLadder, nearestIn, pickWeighted } = require('./composer-util');
-const { CHORD_TRANS, triad, chordAt, walkProgression, chordDegrees } = require('./composer-harmony');
+const { CHORD_TRANS, triad, chordAt, secondaryDominant, walkProgression, chordDegrees } = require('./composer-harmony');
 const { BAR_PATTERNS, buildBlueprint, varyRhythm } = require('./composer-rhythm');
 
 // 乐句内的走向形状：把乐句进度 frac(0..1)映成目标音高的相对高低(0..1),不同形状给出不同旋律线,是消除「每句一个拱」雷同的关键。
@@ -169,6 +169,9 @@ function compose(options = {}) {
     const progDeg = walkProgression(harmony, mode, bars * 2, rng);
     const colors = (harmony && harmony.colors) || { triad: 1 };
     const chords = progDeg.map((d) => chordAt(harmonyScale, d, pickWeighted(colors, rng) || 'triad'));
+    // 副属和弦:按风格概率把某半小节换成下一和弦的属七(短暂离调张力,解决到下一和弦),丰富和声;不动末和弦(无下一个)。
+    const secDom = (harmony && harmony.secDom) || 0;
+    if (secDom) for (let i = 0; i < chords.length - 1; i += 1) if (rng() < secDom) chords[i] = secondaryDominant(chords[i + 1].root);
     const shape = shapes[shapeNo % shapes.length];
     const counterShape = shapes[(shapeNo + 1) % shapes.length]; // 第二声部用不同轮廓,走向与主声部分离
     shapeNo += 1;

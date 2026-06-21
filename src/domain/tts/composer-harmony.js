@@ -75,6 +75,14 @@ function walkProgression(spec, mode, n, rng) {
 }
 //// /随机游走出一条和弦进行 ////
 
+//// 造目标和弦的副属和弦(其属七和弦,相对主音音级):副属落在目标和弦根音上方五度,作短暂的离调张力再解决到目标,丰富和声色彩 [@x380kkm 2026-06-21] ////
+// targetRoot 为目标和弦的根音(相对主音 0-11);返回 { root, pcs } 为相对主音音级,pcs 含离调音(配器奏出色彩,旋律仍吸附回音阶)。
+function secondaryDominant(targetRoot) {
+  const r = ((targetRoot + 7) % 12 + 12) % 12;
+  return { root: r, pcs: [r, (r + 4) % 12, (r + 7) % 12, (r + 10) % 12] };
+}
+//// /造副属和弦 ////
+
 //// 列出某和弦在梯子上的和弦音度数（和弦音先吸附到旋律音阶），空则退回整把梯子 [@x380kkm 2026-06-20] ////
 function chordDegrees(chord, scaleSet, ladder) {
   const pcs = new Set(chord.pcs.map((pc) => nearestScalePc(((pc % 12) + 12) % 12, scaleSet)));
@@ -83,4 +91,4 @@ function chordDegrees(chord, scaleSet, ladder) {
 }
 //// /列出和弦音度数 ////
 
-module.exports = { CHORD_TRANS, CHORD_QUALITIES, triad, chordAt, walkProgression, chordDegrees };
+module.exports = { CHORD_TRANS, CHORD_QUALITIES, triad, chordAt, secondaryDominant, walkProgression, chordDegrees };
