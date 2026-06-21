@@ -69,6 +69,18 @@ const GENRES = {
   s22: { note: '合成流行快', model: 'pop909-major', harmony: 'kpop', tonics: [59, 60, 62], tempo: [124, 138], grooves: GROOVES.dance, profile: PROFILES.energetic, palette: PALETTES.dancePop },
   s23: { note: '民族器叙事', model: 'pop909-minor', harmony: 'anime-minor', tonics: [57, 59, 60], tempo: [92, 108], grooves: GROOVES.ballad, profile: PROFILES.gentle, palette: PALETTES.ethnicJP },
   s24: { note: '轻电子流行', model: 'pop909-major', harmony: 'hard-electronic-major', tonics: [59, 60, 62], tempo: [116, 128], grooves: GROOVES.dance, profile: PROFILES.flowing, palette: PALETTES.dancePop },
+  s25: { note: '钢琴小调抒情', model: 'pop909-minor', harmony: 'anime-minor', tonics: [56, 58, 60], tempo: [72, 88], grooves: GROOVES.ballad, profile: PROFILES.gentle, palette: PALETTES.piano },
+  s26: { note: '小调民谣', model: 'folk', harmony: 'folk-minor', tonics: [57, 59, 60], tempo: [90, 104], grooves: GROOVES.folk, profile: PROFILES.flowing, palette: PALETTES.folkAcoustic },
+  s27: { note: '电影感管弦快板', model: 'pop909-major', harmony: 'musical', tonics: [59, 60, 62], tempo: [120, 136], grooves: GROOVES.rock, profile: PROFILES.energetic, palette: PALETTES.orchestral },
+  s28: { note: '暗色八音盒', model: 'pop909-minor', harmony: 'anime-minor', tonics: [57, 59, 60], tempo: [84, 98], grooves: GROOVES.ballad, profile: PROFILES.dreamy, palette: PALETTES.musicbox },
+  s29: { note: '氛围流行中速', model: 'pop909-major', harmony: 'anime-major', tonics: [58, 60, 62], tempo: [100, 114], grooves: GROOVES.pop, profile: PROFILES.dreamy, palette: PALETTES.ambient },
+  s30: { note: '和风氛围慢', model: 'pop909-minor', harmony: 'anime-minor', tonics: [55, 57, 60], tempo: [72, 88], grooves: GROOVES.ballad, profile: PROFILES.dreamy, palette: PALETTES.ethnicJP },
+  s31: { note: '小调摇滚', model: 'pop909-minor', harmony: 'anime-minor', tonics: [57, 59, 60], tempo: [148, 164], grooves: GROOVES.rock, profile: PROFILES.energetic, palette: PALETTES.bandRock },
+  s32: { note: '小调舞曲', model: 'pop909-minor', harmony: 'hard-electronic-minor', tonics: [57, 59, 60], tempo: [116, 128], grooves: GROOVES.dance, profile: PROFILES.flowing, palette: PALETTES.dancePop },
+  s33: { note: '爵士钢琴摇摆', model: 'pop909-major', harmony: 'musical', tonics: [58, 60, 62], tempo: [100, 118], grooves: GROOVES.swing, profile: PROFILES.flowing, palette: PALETTES.piano },
+  s34: { note: '明亮原声快板', model: 'pop909-major', harmony: 'anime-major', tonics: [60, 62, 64], tempo: [132, 146], grooves: GROOVES.pop, profile: PROFILES.energetic, palette: PALETTES.acoustic },
+  s35: { note: '史诗管弦慢板', model: 'pop909-minor', harmony: 'musical', tonics: [55, 57, 59], tempo: [78, 94], grooves: GROOVES.ballad, profile: PROFILES.gentle, palette: PALETTES.orchestral },
+  s36: { note: '合成波中速', model: 'pop909-major', harmony: 'hard-electronic-major', tonics: [58, 60, 62], tempo: [112, 124], grooves: GROOVES.electronic, profile: PROFILES.flowing, palette: PALETTES.dancePop },
 };
 
 //// 从区间里按随机源定一首歌的具体配置:主音、速度、groove 各取一个,附配器调色板,其余照搬档案 [@x380kkm 2026-06-21] ////
