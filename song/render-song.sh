@@ -8,13 +8,15 @@
 ROOT=/w/AIPAT/Live2DPet
 cd "$ROOT" || exit 1
 FS="archive/audio-tools/fluidsynth/fluidsynth-v2.5.5-win10-x64-glib/bin/fluidsynth.exe"
-SF="archive/audio-tools/GeneralUser-GS.sf2"
 MMA="archive/audio-tools/mma-master/mma.py"
+# 三套 GM 音色库(均可商用可再分发):按种子随机选其一,逐曲音色不同;配器全按 GM 乐器号选音色,故换库零代码连锁。
+SFONTS=("archive/audio-tools/GeneralUser-GS.sf2" "archive/audio-tools/MuseScore_General.sf2" "archive/audio-tools/FluidR3_GM.sf2")
 
 genre="${1:-jpop-upbeat}"
 seed="${2:-$(node -e 'process.stdout.write(String(Math.floor(Math.random()*1e9)))')}"
 pfx="${3:-song/out/r-$genre-$seed}"
 vocal="${4:-ラ}"
+SF="${SFONTS[$((seed % 3))]}"
 
 need() { if [ ! -s "$1" ]; then echo "FAILED at: $2 (缺 $1) genre=$genre seed=$seed"; exit 1; fi; }
 
@@ -34,4 +36,4 @@ uv run --python 3.12 song/expression.py "$pfx.extra.mid" "$pfx.backing.mid" >/de
 "$FS" -ni -F "$pfx.backing.wav" -r 44100 -g 0.85 "$SF" "$pfx.backing.mid" >/dev/null 2>&1; need "$pfx.backing.wav" fluidsynth
 uv run --python 3.12 song/band-mix.py "$pfx.vocal.wav" "$pfx.backing.wav" "$pfx.meta.json" "$pfx.final.wav" >/dev/null 2>&1; need "$pfx.final.wav" band-mix
 uv run --python 3.12 song/compress-audio.py "$pfx.final.wav" >/dev/null 2>&1; need "$pfx.final.mp3" compress
-echo "RENDERED genre=$genre seed=$seed 调度=$(node -e "const a=require('./$pfx.arrange.json');console.log('lead'+a.leadProgram+' counter-'+a.counterMode+' strings-'+a.strings)") -> $pfx.final.mp3"
+echo "RENDERED genre=$genre seed=$seed sf=$(basename "$SF") 调度=$(node -e "const a=require('./$pfx.arrange.json');console.log('lead'+a.leadProgram+' counter-'+a.counterMode+' strings-'+a.strings)") -> $pfx.final.mp3"
