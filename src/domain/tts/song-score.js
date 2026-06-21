@@ -283,8 +283,33 @@ function hummingScore(melody, options = {}) {
 }
 //// /把旋律拼成哼唱 Score ////
 
+// 移动 do 唱名:每个相对主音的半音(0-11)对应一个片假名唱名,各为单 mora、VOICEVOX 原生可念。
+// 调内七音用标准 do re mi fa sol la si;♭3 ♭6 ♭7 等变化音(小调与经过音)用 メ セ テ,升音用 ディ フィ,避免与级进唱名同字。
+const SOLFEGE_KANA = ['ド', 'ディ', 'レ', 'メ', 'ミ', 'ファ', 'フィ', 'ソ', 'セ', 'ラ', 'テ', 'シ'];
+
+//// 把旋律拼成唱名 Score:每个音唱它相对主音的移动 do 唱名,绕开歌词咬字,音阶名本身即歌词 [@x380kkm 2026-06-21] ////
+// 中文歌词经日语引擎咬字不准时的替代:唱 do re mi 这类唱名,日语引擎原生发音干净、且听得出旋律的音级走向。
+// tonicMidi 为该曲主音(取自 singable.json),决定移动 do 的基准;花腔逐音各取自己的唱名。
+function solfegeScore(melody, options = {}) {
+  const bpm = options.bpm || 70;
+  const tonicMidi = options.tonicMidi != null ? options.tonicMidi : 60;
+  const leadRestBeats = options.leadRestBeats != null ? options.leadRestBeats : 0.25;
+  const tailRestBeats = options.tailRestBeats != null ? options.tailRestBeats : 0.25;
+  const nameOf = (key) => SOLFEGE_KANA[(((key - tonicMidi) % 12) + 12) % 12];
+  const seq = [{ key: null, lyric: '', beats: leadRestBeats }];
+  for (const entry of melody) {
+    if (entry.rest != null) { seq.push({ key: null, lyric: '', beats: entry.rest }); continue; }
+    const pairs = entry.notes || [[entry.note != null ? entry.note : entry.key, entry.beats]];
+    for (const [name, beats] of pairs) { const key = noteNameToMidi(name); seq.push({ key, lyric: nameOf(key), beats }); }
+  }
+  seq.push({ key: null, lyric: '', beats: tailRestBeats });
+  const frames = gridFrames(seq.map((x) => x.beats), bpm);
+  return { notes: seq.map((x, i) => ({ key: x.key, frame_length: frames[i], lyric: x.lyric })) };
+}
+//// /把旋律拼成唱名 Score ////
+
 module.exports = {
-  buildScore, hummingScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter,
+  buildScore, hummingScore, solfegeScore, noteNameToMidi, beatsToFrames, splitMoras, vowelOf, moraVowelLetter,
   nucleusVowelOfFinal, nucleusIndex, allocateWithNucleus, allocateMoraFrames, mostSonorousIndex,
   lyricsToSyllables, layoutSyllable, FRAMES_PER_SECOND,
 };
