@@ -1,3 +1,4 @@
 *.wav
 samples/eval/
 samples/analyze/
+*.melody.json

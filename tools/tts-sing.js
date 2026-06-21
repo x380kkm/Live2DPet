@@ -2,7 +2,7 @@
 // # tts-sing
 // 用歌唱声线把一首中文歌合成成 WAV:歌曲数据经 song-score 拼成曲谱,再走 VOICEVOX 歌唱合成。
 // 运行:node tools/tts-sing.js [曲名] [歌手样式id] [输出路径] [--hum[=假名]]
-//   曲名默认 molihua,歌手样式默认 3014(冥鸣),亦可传如 3047(ナースロボ＿タイプＴ)。
+//   曲名默认 molihua,歌手样式默认 3046(小夜/SAYO),亦可传如 3047(ナースロボ＿タイプＴ)。
 //   带 --hum 走哼唱(不唱歌词、每音符一个中性 mora,默认 ン,--hum=ラ 可换)。
 
 const path = require('path');
@@ -14,7 +14,7 @@ const { buildScore, hummingScore } = require('../src/domain/tts/song-score');
 // 波音リツ 的 sing 样式,作歌唱教师从曲谱推断音高与音量
 const TEACHER_STYLE_ID = 6000;
 // 默认歌手音色:冥鳴ひまり 的 frame_decode 样式;可由命令行参数覆盖
-const SINGER_STYLE_ID = 3014;
+const SINGER_STYLE_ID = 3046;
 
 const args = process.argv.slice(2);
 const humArg = args.find((a) => a.startsWith('--hum'));
