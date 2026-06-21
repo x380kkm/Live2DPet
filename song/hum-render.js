@@ -12,7 +12,7 @@ const { hummingScore, solfegeScore } = require('../src/domain/tts/song-score');
 
 const TEACHER = 6000;
 
-const [singablePath, metaPath, prefix = 'song/out/hum', mode = 'ラ'] = process.argv.slice(2);
+const [singablePath, metaPath, prefix = 'song/out/hum', mode = 'ン'] = process.argv.slice(2);
 const data = JSON.parse(fs.readFileSync(singablePath, 'utf8'));
 const meta = JSON.parse(fs.readFileSync(metaPath, 'utf8'));
 const singer = meta.singer || 3046;

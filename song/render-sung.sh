@@ -13,7 +13,7 @@ MMA="archive/audio-tools/mma-master/mma.py"
 # 三套 GM 音色库(均可商用可再分发):按种子随机选其一,逐曲音色不同;配器全按 GM 乐器号选音色,故换库零代码连锁。
 SFONTS=("archive/audio-tools/GeneralUser-GS.sf2" "archive/audio-tools/MuseScore_General.sf2" "archive/audio-tools/FluidR3_GM.sf2")
 
-genre="${1:-trance}"
+genre="${1:-s09}"
 seed="${2:?需要种子}"
 lyrics="${3:?需要歌词文件}"
 pfx="${4:-song/out/sung-$genre-$seed}"
