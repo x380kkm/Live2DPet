@@ -17,6 +17,9 @@ seed="${2:-$(node -e 'process.stdout.write(String(Math.floor(Math.random()*1e9))
 pfx="${3:-song/out/r-$genre-$seed}"
 vocal="${4:-ン}"
 SF="${SFONTS[$((seed % 3))]}"
+# 若该风格在调色板里声明了首选音色库(如民族器风格要 MuseScore 的 koto/shamisen),则用它,否则保持按种子随机。
+PREF=$(node -e "const{GENRES}=require('./src/domain/tts/style-profiles');const g=GENRES['$genre'];process.stdout.write((g&&g.palette&&g.palette.sf)||'')" 2>/dev/null)
+[ -n "$PREF" ] && [ -s "archive/audio-tools/$PREF" ] && SF="archive/audio-tools/$PREF"
 
 need() { if [ ! -s "$1" ]; then echo "FAILED at: $2 (缺 $1) genre=$genre seed=$seed"; exit 1; fi; }
 

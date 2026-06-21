@@ -39,7 +39,7 @@ const PALETTES = {
   theatrical: { leads: [0, 56, 57, 60, 48, 73], counter: ['sustained', 'fills', 'active'], strings: ['pad', 'pizz'], pad: 49, pianoArp: 0.4 },
   folkAcoustic: { leads: [24, 25, 105, 22, 11], counter: ['fills', 'sustained', 'active'], strings: ['none', 'pizz'], pad: 48, pianoArp: 0.3 },
   musicbox: { leads: [10, 8, 11, 12, 9], counter: ['fills', 'sustained', 'sustained'], strings: ['pizz', 'none'], pad: 89, pianoArp: 0.5 },
-  ethnicJP: { leads: [107, 106, 104, 105, 77], counter: ['fills', 'sustained', 'active'], strings: ['pizz', 'none'], pad: 49, pianoArp: 0.2 },
+  ethnicJP: { leads: [107, 106, 104, 105, 77], counter: ['fills', 'sustained', 'active'], strings: ['pizz', 'none'], pad: 49, pianoArp: 0.2, sf: 'MuseScore_General.sf2' },
   ambient: { leads: [88, 89, 52, 54, 98], counter: ['sustained', 'rise', 'fills'], strings: ['pad', 'pad'], pad: 89, pianoArp: 0.4 },
 };
 
