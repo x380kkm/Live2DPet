@@ -43,8 +43,8 @@ test('compose returns melody and half-bar chord spans', () => {
   }
 });
 
-//// 和声与旋律协调：强拍多数落在该半小节和弦音上（软偏置,允许少量经过音/倚音去方正） [@x380kkm 2026-06-20] ////
-test('most strong-beat notes land on the half-bar chord (soft harmony bias)', () => {
+//// 和声只作轻微吸引：强拍落和弦音的比例略高于随机基准即可,人声主要遵循语料、不被强拉上和弦音(强拉会逼出语料没有的跳进、听着怪) [@x380kkm 2026-06-22] ////
+test('strong-beat notes lean to chord tones only as a light nudge (corpus leads)', () => {
   let onChord = 0;
   let total = 0;
   for (let s = 1; s <= 6; s += 1) {
@@ -61,9 +61,9 @@ test('most strong-beat notes land on the half-bar chord (soft harmony bias)', ()
       if (span.pcs.includes(pc)) onChord += 1;
     }
   }
-  // 软偏置下大多数强拍仍落和弦音(和声清晰),但不强求全部(留出经过音的灵活)。
-  assert.ok(onChord / total >= 0.7, `强拍落和弦音比例 ${(onChord / total).toFixed(2)} 偏低,和声不清`);
-  assert.ok(onChord / total < 1.0, `强拍 100% 锁死和弦音,说明又退回硬锁、过于方正`);
+  // 轻微吸引:强拍落和弦音比例不低于随机基准(和声音约占音阶 3/7≈0.43,即不把旋律往离和弦的方向推),也远未被强拉锁死(留给语料主导)。
+  assert.ok(onChord / total >= 0.40, `强拍落和弦音比例 ${(onChord / total).toFixed(2)} 低于随机基准,和声在反向推旋律`);
+  assert.ok(onChord / total < 0.85, `强拍落和弦音比例 ${(onChord / total).toFixed(2)} 过高,旋律被强拉上和弦音、偏离语料`);
 });
 
 //// 生成音都落在该风格音阶上 [@x380kkm 2026-06-20] ////
