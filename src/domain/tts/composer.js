@@ -10,7 +10,7 @@
 // 不变量：纯逻辑无副作用；随机源经 options.rng 注入（缺省 Math.random），便于测试可重复。
 
 const { SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE, loadModel, snapToScale, buildLadder, nearestIn, pickWeighted } = require('./composer-util');
-const { CHORD_TRANS, triad, walkProgression, chordDegrees } = require('./composer-harmony');
+const { CHORD_TRANS, triad, chordAt, walkProgression, chordDegrees } = require('./composer-harmony');
 const { BAR_PATTERNS, buildBlueprint, varyRhythm } = require('./composer-rhythm');
 
 // 乐句内的走向形状：把乐句进度 frac(0..1)映成目标音高的相对高低(0..1),不同形状给出不同旋律线,是消除「每句一个拱」雷同的关键。
@@ -158,9 +158,10 @@ function compose(options = {}) {
   let shapeNo = 0;
   for (const letter of form) {
     if (blueprintOf[letter]) continue;
-    // 每半小节一个和弦:游走出 bars*2 个,和声按风格各自的和声档走动(转移表与和声节奏均按风格不同)。
+    // 每半小节一个和弦:游走出 bars*2 个,和声按风格各自的和声档走动(转移表与和声节奏均按风格不同),并按风格的色彩权重给每个和弦随机叠色彩(七/九/挂留等,均取自调内)。
     const progDeg = walkProgression(harmony, mode, bars * 2, rng);
-    const chords = progDeg.map((d) => triad(harmonyScale, d));
+    const colors = (harmony && harmony.colors) || { triad: 1 };
+    const chords = progDeg.map((d) => chordAt(harmonyScale, d, pickWeighted(colors, rng) || 'triad'));
     const shape = shapes[shapeNo % shapes.length];
     const counterShape = shapes[(shapeNo + 1) % shapes.length]; // 第二声部用不同轮廓,走向与主声部分离
     shapeNo += 1;

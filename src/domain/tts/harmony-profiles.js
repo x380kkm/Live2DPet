@@ -57,16 +57,29 @@ const CHARACTERISTIC = {
   },
 };
 
-//// 按名取一套和声档:语料档惰性读盘并缓存,特征档直接返回 [@x380kkm 2026-06-21] ////
+// 各和声档的和弦色彩权重:每个和弦按此随机取一种色彩(平三和弦/七和弦/加九/六和弦/挂二/挂四),色彩音都取自调内,丰富和声而不离调。
+// 各风格选不同色彩拉开听感:音乐剧浓郁多七九和弦、电子开放多挂留、流行偶尔加九、民谣与儿歌以平三和弦为主。
+const COLORS = {
+  'anime-major': { triad: 6, add9: 2, 7: 1 },
+  'anime-minor': { triad: 6, add9: 1, 7: 1 },
+  'folk-major': { triad: 8, sus4: 1, 6: 1 },
+  'folk-minor': { triad: 8, sus4: 1 },
+  kpop: { triad: 4, add9: 2, sus2: 1, 7: 1 },
+  'hard-electronic-major': { triad: 3, sus2: 2, sus4: 1, add9: 1 },
+  'hard-electronic-minor': { triad: 4, 7: 1, add9: 1, sus2: 1 },
+  musical: { triad: 3, 7: 3, add9: 2, 6: 1 },
+  children: { triad: 1 },
+};
+
+//// 按名取一套和声档:语料档惰性读盘并缓存,特征档取出,统一附上该风格的和弦色彩权重(返回浅拷贝,不动缓存) [@x380kkm 2026-06-21] ////
 const cache = {};
 function getHarmony(name) {
   if (!name) return null;
-  if (CHARACTERISTIC[name]) return CHARACTERISTIC[name];
-  if (CORPUS[name]) {
-    if (!cache[name]) cache[name] = CORPUS[name]();
-    return cache[name];
-  }
-  throw new Error(`未知和声档:${name}`);
+  let spec;
+  if (CHARACTERISTIC[name]) spec = CHARACTERISTIC[name];
+  else if (CORPUS[name]) { if (!cache[name]) cache[name] = CORPUS[name](); spec = cache[name]; }
+  else throw new Error(`未知和声档:${name}`);
+  return Object.assign({}, spec, { colors: COLORS[name] || { triad: 1 } });
 }
 //// /按名取和声档 ////
 

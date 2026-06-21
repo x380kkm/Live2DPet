@@ -28,12 +28,30 @@ const CHORD_TRANS = {
   },
 };
 
-//// 在某音阶上以某级为根叠三度成三和弦：返回根音级与三个音级（均为 0-11 音级） [@x380kkm 2026-06-20] ////
-function triad(scaleSet, degIndex) {
+// 各和弦色彩在音阶级上相对根音级的偏移(均为调内音,故旋律与配器仍不离调):平三和弦、七和弦、九和弦、加九、六和弦、挂二、挂四。
+const CHORD_QUALITIES = {
+  triad: [0, 2, 4],
+  7: [0, 2, 4, 6],
+  9: [0, 2, 4, 6, 8],
+  add9: [0, 2, 4, 8],
+  6: [0, 2, 4, 5],
+  sus2: [0, 1, 4],
+  sus4: [0, 3, 4],
+};
+
+//// 在某音阶上以某级为根按色彩叠和弦:返回根音级与各音级(均为 0-11 音级);色彩缺省为平三和弦,扩展音都取自音阶故不离调 [@x380kkm 2026-06-21] ////
+function chordAt(scaleSet, degIndex, quality = 'triad') {
   const L = scaleSet.length;
-  const idxs = [degIndex, degIndex + 2, degIndex + 4];
-  const pcs = idxs.map((i) => (scaleSet[i % L] + 12 * Math.floor(i / L)) % 12);
+  const offs = CHORD_QUALITIES[quality] || CHORD_QUALITIES.triad;
+  const idxs = offs.map((o) => degIndex + o);
+  const pcs = idxs.map((i) => (scaleSet[((i % L) + L) % L] + 12 * Math.floor(i / L)) % 12);
   return { root: scaleSet[degIndex % L] % 12, pcs };
+}
+//// /按色彩叠和弦 ////
+
+//// 在某音阶上以某级为根叠三度成平三和弦：返回根音级与三个音级（均为 0-11 音级） [@x380kkm 2026-06-20] ////
+function triad(scaleSet, degIndex) {
+  return chordAt(scaleSet, degIndex, 'triad');
 }
 //// /叠三度成三和弦 ////
 
@@ -65,4 +83,4 @@ function chordDegrees(chord, scaleSet, ladder) {
 }
 //// /列出和弦音度数 ////
 
-module.exports = { CHORD_TRANS, triad, walkProgression, chordDegrees };
+module.exports = { CHORD_TRANS, CHORD_QUALITIES, triad, chordAt, walkProgression, chordDegrees };
