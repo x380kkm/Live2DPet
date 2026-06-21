@@ -84,6 +84,19 @@ const SECDOM = {
   children: 0,
 };
 
+// 各和声档插入借用和弦(调式互换)的概率:bVII 等模态色彩在动漫摇滚与电子里常见,故动漫与电子给得多;音乐剧也用;民谣少、儿歌不用。
+const BORROW = {
+  'anime-major': 0.1,
+  'anime-minor': 0.08,
+  'folk-major': 0.04,
+  'folk-minor': 0.04,
+  kpop: 0.06,
+  'hard-electronic-major': 0.12,
+  'hard-electronic-minor': 0.1,
+  musical: 0.1,
+  children: 0,
+};
+
 //// 按名取一套和声档:语料档惰性读盘并缓存,特征档取出,统一附上该风格的和弦色彩权重(返回浅拷贝,不动缓存) [@x380kkm 2026-06-21] ////
 const cache = {};
 function getHarmony(name) {
@@ -92,7 +105,7 @@ function getHarmony(name) {
   if (CHARACTERISTIC[name]) spec = CHARACTERISTIC[name];
   else if (CORPUS[name]) { if (!cache[name]) cache[name] = CORPUS[name](); spec = cache[name]; }
   else throw new Error(`未知和声档:${name}`);
-  return Object.assign({}, spec, { colors: COLORS[name] || { triad: 1 }, secDom: SECDOM[name] || 0 });
+  return Object.assign({}, spec, { colors: COLORS[name] || { triad: 1 }, secDom: SECDOM[name] || 0, borrow: BORROW[name] || 0 });
 }
 //// /按名取和声档 ////
 

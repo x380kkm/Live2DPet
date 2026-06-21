@@ -83,6 +83,20 @@ function secondaryDominant(targetRoot) {
 }
 //// /造副属和弦 ////
 
+// 借用和弦(调式互换):大调向平行小调借 bVII、iv、bVI、bIII(摇滚/动漫/影视常用),小调向平行大调借 IV、V(更亮、可作和声小调终止)。均为相对主音音级。
+const BORROWED = {
+  major: [{ root: 10, pcs: [10, 2, 5] }, { root: 5, pcs: [5, 8, 0] }, { root: 8, pcs: [8, 0, 3] }, { root: 3, pcs: [3, 7, 10] }],
+  minor: [{ root: 5, pcs: [5, 9, 0] }, { root: 7, pcs: [7, 11, 2] }],
+};
+
+//// 按调式随机取一个借用和弦(调式互换色彩):大调借 bVII/iv/bVI/bIII、小调借 IV/V;离调音进配器,旋律仍吸附回音阶 [@x380kkm 2026-06-21] ////
+function borrowedChord(mode, rng) {
+  const pool = BORROWED[mode] || BORROWED.major;
+  const c = pool[Math.floor(rng() * pool.length)];
+  return { root: c.root, pcs: c.pcs.slice() };
+}
+//// /取借用和弦 ////
+
 //// 列出某和弦在梯子上的和弦音度数（和弦音先吸附到旋律音阶），空则退回整把梯子 [@x380kkm 2026-06-20] ////
 function chordDegrees(chord, scaleSet, ladder) {
   const pcs = new Set(chord.pcs.map((pc) => nearestScalePc(((pc % 12) + 12) % 12, scaleSet)));
@@ -91,4 +105,4 @@ function chordDegrees(chord, scaleSet, ladder) {
 }
 //// /列出和弦音度数 ////
 
-module.exports = { CHORD_TRANS, CHORD_QUALITIES, triad, chordAt, secondaryDominant, walkProgression, chordDegrees };
+module.exports = { CHORD_TRANS, CHORD_QUALITIES, triad, chordAt, secondaryDominant, borrowedChord, walkProgression, chordDegrees };
