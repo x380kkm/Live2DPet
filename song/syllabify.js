@@ -23,14 +23,15 @@ function syllabify(melody) {
   return out;
 }
 
-//// 取一个音在调内的上下邻音(绝对 MIDI):用于花腔运音落在音阶上 [@x380kkm 2026-06-21] ////
-function scaleNeighbors(key, tonicMidi, scaleSet) {
+//// 取一个音在调内的上下邻音(绝对 MIDI),并限制在音域 [lo,hi] 内:用于花腔运音落在音阶上且不冲出人声音域 [@x380kkm 2026-06-21] ////
+function scaleNeighbors(key, tonicMidi, scaleSet, lo, hi) {
   const lad = [];
-  for (let oct = -2; oct <= 9; oct += 1) for (const p of scaleSet) lad.push(tonicMidi + p + 12 * oct);
+  for (let oct = -2; oct <= 9; oct += 1) for (const p of scaleSet) { const v = tonicMidi + p + 12 * oct; if (v >= lo && v <= hi) lad.push(v); }
   lad.sort((a, b) => a - b);
   let i = lad.indexOf(key);
   if (i < 0) { let bd = 1e9; lad.forEach((v, j) => { const d = Math.abs(v - key); if (d < bd) { bd = d; i = j; } }); }
   const at = (j) => lad[Math.max(0, Math.min(lad.length - 1, j))];
+  // 越界时退回本音,使运音不超出音域(邻音等于本音即该处不动)。
   return { up: at(i + 1), up2: at(i + 2), down: at(i - 1), down2: at(i - 2) };
 }
 //// /取调内上下邻音 ////
@@ -59,7 +60,7 @@ function melismaRun(key, beats, nb, rng, end) {
 
 //// 给可唱旋律加花腔:把够长的音节(尤其句末)展开成同一音节上的调内运音,使演唱有拖腔而非一字一音的方块感 [@x380kkm 2026-06-21] ////
 // 花腔只增「一个音节内的音符数」,不改发声音节总数,故歌词逐音节对齐不变。需 scaleSet 与 tonicMidi 把运音锁在调上;prob 为句中长音加花腔的概率(句末必加)。
-function addMelisma(singable, { scaleSet, tonicMidi, rng, prob = 0.25 } = {}) {
+function addMelisma(singable, { scaleSet, tonicMidi, rng, prob = 0.25, lo = 0, hi = 127 } = {}) {
   if (!scaleSet) return singable;
   const r = rng || Math.random;
   const out = [];
@@ -70,7 +71,7 @@ function addMelisma(singable, { scaleSet, tonicMidi, rng, prob = 0.25 } = {}) {
     // 花腔宜稀不宜密:句末长音(不短于 1 拍)作收腔多半加;句中只对更长的音(不短于 1.5 拍)按低概率偶尔加。
     const eligible = isPhraseEnd ? (e.beats >= 1.0 && r() < 0.7) : (e.beats >= 1.5 && r() < prob);
     if (!eligible) { out.push(e); continue; }
-    const run = melismaRun(e.key, e.beats, scaleNeighbors(e.key, tonicMidi, scaleSet), r, isPhraseEnd);
+    const run = melismaRun(e.key, e.beats, scaleNeighbors(e.key, tonicMidi, scaleSet, lo, hi), r, isPhraseEnd);
     out.push(run.length === 1 ? { key: e.key, beats: e.beats } : { notes: run });
   }
   return out;

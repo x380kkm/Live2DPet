@@ -12,6 +12,8 @@ const SCALES = {
 };
 
 const BEATS_PER_BAR = 4;
+// 人声绝对音域硬界(MIDI):取自切蒲英 50 首语料的实测音域(最低 53=F3、最高 76=E5,留一格余量到 77),作所有风格人声的统一上下限,防旋律被移调推出源歌手唱过的音区。
+const VOCAL_RANGE = { lo: 53, hi: 77 };
 // 句间气口拍数：从非末句尾部刻出，留作换气，且保持每句严格等于整小节。
 const BREATH = 0.5;
 // 默认风格档案:旋律可唱窗口(相对主音半音上下界)、走向基线/振幅/抖动、可选轮廓形状、中跳抑制权重;缺省即既有行为。
@@ -104,6 +106,6 @@ function durKey(d) {
 //// /时值吸附与键格式化 ////
 
 module.exports = {
-  SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE,
+  SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE, VOCAL_RANGE,
   loadModel, pickWeighted, snapToScale, nearestScalePc, buildLadder, nearestIn, snapDur, durKey,
 };

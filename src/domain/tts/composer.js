@@ -9,7 +9,7 @@
 // 共享底层在 composer-util,和声在 composer-harmony,节奏在 composer-rhythm;本文件再导出它们的公开符号,外部仍只 require 本文件。
 // 不变量：纯逻辑无副作用；随机源经 options.rng 注入（缺省 Math.random），便于测试可重复。
 
-const { SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE, loadModel, snapToScale, buildLadder, nearestIn, pickWeighted } = require('./composer-util');
+const { SCALES, BEATS_PER_BAR, BREATH, DEFAULT_PROFILE, VOCAL_RANGE, loadModel, snapToScale, buildLadder, nearestIn, pickWeighted } = require('./composer-util');
 const { CHORD_TRANS, triad, chordAt, walkProgression, chordDegrees } = require('./composer-harmony');
 const { BAR_PATTERNS, buildBlueprint, varyRhythm } = require('./composer-rhythm');
 
@@ -149,9 +149,16 @@ function compose(options = {}) {
   // 五声调式的和声借用其母大调，使和弦功能成立，旋律仍吸附回五声。
   const mode = scale === 'minor' ? 'minor' : 'major';
   const harmonyScale = scale === 'minor' ? SCALES.minor : SCALES.diatonic;
-  const ladder = buildLadder(melodyScale, profile.register);
-  // 第二声部的「梯子」整体上移,使吉他线坐在人声上方、与人声错开音区。
-  const counterLadder = buildLadder(melodyScale, { lo: profile.register.lo + counterShift, hi: profile.register.hi + counterShift });
+  // 音域以语料学到的相对窗口为准(切蒲英 50 首训练出 model.register),再与绝对音域硬界相交,使旋律落在源歌手实际唱过的音区、不被移调推高。
+  const baseReg = model.register || profile.register;
+  const reg = { lo: Math.max(baseReg.lo, VOCAL_RANGE.lo - tonic), hi: Math.min(baseReg.hi, VOCAL_RANGE.hi - tonic) };
+  const ladder = buildLadder(melodyScale, reg);
+  // 第二声部(吉他)坐在人声上方、与人声错开音区,但同样设绝对上界(留比人声高一点的器乐余量),避免被推到极高。
+  const counterReg = {
+    lo: Math.max(baseReg.lo + counterShift, VOCAL_RANGE.lo - tonic),
+    hi: Math.min(baseReg.hi + counterShift, (VOCAL_RANGE.hi + 7) - tonic),
+  };
+  const counterLadder = buildLadder(melodyScale, counterReg);
 
   // 为曲式里每个字母各造一份「蓝图」:和弦进行（功能和声随机游走）、节奏骨架、主声部与第二声部各自的轮廓形状;重复字母复用同一蓝图。
   const blueprintOf = {};

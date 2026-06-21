@@ -8,6 +8,7 @@
 const fs = require('fs');
 const path = require('path');
 const { loadModel, SCALES } = require('../src/domain/tts/composer');
+const { VOCAL_RANGE } = require('../src/domain/tts/composer-util');
 const { composeSong } = require('../src/domain/tts/song-form');
 const { resolveGenre, GENRES } = require('../src/domain/tts/style-profiles');
 const { syllabify, syllableBudget, addMelisma } = require('./syllabify');
@@ -63,7 +64,7 @@ const sections = ROLES.map((r) => ({
 const song = composeSong(sections, seeded, { withCounter: true });
 
 // 音节化后加花腔:把够长的音节(尤其句末)展开成同一音节上的调内拖腔运音,使演唱有花腔而非一字一音;只增音节内音符、不改音节总数,故歌词对齐不变。
-const singable = addMelisma(syllabify(song.melody), { scaleSet: SCALES[scale] || SCALES.diatonic, tonicMidi: g.tonicMidi, rng: seeded(seed * 137 + 9) });
+const singable = addMelisma(syllabify(song.melody), { scaleSet: SCALES[scale] || SCALES.diatonic, tonicMidi: g.tonicMidi, rng: seeded(seed * 137 + 9), lo: VOCAL_RANGE.lo, hi: VOCAL_RANGE.hi });
 fs.writeFileSync(`${prefix}.singable.json`, JSON.stringify({ tempo: g.tempo, leadRestBeats: LEAD_REST_BEATS, tonicMidi: g.tonicMidi, scale, melody: singable }));
 // 第二声部作吉他对位线(原始逐音)。
 fs.writeFileSync(`${prefix}.lead.json`, JSON.stringify({ tempo: g.tempo, leadRestBeats: LEAD_REST_BEATS, melody: song.counter }));

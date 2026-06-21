@@ -174,7 +174,9 @@ def build_model(tlist, scale):
     chord_dur = collections.Counter()                            # 和声节奏:每个和弦持续的拍数分布
     chord_start = collections.Counter()                          # 起始和弦序号
     chord_tunes = 0
+    all_degs = []
     for degs, durs, chords in tlist:
+        all_degs.extend(degs)
         starts[(degs[0], degs[1])] += 1
         dur_start[durs[0]] += 1
         for i in range(2, len(degs)):
@@ -188,12 +190,17 @@ def build_model(tlist, scale):
                 chord_dur[dur] += 1
             for i in range(1, len(chords)):
                 chord_trans[chords[i - 1][0]][chords[i][0]] += 1
+    # 音域直接学自语料:取相对主音度数的 3/97 百分位作可唱窗口(剔除个别极值),让生成旋律落在源歌手实际唱过的音区。
+    sd = sorted(all_degs)
+    def pctl(p):
+        return sd[max(0, min(len(sd) - 1, int(p / 100 * len(sd))))] if sd else 0
     model = {
         "scale": scale,
         "pitch2": {f"{a},{b}": dict(c) for (a, b), c in pitch2.items()},
         "dur1": {str(a): {str(k): v for k, v in c.items()} for a, c in dur1.items()},
         "starts": {f"{a},{b}": v for (a, b), v in starts.items()},
         "durStart": {str(k): v for k, v in dur_start.items()},
+        "register": {"lo": pctl(3), "hi": pctl(97)},
         "tunes": len(tlist),
     }
     if chord_tunes:
