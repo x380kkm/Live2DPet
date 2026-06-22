@@ -17,10 +17,10 @@ function loadFrom(file, mode, holdProb) {
 
 // 语料学来的和声:动漫来自旋律模型里嫁接的 AnimeTAB chordify,民谣来自 Nottingham。
 const CORPUS = {
-  'anime-major': () => loadFrom('melody-model-anime-major.json', 'major', 0.1),
-  'anime-minor': () => loadFrom('melody-model-anime-minor.json', 'minor', 0.1),
-  'folk-major': () => loadFrom('chord-model-folk-major.json', 'major', 0.15),
-  'folk-minor': () => loadFrom('chord-model-folk-minor.json', 'minor', 0.15),
+  'anime-major': () => loadFrom('models/melody-model-anime-major.json', 'major', 0.1),
+  'anime-minor': () => loadFrom('models/melody-model-anime-minor.json', 'minor', 0.1),
+  'folk-major': () => loadFrom('models/chord-model-folk-major.json', 'major', 0.15),
+  'folk-minor': () => loadFrom('models/chord-model-folk-minor.json', 'minor', 0.15),
 };
 
 // 手写占位的特征和声:按各风格惯用进行设,刻意彼此区分;holdProb 体现和声节奏(电子慢、音乐剧快)。

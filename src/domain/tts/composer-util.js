@@ -28,7 +28,7 @@ const DEFAULT_PROFILE = {
 
 //// 按风格加载对应模型文件 [@x380kkm 2026-06-20] ////
 function loadModel(style) {
-  return require(`./melody-model-${style}.json`);
+  return require(`./models/melody-model-${style}.json`);
 }
 //// /按风格加载对应模型文件 ////
 
