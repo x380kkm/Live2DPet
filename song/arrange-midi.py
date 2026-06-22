@@ -217,7 +217,8 @@ def main():
     lead.append(mido.Message('control_change', channel=lead_ch, control=10, value=lead_pan, time=0))
     lead.append(mido.Message('control_change', channel=lead_ch, control=7, value=LEAD_VOL, time=0))
     lead.append(mido.Message('program_change', channel=lead_ch, program=lead_prog, time=0))
-    # 把对位副旋律事件转成绝对 tick 的 note on/off,再排序、差分编码
+    # 把对位副旋律事件转成绝对 tick 的 note on/off,再排序、差分编码;给吉他线偶尔加倚音(从下方半音/全音快速滑入),作器乐装饰、不碰人声。
+    grace_len = max(1, tpb // 8)   # 倚音时长约三十二分,短促一带而过。
     abs_ev = []
     for sb, db, pitch in flat_melody(json.load(open(lead_path, encoding='utf-8'))['melody']):
         on = round(sb * tpb)
@@ -225,6 +226,12 @@ def main():
         if off <= on:
             off = on + 1
         vel = max(70, min(115, 98 + rng.randint(-8, 8)))
+        # 够长的音按概率加倚音:在本音时值内先快速奏一个下方邻音,再落到本音,音符不越界、不与邻音叠。
+        if off - on > grace_len * 2 and rng.random() < 0.18:
+            gp = max(40, pitch - rng.choice([1, 2]))
+            abs_ev.append((on, mido.Message('note_on', channel=lead_ch, note=gp, velocity=max(50, vel - 22), time=0)))
+            abs_ev.append((on + grace_len, mido.Message('note_off', channel=lead_ch, note=gp, velocity=0, time=0)))
+            on += grace_len
         abs_ev.append((on, mido.Message('note_on', channel=lead_ch, note=pitch, velocity=vel, time=0)))
         abs_ev.append((off, mido.Message('note_off', channel=lead_ch, note=pitch, velocity=0, time=0)))
     abs_ev.sort(key=lambda x: x[0])
